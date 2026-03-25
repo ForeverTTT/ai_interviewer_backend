@@ -1,0 +1,236 @@
+{
+  "version": "1.0",
+  "description": "Technical domain knowledge for role-specific interview question generation",
+  "domains": [
+    {
+      "id": "software_frontend",
+      "keywords": ["frontend", "front-end", "react", "vue", "angular", "ui", "web developer", "javascript developer"],
+      "name": "Frontend / Web Development",
+      "topics": [
+        "Component architecture and state management (React/Vue/Angular)",
+        "Browser rendering performance and optimization (lazy loading, code splitting, virtual DOM)",
+        "TypeScript: generics, type guards, advanced patterns",
+        "CSS layout systems: Flexbox, Grid, responsive design",
+        "Web APIs: Fetch, WebSocket, Service Workers, Web Storage",
+        "Testing: unit testing with Jest/Vitest, E2E with Playwright/Cypress",
+        "Build tooling: Webpack, Vite, bundler configuration",
+        "Accessibility (ARIA, semantic HTML, keyboard navigation)",
+        "Security: XSS, CSRF, Content Security Policy",
+        "Design systems and component libraries"
+      ],
+      "common_question_patterns": [
+        "How do you handle state management in large React applications?",
+        "Explain the virtual DOM and when it becomes a performance bottleneck.",
+        "How would you optimize the initial load time of a web application?",
+        "What's your approach to writing accessible web interfaces?"
+      ]
+    },
+    {
+      "id": "software_backend",
+      "keywords": ["backend", "back-end", "api", "node", "python developer", "java developer", "spring", "server", "microservices"],
+      "name": "Backend / API Development",
+      "topics": [
+        "RESTful API design principles (versioning, authentication, error handling)",
+        "Database design: relational vs. NoSQL, indexing, query optimization",
+        "Authentication & Authorization: JWT, OAuth 2.0, session management",
+        "Microservices architecture: service discovery, load balancing, circuit breakers",
+        "Message queues: RabbitMQ, Kafka, async processing patterns",
+        "Caching strategies: Redis, CDN, application-level caching",
+        "Containerization: Docker, Kubernetes basics",
+        "CI/CD pipelines and deployment strategies",
+        "Security: SQL injection, rate limiting, input validation",
+        "Logging, monitoring, and observability (Prometheus, Grafana)"
+      ],
+      "common_question_patterns": [
+        "How do you design a scalable REST API?",
+        "Explain database indexing and when you would use a composite index.",
+        "How would you handle high traffic spikes in a backend service?",
+        "What's the difference between horizontal and vertical scaling?"
+      ]
+    },
+    {
+      "id": "software_fullstack",
+      "keywords": ["fullstack", "full-stack", "full stack", "software engineer", "software developer", "web engineer"],
+      "name": "Full-Stack Software Engineering",
+      "topics": [
+        "System design: designing scalable, maintainable systems end-to-end",
+        "API design and frontend-backend integration patterns",
+        "Database selection and schema design",
+        "Authentication flows (OAuth, JWT, session cookies)",
+        "Performance optimization at each layer (frontend, backend, database)",
+        "Deployment architectures: cloud (AWS/GCP/Azure), serverless, containers",
+        "Testing strategy: unit, integration, and E2E testing",
+        "Code quality: code reviews, refactoring, SOLID principles",
+        "Version control workflows (Git branching strategies)",
+        "Agile/Scrum development practices"
+      ],
+      "common_question_patterns": [
+        "Design a simple URL shortener service from scratch.",
+        "How do you decide when to use a SQL vs NoSQL database?",
+        "Walk me through how you would architect a new feature end-to-end.",
+        "How do you approach debugging a performance issue in production?"
+      ]
+    },
+    {
+      "id": "data_science",
+      "keywords": ["data science", "machine learning", "ml engineer", "ai", "data analyst", "nlp", "computer vision", "deep learning"],
+      "name": "Data Science / Machine Learning",
+      "topics": [
+        "Supervised vs. unsupervised learning: algorithms, use cases, trade-offs",
+        "Model evaluation: precision/recall, ROC-AUC, cross-validation, overfitting",
+        "Feature engineering: encoding, normalization, handling missing data",
+        "Deep learning: neural network architectures, backpropagation, regularization",
+        "Large Language Models: fine-tuning, RAG, prompt engineering",
+        "Data pipelines: ETL, data cleaning, pandas/PySpark",
+        "Statistics: hypothesis testing, confidence intervals, A/B testing",
+        "MLOps: model deployment, monitoring, drift detection, MLflow",
+        "SQL for data analysis: window functions, CTEs, aggregations",
+        "Experiment design and causal inference"
+      ],
+      "common_question_patterns": [
+        "How would you handle a highly imbalanced dataset?",
+        "Explain the bias-variance trade-off.",
+        "How do you detect and handle data drift in a deployed model?",
+        "Walk me through how you would design an A/B test for a new feature."
+      ]
+    },
+    {
+      "id": "data_engineering",
+      "keywords": ["data engineer", "etl", "pipeline", "spark", "kafka", "airflow", "databricks", "big data", "warehouse"],
+      "name": "Data Engineering",
+      "topics": [
+        "Data pipeline architecture: batch vs. streaming (Spark, Kafka, Flink)",
+        "Data warehouse design: star schema, snowflake schema, dimensional modeling",
+        "ETL vs. ELT: when to use each, tools (dbt, Airbyte, Fivetran)",
+        "Data quality: validation, testing, monitoring pipelines",
+        "SQL optimization for large datasets: partitioning, clustering",
+        "Cloud data platforms: BigQuery, Redshift, Snowflake, Azure Synapse",
+        "Orchestration: Apache Airflow, Dagster, Prefect",
+        "Data governance: lineage, cataloging, access control",
+        "API integration and data ingestion patterns",
+        "Infrastructure as code for data (Terraform, CloudFormation)"
+      ],
+      "common_question_patterns": [
+        "How would you design a real-time data pipeline for event tracking?",
+        "What's the difference between a data lake and a data warehouse?",
+        "How do you ensure data quality in an automated pipeline?",
+        "Explain partitioning strategies in distributed storage systems."
+      ]
+    },
+    {
+      "id": "product_management",
+      "keywords": ["product manager", "product owner", "pm", "product management", "product lead"],
+      "name": "Product Management",
+      "topics": [
+        "Product discovery: user research, problem framing, opportunity sizing",
+        "Prioritization frameworks: RICE, MoSCoW, value vs. effort matrix",
+        "Metrics and KPIs: defining success, funnel analysis, cohort analysis",
+        "Roadmap planning: stakeholder alignment, quarterly planning",
+        "Agile methodologies: sprint planning, backlog grooming, user stories",
+        "A/B testing and experimentation culture",
+        "Competitive analysis and market positioning",
+        "Technical literacy: working with engineering teams, API/system understanding",
+        "Go-to-market strategy and launch planning",
+        "Customer feedback loops: NPS, interviews, usability testing"
+      ],
+      "common_question_patterns": [
+        "How do you decide what to build next when resources are limited?",
+        "Tell me about a product decision you made with incomplete data.",
+        "How do you handle conflicting priorities from different stakeholders?",
+        "How would you measure the success of a new feature after launch?"
+      ]
+    },
+    {
+      "id": "consulting_business",
+      "keywords": ["consultant", "consulting", "business analyst", "strategy", "management consultant", "unternehmensberater"],
+      "name": "Business Consulting / Strategy",
+      "topics": [
+        "Structured problem solving: MECE principle, issue trees",
+        "Business frameworks: Porter's Five Forces, BCG matrix, SWOT",
+        "Market sizing and estimation (Fermi problems)",
+        "Case interview structure: problem framing, hypothesis-driven approach",
+        "Financial literacy: P&L, EBITDA, NPV, ROI analysis",
+        "Slide-based communication: pyramid principle, executive summaries",
+        "Change management and organizational transformation",
+        "Industry knowledge: relevant sectors in Germany (automotive, manufacturing, fintech)",
+        "Client management and stakeholder engagement",
+        "Data-driven storytelling and recommendation synthesis"
+      ],
+      "common_question_patterns": [
+        "How would you approach sizing the market for electric vehicles in Germany?",
+        "A client's profitability is declining — how do you diagnose the issue?",
+        "How do you structure a recommendation when you have conflicting data?",
+        "What would you advise a traditional German Mittelstand company entering a new market?"
+      ]
+    },
+    {
+      "id": "finance",
+      "keywords": ["finance", "financial analyst", "investment", "banking", "controlling", "treasury", "fintech", "risk"],
+      "name": "Finance / Controlling",
+      "topics": [
+        "Financial statement analysis: income statement, balance sheet, cash flow",
+        "Valuation methods: DCF, comparable company analysis, precedent transactions",
+        "Financial modeling: Excel/Python-based models, scenario analysis",
+        "Risk management: market risk, credit risk, operational risk",
+        "Budgeting and forecasting: rolling forecasts, variance analysis",
+        "KPIs in finance: EBITDA, working capital, free cash flow, WACC",
+        "German accounting standards: HGB vs. IFRS differences",
+        "Controlling in German companies: cost center analysis, contribution margins",
+        "Investment appraisal: NPV, IRR, payback period",
+        "Regulatory compliance: MiFID II, Basel III (for banking roles)"
+      ],
+      "common_question_patterns": [
+        "Walk me through how you would value a mid-sized German company.",
+        "What's the difference between EBITDA and free cash flow?",
+        "How would you build a three-statement financial model?",
+        "What are the key differences between HGB and IFRS accounting?"
+      ]
+    },
+    {
+      "id": "engineering_mechanical",
+      "keywords": ["mechanical", "mechatronics", "automotive", "manufacturing", "production", "konstruktion", "maschinenbau"],
+      "name": "Mechanical / Automotive Engineering",
+      "topics": [
+        "CAD/CAE tools: CATIA, SolidWorks, ANSYS, Simulink",
+        "FEM analysis and structural simulation",
+        "Thermodynamics and fluid mechanics fundamentals",
+        "Manufacturing processes: CNC, additive manufacturing, injection molding",
+        "Automotive systems: powertrain, chassis, ADAS, electrification (EV/HEV)",
+        "Quality management: FMEA, 8D, ISO 9001, IATF 16949",
+        "Project management in engineering: Gantt charts, milestone planning",
+        "Materials science: fatigue, stress-strain, material selection",
+        "Systems engineering and requirements management",
+        "Sustainability and Lifecycle Assessment (LCA)"
+      ],
+      "common_question_patterns": [
+        "How would you approach a structural failure analysis?",
+        "Explain the difference between static and dynamic loading in mechanical design.",
+        "How do you apply FMEA in a product development process?",
+        "What are the main engineering challenges in developing electric vehicle powertrains?"
+      ]
+    },
+    {
+      "id": "marketing",
+      "keywords": ["marketing", "digital marketing", "brand", "growth", "content", "seo", "social media", "marketing manager"],
+      "name": "Marketing & Growth",
+      "topics": [
+        "Digital marketing channels: SEO, SEA, social media, email, content",
+        "Marketing analytics: attribution models, CLV, CAC, ROAS",
+        "Campaign management: A/B testing, audience segmentation, personalization",
+        "Brand strategy and positioning in the German market",
+        "CRM and marketing automation (Salesforce, HubSpot, Marketo)",
+        "Performance marketing: Google Ads, Meta Ads, programmatic",
+        "Content strategy: SEO-driven content, editorial calendars",
+        "Market research: qualitative and quantitative methods",
+        "Growth hacking techniques and product-led growth",
+        "Privacy regulations affecting marketing: GDPR implications"
+      ],
+      "common_question_patterns": [
+        "How do you measure the ROI of a brand awareness campaign?",
+        "What's your approach to setting up a new digital marketing channel?",
+        "How do you balance short-term performance metrics with long-term brand building?",
+        "What GDPR considerations would you apply to an email marketing campaign?"
+      ]
+    }
+  ]
+}

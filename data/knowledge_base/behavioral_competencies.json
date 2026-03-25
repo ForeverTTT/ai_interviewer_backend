@@ -1,0 +1,96 @@
+{
+  "version": "1.0",
+  "description": "STAR-based behavioral competencies for German job interviews",
+  "competencies": [
+    {
+      "id": "teamwork",
+      "name": "Teamwork & Collaboration",
+      "name_de": "Teamarbeit & Zusammenarbeit",
+      "description": "Ability to work effectively within a team, contribute to group goals, and support colleagues.",
+      "description_de": "Fähigkeit, effektiv im Team zu arbeiten, zu Gruppenzielen beizutragen und Kollegen zu unterstützen.",
+      "star_cues": ["How did you coordinate?", "What was your specific role?", "How did you handle disagreements?"],
+      "german_context": "Relevant for Praktikum, Werkstudent, group thesis, or university project teams."
+    },
+    {
+      "id": "problem_solving",
+      "name": "Problem Solving Under Pressure",
+      "name_de": "Problemlösung unter Druck",
+      "description": "Ability to identify problems, analyze options, and implement solutions in challenging situations.",
+      "description_de": "Fähigkeit, Probleme zu identifizieren, Optionen zu analysieren und Lösungen in herausfordernden Situationen umzusetzen.",
+      "star_cues": ["What was the challenge?", "What options did you consider?", "What was the outcome?"],
+      "german_context": "Common in thesis projects, deadlines during Studium, or urgent tasks at Werkstudent jobs."
+    },
+    {
+      "id": "initiative",
+      "name": "Initiative & Proactivity",
+      "name_de": "Initiative & Eigeninitiative",
+      "description": "Taking action without being asked, identifying opportunities for improvement, going beyond assigned tasks.",
+      "description_de": "Handeln ohne Aufforderung, Verbesserungsmöglichkeiten erkennen, über zugewiesene Aufgaben hinausgehen.",
+      "star_cues": ["What made you take action?", "Was this your idea?", "What was the impact?"],
+      "german_context": "Highly valued in German companies — Eigeninitiative is specifically mentioned in many job descriptions."
+    },
+    {
+      "id": "adaptability",
+      "name": "Adaptability & Learning Agility",
+      "name_de": "Anpassungsfähigkeit & Lernbereitschaft",
+      "description": "Ability to quickly adapt to new environments, tools, requirements, or feedback.",
+      "description_de": "Fähigkeit, sich schnell an neue Umgebungen, Tools, Anforderungen oder Feedback anzupassen.",
+      "star_cues": ["What changed unexpectedly?", "How did you learn?", "How quickly did you adapt?"],
+      "german_context": "Important during Praktikum in new industry, switching tech stack, or new team environments."
+    },
+    {
+      "id": "communication",
+      "name": "Communication & Stakeholder Management",
+      "name_de": "Kommunikation & Stakeholder-Management",
+      "description": "Ability to communicate clearly, manage expectations, and present complex information accessibly.",
+      "description_de": "Fähigkeit, klar zu kommunizieren, Erwartungen zu managen und komplexe Informationen verständlich darzustellen.",
+      "star_cues": ["Who was your audience?", "How did you adjust your message?", "What was the reaction?"],
+      "german_context": "Presentations, written reports, cross-functional meetings in German corporate culture."
+    },
+    {
+      "id": "leadership",
+      "name": "Leadership & Taking Ownership",
+      "name_de": "Führung & Verantwortung übernehmen",
+      "description": "Taking responsibility for outcomes, leading others informally or formally, driving results.",
+      "description_de": "Verantwortung für Ergebnisse übernehmen, andere informell oder formal führen, Ergebnisse vorantreiben.",
+      "star_cues": ["Why did you step up?", "How did you motivate others?", "What was the result?"],
+      "german_context": "Even as a student, leading a seminar group, thesis project, or student organization."
+    },
+    {
+      "id": "conflict_resolution",
+      "name": "Conflict Resolution",
+      "name_de": "Konfliktlösung",
+      "description": "Handling disagreements professionally, finding compromise, maintaining working relationships.",
+      "description_de": "Meinungsverschiedenheiten professionell handhaben, Kompromisse finden, Arbeitsbeziehungen aufrechterhalten.",
+      "star_cues": ["What was the root cause?", "How did you approach the other person?", "Was the relationship preserved?"],
+      "german_context": "Direct communication style expected in Germany — avoiding conflict is not valued."
+    },
+    {
+      "id": "time_management",
+      "name": "Time Management & Prioritization",
+      "name_de": "Zeitmanagement & Priorisierung",
+      "description": "Managing multiple tasks, meeting deadlines, prioritizing effectively under competing demands.",
+      "description_de": "Mehrere Aufgaben verwalten, Fristen einhalten, effektiv priorisieren bei konkurrierenden Anforderungen.",
+      "star_cues": ["How did you decide what to prioritize?", "Did you meet the deadline?", "What would you do differently?"],
+      "german_context": "Punctuality and reliability (Pünktlichkeit, Zuverlässigkeit) are core values in German work culture."
+    },
+    {
+      "id": "failure_learning",
+      "name": "Learning from Failure",
+      "name_de": "Lernen aus Misserfolgen",
+      "description": "Acknowledging mistakes openly, extracting lessons, and applying them to future work.",
+      "description_de": "Fehler offen eingestehen, Lektionen ziehen und sie auf zukünftige Arbeit anwenden.",
+      "star_cues": ["What went wrong?", "What did you learn?", "How did you apply the lesson?"],
+      "german_context": "German interviewers appreciate intellectual honesty and systematic learning from mistakes."
+    },
+    {
+      "id": "cross_cultural",
+      "name": "Cross-Cultural Collaboration",
+      "name_de": "Interkulturelle Zusammenarbeit",
+      "description": "Working effectively with people from different cultural backgrounds, adapting communication style.",
+      "description_de": "Effektives Arbeiten mit Menschen aus verschiedenen kulturellen Hintergründen, Kommunikationsstil anpassen.",
+      "star_cues": ["What cultural differences did you notice?", "How did you bridge them?", "What did you learn?"],
+      "german_context": "Very relevant for international students applying to German companies — speak to your own experience."
+    }
+  ]
+}
