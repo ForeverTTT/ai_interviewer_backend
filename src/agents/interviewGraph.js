@@ -33,7 +33,7 @@ function makeLLM(opts = {}) {
     apiKey:          process.env.GEMINI_API_KEY,
     temperature:     opts.temperature    ?? 0.8,
     streaming:       opts.streaming      ?? true,
-    maxOutputTokens: opts.maxTokens      ?? 120,
+    maxOutputTokens: opts.maxTokens      ?? 512,
   })
 }
 
@@ -43,7 +43,7 @@ let feedbackLLM = null
 
 function ensureLLMs() {
   if (!analyzerLLM) analyzerLLM = makeLLM({ temperature: 0.3,  streaming: true, maxTokens: 512 })
-  if (!responseLLM) responseLLM = makeLLM({ temperature: 0.85, streaming: true, maxTokens: 120 })
+  if (!responseLLM) responseLLM = makeLLM({ temperature: 0.85, streaming: true, maxTokens: 512 })
   if (!feedbackLLM) feedbackLLM = makeLLM({ temperature: 0.75, streaming: true, maxTokens: 2048 })
 }
 
