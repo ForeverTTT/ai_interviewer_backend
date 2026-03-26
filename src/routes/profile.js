@@ -1,5 +1,4 @@
 import { Router } from 'express'
-import { PDFParse } from 'pdf-parse'
 import { supabase, supabaseForUser } from '../lib/supabase.js'
 import { requireAuth } from '../middleware/auth.js'
 import { assertGeminiConfigured, invokeGemini, stripJsonFence } from '../lib/geminiText.js'
@@ -112,10 +111,35 @@ async function translateCoachPayloadToUi(payload, uiCode) {
   return out
 }
 
+async function extractPdfText(buffer) {
+  let parser = null
+  try {
+    const mod = await import('pdf-parse')
+    const PDFParse = mod?.PDFParse
+    if (typeof PDFParse !== 'function') throw new Error('pdf parser unavailable')
+    parser = new PDFParse({ data: buffer })
+    const result = await parser.getText()
+    return String(result?.text || '').replace(/\u0000/g, '').trim()
+  } finally {
+    if (parser && typeof parser.destroy === 'function') {
+      try {
+        await parser.destroy()
+      } catch {
+        // ignore parser cleanup errors
+      }
+    }
+  }
+}
+
 const RESUME_COACH_SYSTEM = `You are an expert CV/resume coach for students and early-career candidates applying to internships, Werkstudent roles, and grad roles in Germany and the EU.
 Analyze ONLY the resume text provided. Do not invent employers, degrees, or projects that are not implied by the text.
 
-FORMATTING RULE: The ONLY allowed markdown inside string values is **bold** (double asterisks). Use it to highlight key phrases — action verbs, missing evidence labels, example sentence openers, critical advice words. Bold sparingly: 1–3 spans per string. No headers, no code fences, no other markdown.
+FORMATTING RULE:
+- The ONLY allowed markdown inside string values is **bold** (double asterisks). No headers, no code fences.
+- MANDATORY: Do NOT use special characters like dots (●, •, 🌑, ⦿, etc.), stars, or checkboxes for listing. 
+- Use ONLY standard plain text lines. If listing multiple points in a single field (like 'after' or 'rewriteExample'), use a single standard dash '-' followed by a space at the start of each line.
+- Each point MUST be on its own new line (use \n for line breaks).
+- Bold sparing: 1–3 spans per string for key actions/results.
 
 Return a single JSON object (no markdown fences) with this exact shape:
 {
@@ -143,7 +167,7 @@ Priority and method:
 Rules:
 - Use integers for scores 1-10. Let "impact" partly reflect STAR-quality of experience/project bullets.
 - priorityImprovements: 2-4 items, highest impact first — focus on storytelling and evidence in **experience and projects**, not skills ordering unless ATS-critical.
-- moduleDeepDives: **2-4 items**. When the resume has work and/or project sections, **at least two** moduleDeepDives must target **Work experience** and/or **Projects**. before/after examples should illustrate STAR where applicable. Use Education or other sections only if they are the main weakness.
+- moduleDeepDives: **3-5 items**. MANDATORY: Each 'moduleDeepDive' MUST target exactly ONE specific phrase or cohesive bullet point for improvement. Do NOT bundle multiple unrelated changes into a single before/after example. One specific issue = one separate entry. This ensures the 'Before' and 'After' comparison is extremely focused and clear. before/after examples should illustrate STAR where applicable. Use Education or other sections only if they are the main weakness.
 - positioning: 1-3 cards about Germany/EU hiring context vs target role.
 - Do NOT output lists of generic interview questions (salary, visa, long-term goals, availability, strengths/weaknesses, etc.). Focus on the CV as a document.
 - actionChecklist: 3-5 items with priority starting at 1; prioritize STAR upgrades to experience/projects over skills tweaks.
@@ -156,8 +180,9 @@ const CV_EXTRACT_SYSTEM = `You extract structured profile data from resume/CV pl
 Rules:
 - Output a single JSON object (no markdown fences). Use the exact keys below.
 - Do NOT invent employers, degrees, projects, or papers not supported by the text. Use empty string or empty array if unknown.
-- Preserve the candidate's language in free-text fields when the resume is not English (e.g. Chinese or German descriptions).
-- Dates can be strings like "2024-10", "Oct 2024", or "至今" / "Present" when appropriate.
+- Preserve the candidate's language in free-text fields when the resume is not English.
+- Dates can be strings like "2024-10", "Oct 2024", or "至今" / "Present".
+- CLEAN TEXT: Do NOT output special characters like black dots (●, •, 🌑), emojis, or fancy bullets. Use standard dashes '-' for lists if necessary, but prefer clean plain text strings for each array element.
 
 Required JSON shape:
 {
@@ -170,13 +195,13 @@ Required JSON shape:
   "website": "string",
   "summary": "string — 2-4 sentence professional summary if inferable, else empty",
   "workExperience": [
-    { "company": "string", "title": "string", "location": "string", "startDate": "string", "endDate": "string", "highlights": "string — bullets as one text block" }
+    { "company": "string", "title": "string", "location": "string", "startDate": "string", "endDate": "string", "highlights": ["string", "string"] }
   ],
   "education": [
-    { "institution": "string", "degree": "string", "field": "string", "startDate": "string", "endDate": "string", "gpa": "string", "details": "string" }
+    { "institution": "string", "degree": "string", "field": "string", "startDate": "string", "endDate": "string", "gpa": "string", "details": ["string", "string"] }
   ],
   "projects": [
-    { "name": "string", "role": "string", "startDate": "string", "endDate": "string", "description": "string", "technologies": "string" }
+    { "name": "string", "role": "string", "startDate": "string", "endDate": "string", "description": ["string", "string"], "technologies": "string" }
   ],
   "publications": [
     { "title": "string", "venue": "string", "year": "string", "authors": "string", "url": "string" }
@@ -301,10 +326,8 @@ router.post('/resume/parse-pdf', requireAuth, async (req, res) => {
     return res.status(413).json({ error: 'PDF too large' })
   }
 
-  const parser = new PDFParse({ data: buf })
   try {
-    const textResult = await parser.getText()
-    const text = (textResult.text || '').replace(/\u0000/g, '').trim()
+    const text = await extractPdfText(buf)
     return res.json({
       text,
       charCount: text.length,
@@ -313,10 +336,6 @@ router.post('/resume/parse-pdf', requireAuth, async (req, res) => {
   } catch (e) {
     console.error('[parse-pdf]', e)
     return res.status(400).json({ error: 'Could not parse PDF' })
-  } finally {
-    try {
-      await parser.destroy()
-    } catch { /* ignore */ }
   }
 })
 
@@ -416,7 +435,11 @@ ${resume.slice(0, 48_000)}
 
     const { error } = await db
       .from('profiles')
-      .update({ resume_coach: payload, resume_updated_at: new Date().toISOString() })
+      .update({
+        resume_coach: payload,
+        resume_updated_at: new Date().toISOString(),
+        profile_json: { ...(row.profile_json || {}), coach_cache: {} },
+      })
       .eq('id', req.user.id)
 
     if (error) {
@@ -438,18 +461,33 @@ router.post('/resume-coach/translate', requireAuth, async (req, res) => {
   const coachUiLanguage = typeof req.body?.coachUiLanguage === 'string' ? req.body.coachUiLanguage : ''
   const bodyCoach = req.body?.coach && typeof req.body.coach === 'object' ? req.body.coach : null
   try {
-    let baseCoach = bodyCoach
-    if (!baseCoach) {
-      const db = dbFor(req)
-      const row = await ensureProfileRow(req.user.id, db)
-      baseCoach = row.resume_coach ?? null
-    }
+    const db = dbFor(req)
+    const row = await ensureProfileRow(req.user.id, db)
+    let baseCoach = bodyCoach || row.resume_coach || null
+
     if (!baseCoach || typeof baseCoach !== 'object') {
       return res.status(404).json({ error: 'No coach report found' })
     }
 
+    const pjson = row.profile_json || {}
+    const cache = pjson.coach_cache || {}
+    const targetLang = uiCodeToTargetLang(coachUiLanguage)
+
+    // If cache hit for this specific language and same report timestamp
+    if (cache[targetLang] && cache[targetLang].generatedAt === baseCoach.generatedAt) {
+      return res.json({ coach: cache[targetLang], cached: true })
+    }
+
     const translated = await translateCoachPayloadToUi(baseCoach, coachUiLanguage)
-    return res.json({ coach: translated })
+
+    // Persist to cache
+    cache[targetLang] = translated
+    await db
+      .from('profiles')
+      .update({ profile_json: { ...pjson, coach_cache: cache } })
+      .eq('id', req.user.id)
+
+    return res.json({ coach: translated, cached: false })
   } catch (err) {
     console.error('[resume-coach/translate]', err)
     return res.status(500).json({ error: 'Translate coach failed' })

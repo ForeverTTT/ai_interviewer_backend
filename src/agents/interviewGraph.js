@@ -34,6 +34,12 @@ function makeLLM(opts = {}) {
     temperature:     opts.temperature    ?? 0.8,
     streaming:       opts.streaming      ?? true,
     maxOutputTokens: opts.maxTokens      ?? 512,
+    safetySettings: [
+      { category: 'HARM_CATEGORY_HARASSMENT',         threshold: 'BLOCK_NONE' },
+      { category: 'HARM_CATEGORY_HATE_SPEECH',        threshold: 'BLOCK_NONE' },
+      { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_NONE' },
+      { category: 'HARM_CATEGORY_DANGEROUS_CONTENT',  threshold: 'BLOCK_NONE' },
+    ],
   })
 }
 
@@ -42,9 +48,9 @@ let responseLLM = null
 let feedbackLLM = null
 
 function ensureLLMs() {
-  if (!analyzerLLM) analyzerLLM = makeLLM({ temperature: 0.3,  streaming: true, maxTokens: 512 })
-  if (!responseLLM) responseLLM = makeLLM({ temperature: 0.85, streaming: true, maxTokens: 512 })
-  if (!feedbackLLM) feedbackLLM = makeLLM({ temperature: 0.75, streaming: true, maxTokens: 2048 })
+  if (!analyzerLLM) analyzerLLM = makeLLM({ temperature: 0.3,  streaming: true, maxTokens: 1024 })
+  if (!responseLLM) responseLLM = makeLLM({ temperature: 0.85, streaming: true, maxTokens: 1024 })
+  if (!feedbackLLM) feedbackLLM = makeLLM({ temperature: 0.75, streaming: true, maxTokens: 4096 })
 }
 
 const InterviewStateAnnotation = Annotation.Root({
@@ -176,7 +182,9 @@ async function analyzeAnswerNode(state) {
 
   let analysis = {}
   try {
-    const jsonMatch = response.content.match(/\{[\s\S]*\}/)
+    const rawContent = typeof response.content === 'string' ? response.content : JSON.stringify(response.content)
+    console.warn('[Analyzer Output]:', rawContent.slice(0, 500))
+    const jsonMatch = rawContent.match(/\{[\s\S]*\}/)
     if (jsonMatch) analysis = JSON.parse(jsonMatch[0])
   } catch {
     analysis = { notes: response.content, suggested_focus: '', end_interview: false }
@@ -227,6 +235,8 @@ async function generateOpeningNode(state) {
     new HumanMessage(trigger),
   ])
 
+  console.warn('[Opening Output]:', response.content)
+
   return {
     messages:          [response],
     phase:             'questioning',
@@ -262,6 +272,8 @@ async function askExploreNode(state) {
     ...toGeminiMessages(rawMessages, 6, 'Next question. 50 words max.'),
   ])
 
+  console.warn('[Explore Output]:', response.content)
+
   return {
     messages:      [response],
     planIndex:     planIndex + 1,
@@ -295,6 +307,8 @@ async function askTechnicalNode(state) {
     new SystemMessage(systemPrompt),
     ...toGeminiMessages(rawMessages, 6, 'Next question. 50 words max.'),
   ])
+
+  console.warn('[Technical Output]:', response.content)
 
   return {
     messages:       [response],
@@ -333,6 +347,8 @@ async function askBehavioralNode(state) {
     new SystemMessage(systemPrompt),
     ...toGeminiMessages(rawMessages, 6, 'Next question. 50 words max.'),
   ])
+
+  console.warn('[Behavioral Output]:', response.content)
 
   return {
     messages:        [response],

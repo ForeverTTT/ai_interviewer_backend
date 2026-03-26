@@ -15,9 +15,9 @@ Read the mock interview transcript and return ONE JSON object only. No markdown 
 
 FORMATTING RULES:
 - Every field is plain UTF-8 text. The ONLY allowed markdown is **bold**: wrap key phrases in double asterisks, e.g. **STAR method** or **quantified result**.
-- Use **bold** to highlight: core concepts, action verbs, missing evidence labels, example sentence openers, and the most important advice per bullet.
+- Use **bold** to highlight: core concepts, action verbs, missing evidence labels, example sentence openers, numbers/metrics, and the most important advice per bullet.
 - Do NOT use headers (#), code fences, underscores, or any other markdown.
-- Bold sparingly — 1 to 3 bold spans per string, only the most important words.
+- Bold use target: 2 to 5 bold spans per string for analysis-heavy fields (qaReview.gaps, qaReview.howToImprove, transcriptLineReview.parse/improvements/modelAnswer). Keep readability.
 
 JSON schema (types only):
 {
@@ -48,24 +48,119 @@ JSON schema (types only):
 Content rules:
 - summary: 1 to 3 short paragraphs as separate strings (overall performance, role fit).
 - strengths: separate string per point; if none, one string explaining why.
-- toImprove: 2 to 6 objects; each must have non-empty title, why, and how (concrete, respectful). If inappropriate language occurred, address calmly under toImprove.
-- qaReview: REQUIRED. Walk the transcript in order. For each substantive interviewer turn (skip tiny fillers like "thank you" only), pair with the candidate's following reply.
-  - Include at least 3 rounds and at most 10 rounds (prioritize technical, behavioral, and experience questions).
-  - gaps: 2 to 4 short bullets per round comparing the candidate's answer to referenceExample (missing metrics, unclear role, no STAR result, etc.).
-  - referenceExample must be realistic for the job title and job description excerpt; plain text, no markdown symbols.
-- transcriptLineReview: REQUIRED. The user message includes numbered transcript lines (0, 1, 2, …). Emit EXACTLY one object per line, same count and order as those indices.
-  - Each object: index (integer, 0-based), parse, improvements (array), modelAnswer (string).
-  - ASSISTANT / interviewer lines: parse = what this message is driving at (brief); improvements = [] or at most one short note; modelAnswer = "".
-  - USER / candidate lines: parse = factual recap of their wording (no invention); improvements = 2 to 4 bullets (concrete gaps vs a strong answer); modelAnswer = a polished standard answer they could give (not claiming they said it).
-  - Keep each field concise if the transcript is long (parse under ~200 characters; user modelAnswer under ~600 characters) so the full array fits.
+- toImprove: 2 to 6 objects; each must have non-empty title, why, and how.
+- qaReview: REQUIRED. Walk the transcript in order. Pair substantive interviewer turns with the candidate's reply.
+  - Include at least 3 rounds and at most 10 rounds.
+  - questionSummary and yourAnswerSummary: Concise summary of the round.
+  - referenceExample: Realistic model answer for the JD, plain text, no markdown, no bracket placeholders.
+  - gaps and howToImprove: Analysis of the performance.
+- transcriptLineReview: REQUIRED. Emit EXACTLY one object per numbered line index.
+  - parse and improvements: Analytical recap and tips.
+  - modelAnswer: For USER lines, provide a polished standard answer (not claiming they said it). For ASSISTANT lines, use "".
+  - Keep fields concise (parse < 200 chars, modelAnswer < 600 chars).
 
-Follow the LANGUAGE instruction in the user message for the language of all string values.`
+ALL string values MUST be written in the "Interview language" specified in the user message. Do NOT translate analysis to any other language.`
 
 function reportUiLanguageLine(code) {
   const c = String(code || 'en').toLowerCase()
   if (c.startsWith('zh')) return 'LANGUAGE: Write every string value in Simplified Chinese (简体中文).'
   if (c.startsWith('de')) return 'LANGUAGE: Write every string value in German.'
   return 'LANGUAGE: Write every string value in English.'
+}
+
+function uiCodeToTargetLang(uiCode) {
+  const c = String(uiCode || '').toLowerCase().trim()
+  if (c.startsWith('zh')) return 'zh-CN'
+  if (c.startsWith('de')) return 'de'
+  return 'en'
+}
+
+function shouldTranslateText(v) {
+  const s = String(v || '').trim()
+  if (!s) return false
+  if (/^[\d\s.,;:!?()\-–—/\\]+$/.test(s)) return false
+  return true
+}
+
+async function translateTextViaPlugin(text, targetLang) {
+  const q = String(text || '').trim()
+  if (!q) return ''
+  try {
+    const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=${encodeURIComponent(targetLang)}&dt=t&q=${encodeURIComponent(q)}`
+    const r = await fetch(url)
+    if (!r.ok) return q
+    const data = await r.json()
+    const parts = Array.isArray(data?.[0]) ? data[0].map((x) => x?.[0]).filter(Boolean) : []
+    const out = parts.join('').trim()
+    return out || q
+  } catch {
+    return q
+  }
+}
+
+/**
+ * Translate ONLY analysis blocks for report UI locale.
+ * Keep qaReview and transcriptLineReview in original language as requested.
+ */
+async function translateInterviewReportToUi(payload, uiCode) {
+  const targetLang = uiCodeToTargetLang(uiCode)
+  const cache = new Map()
+  const tr = async (v) => {
+    const s = String(v || '')
+    if (!shouldTranslateText(s)) return s
+    const key = `${targetLang}::${s}`
+    if (cache.has(key)) return cache.get(key)
+    const translated = await translateTextViaPlugin(s, targetLang)
+    cache.set(key, translated)
+    return translated
+  }
+
+  return {
+    ...payload,
+    summary: await Promise.all((Array.isArray(payload?.summary) ? payload.summary : []).map(tr)),
+    strengths: await Promise.all((Array.isArray(payload?.strengths) ? payload.strengths : []).map(tr)),
+    toImprove: await Promise.all(
+      (Array.isArray(payload?.toImprove) ? payload.toImprove : []).map(async (x) => ({
+        ...x,
+        title: await tr(x?.title),
+        why: await tr(x?.why),
+        how: await tr(x?.how),
+      })),
+    ),
+    // Keep only original Q/A summaries unchanged in QA compare.
+    qaReview: Array.isArray(payload?.qaReview)
+      ? await Promise.all(payload.qaReview.map(async (x) => ({
+        ...x,
+        questionSummary: await tr(x?.questionSummary),
+        yourAnswerSummary: String(x?.yourAnswerSummary || ''),
+        referenceExample: String(x?.referenceExample || ''),
+        gaps: await Promise.all((Array.isArray(x?.gaps) ? x.gaps : []).map(tr)),
+        howToImprove: await tr(x?.howToImprove),
+      })))
+      : [],
+    // Keep raw transcript unchanged on frontend; translate analysis fields only.
+    transcriptLineReview: Array.isArray(payload?.transcriptLineReview)
+      ? await Promise.all(payload.transcriptLineReview.map(async (x) => ({
+        ...x,
+        parse: await tr(x?.parse),
+        improvements: await Promise.all((Array.isArray(x?.improvements) ? x.improvements : []).map(tr)),
+        modelAnswer: String(x?.modelAnswer || ''),
+      })))
+      : [],
+  }
+}
+
+function parseJsonObjectOrNull(raw) {
+  if (!raw) return null
+  if (typeof raw === 'object') return raw
+  if (typeof raw === 'string') {
+    try {
+      return JSON.parse(raw)
+    } catch {
+      return null
+    }
+  }
+  return null
 }
 
 function normalizeReportJson(raw) {
@@ -239,10 +334,10 @@ router.post('/:id/finalize', requireAuth, async (req, res) => {
 
     const transcriptText = formatMessagesForPrompt(messages)
     const numberedLines = formatNumberedTranscriptLines(messages)
-    const userPayload = `${reportUiLanguageLine(reportUiLanguage)}
-
-Job title: ${iv.position}
-Interview language: ${iv.language}
+    const userPayload = `LANGUAGE: Write every string value in the EXACT "Interview language" specified below. Do NOT translate any part of the report into another language.
+ 
+ Job title: ${iv.position}
+ Interview language: ${iv.language}
 Duration (minutes): ${iv.duration}
 Job description (excerpt): ${String(iv.job_description || '').slice(0, 4000)}
 
@@ -276,7 +371,7 @@ Return the JSON object now.`
       report_json: reportJson,
       report_markdown: null,
       status: 'completed',
-      report_ui_locale: String(reportUiLanguage ?? 'en').slice(0, 32),
+      report_ui_locale: String(iv.language || 'en').slice(0, 32),
     }
 
     let updated, upErr
@@ -346,7 +441,7 @@ router.post('/:id/transcript', requireAuth, async (req, res) => {
       .update({ transcript_json: sanitized })
       .eq('id', id)
       .eq('user_id', req.user.id)
-      .select('id, transcript_json, updated_at')
+      .select('id, transcript_json, created_at')
       .maybeSingle()
 
     if (error) {
@@ -389,6 +484,94 @@ router.get('/:id', requireAuth, async (req, res) => {
     return res.json({ interview: data })
   } catch (err) {
     console.error('[GET /interviews/:id]', err)
+    return res.status(500).json({ error: 'Internal server error' })
+  }
+})
+
+/**
+ * POST /api/interviews/:id/report/translate
+ * Translate report analysis blocks to current UI language.
+ * NOTE: Keeps qaReview + transcript-related content in original language.
+ */
+router.post('/:id/report/translate', requireAuth, async (req, res) => {
+  const { id } = req.params
+  const reportUiLanguage = req.body?.reportUiLanguage
+  const reportInput = parseJsonObjectOrNull(req.body?.report)
+
+  try {
+    const { data: iv, error: fetchErr } = await dbFor(req)
+      .from('interviews')
+      .select('*')
+      .eq('id', id)
+      .eq('user_id', req.user.id)
+      .maybeSingle()
+
+    if (fetchErr || !iv) {
+      return res.status(fetchErr ? 500 : 404).json({ error: fetchErr ? 'Database error' : 'Interview not found' })
+    }
+
+    const base = reportInput || parseJsonObjectOrNull(iv.report_json)
+    if (!base) return res.status(400).json({ error: 'report_json not found for translation' })
+
+    const uiLocale = String(reportUiLanguage ?? 'en').slice(0, 32)
+    const normalizedBase = normalizeReportJson(base)
+    
+    // Check persistent cache inside report_json
+    const cache = base._translations || {}
+    if (cache[uiLocale]) {
+      // If we have it, only update the top-level report and locale in DB
+      const resultReport = { ...cache[uiLocale], _translations: cache }
+      await dbFor(req)
+        .from('interviews')
+        .update({ report_json: resultReport, report_ui_locale: uiLocale })
+        .eq('id', id)
+        .eq('user_id', req.user.id)
+      
+      return res.json({ interview: { ...iv, report_json: resultReport, report_ui_locale: uiLocale }, report: resultReport })
+    }
+
+    // Miss: Translate and persist to cache
+    const translated = await translateInterviewReportToUi(normalizedBase, reportUiLanguage)
+    
+    // We also want to cache the "original" (pre-translation) if not already cached
+    // and if the current top-level is different from the target
+    const currentLocale = iv.report_ui_locale || iv.language || 'en'
+    if (!cache[currentLocale]) {
+      cache[currentLocale] = normalizedBase
+    }
+    cache[uiLocale] = translated
+
+    const nextReportJson = { ...translated, _translations: cache }
+
+    let updated, upErr
+    ;({ data: updated, error: upErr } = await dbFor(req)
+      .from('interviews')
+      .update({ report_json: nextReportJson, report_ui_locale: uiLocale })
+      .eq('id', id)
+      .eq('user_id', req.user.id)
+      .select('*')
+      .single())
+
+    if (upErr && /column|does not exist|schema cache/i.test(String(upErr.message || upErr))) {
+      const { data: fallbackUpdated, error: fallbackErr } = await dbFor(req)
+        .from('interviews')
+        .update({ report_json: nextReportJson })
+        .eq('id', id)
+        .eq('user_id', req.user.id)
+        .select('*')
+        .single()
+      updated = fallbackUpdated
+      upErr = fallbackErr
+    }
+
+    if (upErr) {
+      console.error('[POST /interviews/:id/report/translate] update', upErr)
+      return res.status(500).json({ error: 'Failed to save translated report', details: upErr.message })
+    }
+
+    return res.json({ interview: updated, report: nextReportJson })
+  } catch (err) {
+    console.error('[POST /interviews/:id/report/translate]', err)
     return res.status(500).json({ error: 'Internal server error' })
   }
 })
