@@ -6,26 +6,105 @@ import { assertGeminiConfigured, invokeGemini, stripJsonFence } from '../lib/gem
 
 const router = Router()
 
-/** UI language for coach narrative; resume language only for rewriteExample + moduleDeepDives.after */
-function coachUiLanguageLine(uiCode) {
-  const c = String(uiCode || '').toLowerCase().trim()
-  let uiLine
-  if (c.startsWith('zh')) uiLine = 'UI_LANGUAGE: Simplified Chinese (简体中文).'
-  else if (c.startsWith('de')) uiLine = 'UI_LANGUAGE: German (Deutsch).'
-  else uiLine = 'UI_LANGUAGE: English.'
+function coachUiLanguageLine(_uiCode) {
+  return `OUTPUT_LANGUAGE: Write most narrative strings in clear, natural English. The server will translate these to the UI language.
 
-  return `${uiLine}
-
-RESUME_LANGUAGE: From the resume text below, detect its primary language. Write ONLY these fields in that resume language (do NOT translate them to the UI language):
-- priorityImprovements[].rewriteExample (when present)
+RESUME_LANGUAGE: Detect the primary language of the resume text. Keep ONLY these fields in the resume language (do NOT switch them to English):
+- priorityImprovements[].rewriteExample
 - moduleDeepDives[].after
 
-Write ALL OTHER narrative string values in the UI_LANGUAGE above:
-overallEvaluation; macroInsights; highlights; priorityImprovements[].title, problem, suggestedAction; moduleDeepDives[].moduleTitle, finding, whyImportant, modificationSuggestion; positioning (title, content); actionChecklist (title, expectedOutcome).
+moduleDeepDives[].before should stay as a short excerpt/quote from the original resume wording.`
+}
 
-moduleDeepDives[].before: a short excerpt or quote from the resume — keep the original wording (same language as the resume).
+function uiCodeToTargetLang(uiCode) {
+  const c = String(uiCode || '').toLowerCase().trim()
+  if (c.startsWith('zh')) return 'zh-CN'
+  if (c.startsWith('de')) return 'de'
+  return 'en'
+}
 
-If resume language and UI language coincide, all strings naturally align.`
+function shouldTranslateText(v) {
+  const s = String(v || '').trim()
+  if (!s) return false
+  // Keep tiny symbol-only strings unchanged.
+  if (/^[\d\s.,;:!?()\-–—/\\]+$/.test(s)) return false
+  return true
+}
+
+async function translateTextViaPlugin(text, targetLang) {
+  const q = String(text || '').trim()
+  if (!q) return ''
+  try {
+    const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=${encodeURIComponent(targetLang)}&dt=t&q=${encodeURIComponent(q)}`
+    const r = await fetch(url)
+    if (!r.ok) return q
+    const data = await r.json()
+    const parts = Array.isArray(data?.[0]) ? data[0].map((x) => x?.[0]).filter(Boolean) : []
+    const out = parts.join('').trim()
+    return out || q
+  } catch {
+    return q
+  }
+}
+
+async function translateCoachPayloadToUi(payload, uiCode) {
+  const targetLang = uiCodeToTargetLang(uiCode)
+
+  const cache = new Map()
+  const tr = async (v) => {
+    const s = String(v || '')
+    if (!shouldTranslateText(s)) return s
+    const key = `${targetLang}::${s}`
+    if (cache.has(key)) return cache.get(key)
+    const translated = await translateTextViaPlugin(s, targetLang)
+    cache.set(key, translated)
+    return translated
+  }
+
+  const out = {
+    ...payload,
+    overallEvaluation: await tr(payload.overallEvaluation),
+    macroInsights: await Promise.all((Array.isArray(payload.macroInsights) ? payload.macroInsights : []).map(tr)),
+    highlights: await Promise.all((Array.isArray(payload.highlights) ? payload.highlights : []).map(tr)),
+    priorityImprovements: await Promise.all(
+      (Array.isArray(payload.priorityImprovements) ? payload.priorityImprovements : []).map(async (p) => ({
+        ...p,
+        title: await tr(p?.title),
+        problem: await tr(p?.problem),
+        suggestedAction: await tr(p?.suggestedAction),
+        // Keep rewrite examples in resume language.
+        rewriteExample: String(p?.rewriteExample || ''),
+      })),
+    ),
+    moduleDeepDives: await Promise.all(
+      (Array.isArray(payload.moduleDeepDives) ? payload.moduleDeepDives : []).map(async (m) => ({
+        ...m,
+        moduleTitle: await tr(m?.moduleTitle),
+        finding: await tr(m?.finding),
+        whyImportant: await tr(m?.whyImportant),
+        modificationSuggestion: await tr(m?.modificationSuggestion),
+        // Keep resume excerpt and modified sentence in resume language.
+        before: String(m?.before || ''),
+        after: String(m?.after || ''),
+      })),
+    ),
+    positioning: await Promise.all(
+      (Array.isArray(payload.positioning) ? payload.positioning : []).map(async (p) => ({
+        ...p,
+        title: await tr(p?.title),
+        content: await tr(p?.content),
+      })),
+    ),
+    actionChecklist: await Promise.all(
+      (Array.isArray(payload.actionChecklist) ? payload.actionChecklist : []).map(async (a) => ({
+        ...a,
+        title: await tr(a?.title),
+        expectedOutcome: await tr(a?.expectedOutcome),
+      })),
+    ),
+  }
+
+  return out
 }
 
 const RESUME_COACH_SYSTEM = `You are an expert CV/resume coach for students and early-career candidates applying to internships, Werkstudent roles, and grad roles in Germany and the EU.
@@ -64,7 +143,9 @@ Rules:
 - Do NOT output lists of generic interview questions (salary, visa, long-term goals, availability, strengths/weaknesses, etc.). Focus on the CV as a document.
 - actionChecklist: 3-5 items with priority starting at 1; prioritize STAR upgrades to experience/projects over skills tweaks.
 
-Follow the dual-language rules in the user message: use UI language for analysis and advice; use resume language only for priorityImprovements.rewriteExample and moduleDeepDives.after; keep moduleDeepDives.before as an excerpt from the resume.`
+Write narrative analysis/advice in English so the server can translate it to the selected UI language.
+Keep ONLY priorityImprovements.rewriteExample and moduleDeepDives.after in the resume's primary language.
+Keep moduleDeepDives.before as an original resume excerpt.`
 
 const CV_EXTRACT_SYSTEM = `You extract structured profile data from resume/CV plain text only.
 Rules:
@@ -309,7 +390,7 @@ ${resume.slice(0, 48_000)}
       ? parsed.macroInsights.map((x) => String(x || '').trim()).filter(Boolean).slice(0, 8)
       : []
 
-    const payload = {
+    const payloadRaw = {
       generatedAt: new Date().toISOString(),
       targetRole: targetRole || null,
       overallEvaluation: parsed.overallEvaluation || '',
@@ -321,6 +402,7 @@ ${resume.slice(0, 48_000)}
       positioning: Array.isArray(parsed.positioning) ? parsed.positioning : [],
       actionChecklist: Array.isArray(parsed.actionChecklist) ? parsed.actionChecklist : [],
     }
+    const payload = await translateCoachPayloadToUi(payloadRaw, coachUiLanguage)
 
     const { error } = await supabase
       .from('profiles')
@@ -336,6 +418,30 @@ ${resume.slice(0, 48_000)}
   } catch (err) {
     console.error('[resume-coach]', err)
     return res.status(500).json({ error: 'Resume coach failed' })
+  }
+})
+
+/** POST /api/profile/resume-coach/translate
+ * Translate existing coach payload to current UI language without re-generating analysis.
+ */
+router.post('/resume-coach/translate', requireAuth, async (req, res) => {
+  const coachUiLanguage = typeof req.body?.coachUiLanguage === 'string' ? req.body.coachUiLanguage : ''
+  const bodyCoach = req.body?.coach && typeof req.body.coach === 'object' ? req.body.coach : null
+  try {
+    let baseCoach = bodyCoach
+    if (!baseCoach) {
+      const row = await ensureProfileRow(req.user.id)
+      baseCoach = row.resume_coach ?? null
+    }
+    if (!baseCoach || typeof baseCoach !== 'object') {
+      return res.status(404).json({ error: 'No coach report found' })
+    }
+
+    const translated = await translateCoachPayloadToUi(baseCoach, coachUiLanguage)
+    return res.json({ coach: translated })
+  } catch (err) {
+    console.error('[resume-coach/translate]', err)
+    return res.status(500).json({ error: 'Translate coach failed' })
   }
 })
 
