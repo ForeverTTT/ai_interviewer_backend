@@ -8,9 +8,11 @@ const router = Router()
 const REPORT_JSON_SYSTEM = `You are an expert interview coach for internships and early-career hiring in Germany and Europe.
 Read the mock interview transcript and return ONE JSON object only. No markdown code fences. No text before or after the JSON.
 
-STRICT FORMATTING RULES:
-- Never use asterisks (*), underscores for emphasis, hash marks, or any Markdown.
-- Every field must be plain UTF-8 text suitable for UI list rendering.
+FORMATTING RULES:
+- Every field is plain UTF-8 text. The ONLY allowed markdown is **bold**: wrap key phrases in double asterisks, e.g. **STAR method** or **quantified result**.
+- Use **bold** to highlight: core concepts, action verbs, missing evidence labels, example sentence openers, and the most important advice per bullet.
+- Do NOT use headers (#), code fences, underscores, or any other markdown.
+- Bold sparingly — 1 to 3 bold spans per string, only the most important words.
 
 JSON schema (types only):
 {

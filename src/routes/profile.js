@@ -6,15 +6,33 @@ import { assertGeminiConfigured, invokeGemini, stripJsonFence } from '../lib/gem
 
 const router = Router()
 
-function coachUiLanguageLine(code) {
-  const c = String(code || 'en').toLowerCase()
-  if (c.startsWith('zh')) return 'LANGUAGE: Write every narrative string value in the JSON in Simplified Chinese (简体中文).'
-  if (c.startsWith('de')) return 'LANGUAGE: Write every narrative string value in the JSON in German.'
-  return 'LANGUAGE: Write every narrative string value in the JSON in English.'
+/** UI language for coach narrative; resume language only for rewriteExample + moduleDeepDives.after */
+function coachUiLanguageLine(uiCode) {
+  const c = String(uiCode || '').toLowerCase().trim()
+  let uiLine
+  if (c.startsWith('zh')) uiLine = 'UI_LANGUAGE: Simplified Chinese (简体中文).'
+  else if (c.startsWith('de')) uiLine = 'UI_LANGUAGE: German (Deutsch).'
+  else uiLine = 'UI_LANGUAGE: English.'
+
+  return `${uiLine}
+
+RESUME_LANGUAGE: From the resume text below, detect its primary language. Write ONLY these fields in that resume language (do NOT translate them to the UI language):
+- priorityImprovements[].rewriteExample (when present)
+- moduleDeepDives[].after
+
+Write ALL OTHER narrative string values in the UI_LANGUAGE above:
+overallEvaluation; macroInsights; highlights; priorityImprovements[].title, problem, suggestedAction; moduleDeepDives[].moduleTitle, finding, whyImportant, modificationSuggestion; positioning (title, content); actionChecklist (title, expectedOutcome).
+
+moduleDeepDives[].before: a short excerpt or quote from the resume — keep the original wording (same language as the resume).
+
+If resume language and UI language coincide, all strings naturally align.`
 }
 
 const RESUME_COACH_SYSTEM = `You are an expert CV/resume coach for students and early-career candidates applying to internships, Werkstudent roles, and grad roles in Germany and the EU.
 Analyze ONLY the resume text provided. Do not invent employers, degrees, or projects that are not implied by the text.
+
+FORMATTING RULE: The ONLY allowed markdown inside string values is **bold** (double asterisks). Use it to highlight key phrases — action verbs, missing evidence labels, example sentence openers, critical advice words. Bold sparingly: 1–3 spans per string. No headers, no code fences, no other markdown.
+
 Return a single JSON object (no markdown fences) with this exact shape:
 {
   "overallEvaluation": "string, 2-5 sentences",
@@ -46,7 +64,7 @@ Rules:
 - Do NOT output lists of generic interview questions (salary, visa, long-term goals, availability, strengths/weaknesses, etc.). Focus on the CV as a document.
 - actionChecklist: 3-5 items with priority starting at 1; prioritize STAR upgrades to experience/projects over skills tweaks.
 
-Follow the LANGUAGE instruction in the user message for all string values.`
+Follow the dual-language rules in the user message: use UI language for analysis and advice; use resume language only for priorityImprovements.rewriteExample and moduleDeepDives.after; keep moduleDeepDives.before as an excerpt from the resume.`
 
 const CV_EXTRACT_SYSTEM = `You extract structured profile data from resume/CV plain text only.
 Rules:

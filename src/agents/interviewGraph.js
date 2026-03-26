@@ -33,7 +33,7 @@ function makeLLM(opts = {}) {
     apiKey:          process.env.GEMINI_API_KEY,
     temperature:     opts.temperature    ?? 0.8,
     streaming:       opts.streaming      ?? true,
-    maxOutputTokens: opts.maxTokens      ?? 1024,
+    maxOutputTokens: opts.maxTokens      ?? 120,
   })
 }
 
@@ -42,8 +42,8 @@ let responseLLM = null
 let feedbackLLM = null
 
 function ensureLLMs() {
-  if (!analyzerLLM) analyzerLLM = makeLLM({ temperature: 0.3,  streaming: true })
-  if (!responseLLM) responseLLM = makeLLM({ temperature: 0.85, streaming: true })
+  if (!analyzerLLM) analyzerLLM = makeLLM({ temperature: 0.3,  streaming: true, maxTokens: 512 })
+  if (!responseLLM) responseLLM = makeLLM({ temperature: 0.85, streaming: true, maxTokens: 120 })
   if (!feedbackLLM) feedbackLLM = makeLLM({ temperature: 0.75, streaming: true, maxTokens: 2048 })
 }
 
@@ -219,8 +219,8 @@ async function generateOpeningNode(state) {
 
   const lang    = config?.language || 'English'
   const trigger = lang === 'Deutsch'
-    ? 'Bitte beginnen Sie das Gespräch jetzt mit der Begrüßung (ohne technische Frage).'
-    : 'Please begin the interview now with only the welcome and self-introduction request — no technical question yet.'
+    ? 'Kurze Begrüßung + Bitte zur Selbstvorstellung. Maximal 50 Wörter.'
+    : 'Brief greeting + ask for self-introduction. 50 words max.'
 
   const response = await responseLLM.invoke([
     new SystemMessage(systemPrompt),
@@ -259,7 +259,7 @@ async function askExploreNode(state) {
 
   const response = await responseLLM.invoke([
     new SystemMessage(systemPrompt),
-    ...toGeminiMessages(rawMessages, 6, 'Please continue: brief feedback, bridge, then one experience question.'),
+    ...toGeminiMessages(rawMessages, 6, 'Next question. 50 words max.'),
   ])
 
   return {
@@ -293,7 +293,7 @@ async function askTechnicalNode(state) {
 
   const response = await responseLLM.invoke([
     new SystemMessage(systemPrompt),
-    ...toGeminiMessages(rawMessages, 6, 'Please continue: brief feedback, bridge, then one technical question.'),
+    ...toGeminiMessages(rawMessages, 6, 'Next question. 50 words max.'),
   ])
 
   return {
@@ -331,7 +331,7 @@ async function askBehavioralNode(state) {
 
   const response = await responseLLM.invoke([
     new SystemMessage(systemPrompt),
-    ...toGeminiMessages(rawMessages, 6, 'Please continue: brief feedback, bridge, then one STAR question.'),
+    ...toGeminiMessages(rawMessages, 6, 'Next question. 50 words max.'),
   ])
 
   return {

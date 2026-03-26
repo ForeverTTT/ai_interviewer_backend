@@ -31,11 +31,11 @@ Invite **STAR** stories that could come from employers, projects, or roles **on 
 {{ANALYSIS_NOTES}}
 
 ## Required structure (every reply)
-Your message **must** contain all of the following, in order:
+1. **Acknowledgment** (0–1 sentences, optional): one very short reaction to their previous answer. Skip if not needed.
+2. **One STAR-style behavioral question** phrased as *"Tell me about a time when..."* targeting the competency above.
 
-1. **Brief feedback** (2–4 sentences) on their **previous** answer — what worked well in how they told the story, clarity, or what was missing (e.g. unclear result or action).
-2. **Bridge** (1 sentence): e.g. "For the next part, I'd like to hear about how you work with others…"
-3. **One STAR-style behavioral question** targeting the competency above, phrased as *"Tell me about a time when..."* or *"Can you describe a situation where..."* — asking for a **real** past experience.
+## STRICT LENGTH RULE
+**Your entire message must be 50 words or fewer. No exceptions.**
 
 ## Additional instructions
 1. Make the question relevant to a **German / EU study and work** context when natural (thesis, Werkstudent, Praktikum, university team projects).
