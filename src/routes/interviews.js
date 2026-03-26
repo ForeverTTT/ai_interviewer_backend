@@ -1,9 +1,14 @@
 import { Router } from 'express'
-import { supabase } from '../lib/supabase.js'
+import { supabase, supabaseForUser } from '../lib/supabase.js'
 import { requireAuth } from '../middleware/auth.js'
 import { assertGeminiConfigured, invokeGemini, stripJsonFence } from '../lib/geminiText.js'
 
 const router = Router()
+
+/** Get user-scoped Supabase client from the request (works with RLS). */
+function dbFor(req) {
+  return req.accessToken ? supabaseForUser(req.accessToken) : supabase
+}
 
 const REPORT_JSON_SYSTEM = `You are an expert interview coach for internships and early-career hiring in Germany and Europe.
 Read the mock interview transcript and return ONE JSON object only. No markdown code fences. No text before or after the JSON.
@@ -141,7 +146,7 @@ function formatNumberedTranscriptLines(messages) {
  */
 router.get('/', requireAuth, async (req, res) => {
   try {
-    const { data, error } = await supabase
+    const { data, error } = await dbFor(req)
       .from('interviews')
       .select('*')
       .eq('user_id', req.user.id)
@@ -185,7 +190,7 @@ router.post('/', requireAuth, async (req, res) => {
   row.status = 'in_progress'
 
   try {
-    const { data, error } = await supabase.from('interviews').insert(row).select().single()
+    const { data, error } = await dbFor(req).from('interviews').insert(row).select().single()
 
     if (error) {
       console.error('[POST /interviews]', error)
@@ -221,7 +226,7 @@ router.post('/:id/finalize', requireAuth, async (req, res) => {
   }
 
   try {
-    const { data: iv, error: fetchErr } = await supabase
+    const { data: iv, error: fetchErr } = await dbFor(req)
       .from('interviews')
       .select('*')
       .eq('id', id)
@@ -275,7 +280,7 @@ Return the JSON object now.`
     }
 
     let updated, upErr
-    ;({ data: updated, error: upErr } = await supabase
+    ;({ data: updated, error: upErr } = await dbFor(req)
       .from('interviews')
       .update(updateRow)
       .eq('id', id)
@@ -288,7 +293,7 @@ Return the JSON object now.`
     if (upErr && /column|does not exist|schema cache/i.test(String(upErr.message || upErr))) {
       console.warn('[finalize] report_ui_locale column missing — retrying without it. Run migration_report_ui_locale.sql in Supabase SQL Editor.')
       const { report_ui_locale: _dropped, ...updateRowFallback } = updateRow
-      ;({ data: updated, error: upErr } = await supabase
+      ;({ data: updated, error: upErr } = await dbFor(req)
         .from('interviews')
         .update(updateRowFallback)
         .eq('id', id)
@@ -336,7 +341,7 @@ router.post('/:id/transcript', requireAuth, async (req, res) => {
     }))
 
   try {
-    const { data: updated, error } = await supabase
+    const { data: updated, error } = await dbFor(req)
       .from('interviews')
       .update({ transcript_json: sanitized })
       .eq('id', id)
@@ -369,7 +374,7 @@ router.post('/:id/transcript', requireAuth, async (req, res) => {
 router.get('/:id', requireAuth, async (req, res) => {
   const { id } = req.params
   try {
-    const { data, error } = await supabase
+    const { data, error } = await dbFor(req)
       .from('interviews')
       .select('*')
       .eq('id', id)
@@ -395,7 +400,7 @@ router.delete('/:id', requireAuth, async (req, res) => {
   const { id } = req.params
 
   try {
-    const { error } = await supabase
+    const { error } = await dbFor(req)
       .from('interviews')
       .delete()
       .eq('id', id)

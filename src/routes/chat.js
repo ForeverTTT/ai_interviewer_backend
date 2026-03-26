@@ -248,7 +248,7 @@ router.post('/tts', requireAuth, async (req, res) => {
   try {
     const tryModels = [
       { id: TTS_MODEL, camel: true },
-      { id: 'gemini-2.0-flash-exp', camel: false },
+      { id: 'gemini-2.5-flash-preview-tts', camel: false },
     ]
 
     let lastErr = ''

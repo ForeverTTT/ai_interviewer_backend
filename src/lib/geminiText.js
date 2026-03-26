@@ -20,7 +20,7 @@ export async function invokeGemini(system, user, opts = {}) {
   if (!apiKey) throw new Error('GEMINI_API_KEY missing')
 
   const llm = new ChatGoogleGenerativeAI({
-    model: opts.model || 'gemini-2.0-flash',
+    model: opts.model || process.env.GEMINI_MODEL || 'gemini-2.5-flash',
     apiKey,
     temperature: opts.temperature ?? 0.35,
     streaming: false,

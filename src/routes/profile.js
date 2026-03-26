@@ -1,10 +1,15 @@
 import { Router } from 'express'
 import { PDFParse } from 'pdf-parse'
-import { supabase } from '../lib/supabase.js'
+import { supabase, supabaseForUser } from '../lib/supabase.js'
 import { requireAuth } from '../middleware/auth.js'
 import { assertGeminiConfigured, invokeGemini, stripJsonFence } from '../lib/geminiText.js'
 
 const router = Router()
+
+/** Get user-scoped Supabase client from the request (works with RLS). */
+function dbFor(req) {
+  return req.accessToken ? supabaseForUser(req.accessToken) : supabase
+}
 
 function coachUiLanguageLine(_uiCode) {
   return `OUTPUT_LANGUAGE: Write most narrative strings in clear, natural English. The server will translate these to the UI language.
@@ -181,8 +186,8 @@ Required JSON shape:
   "awards": [ { "title": "string", "year": "string", "issuer": "string" } ]
 }`
 
-async function fetchProfileRow(userId) {
-  const { data, error } = await supabase
+async function fetchProfileRow(userId, db) {
+  const { data, error } = await db
     .from('profiles')
     .select('id, resume_text, resume_notes, profile_json, resume_coach, resume_updated_at')
     .eq('id', userId)
@@ -192,8 +197,8 @@ async function fetchProfileRow(userId) {
   return data
 }
 
-async function ensureProfileRow(userId) {
-  let row = await fetchProfileRow(userId)
+async function ensureProfileRow(userId, db) {
+  let row = await fetchProfileRow(userId, db)
   if (row) return row
 
   const ins = {
@@ -202,9 +207,9 @@ async function ensureProfileRow(userId) {
     resume_notes: '',
     profile_json: {},
   }
-  const { error } = await supabase.from('profiles').insert(ins)
+  const { error } = await db.from('profiles').insert(ins)
   if (error && error.code !== '23505') throw error
-  row = await fetchProfileRow(userId)
+  row = await fetchProfileRow(userId, db)
   if (!row) throw new Error('profile row missing after insert')
   return row
 }
@@ -212,7 +217,8 @@ async function ensureProfileRow(userId) {
 /** GET /api/profile — full row for profile page */
 router.get('/', requireAuth, async (req, res) => {
   try {
-    const row = await ensureProfileRow(req.user.id)
+    const db = dbFor(req)
+    const row = await ensureProfileRow(req.user.id, db)
     return res.json({
       resumeText: row.resume_text || '',
       resumeNotes: row.resume_notes ?? '',
@@ -229,7 +235,8 @@ router.get('/', requireAuth, async (req, res) => {
 /** GET /api/profile/resume — minimal shape for setup page */
 router.get('/resume', requireAuth, async (req, res) => {
   try {
-    const row = await ensureProfileRow(req.user.id)
+    const db = dbFor(req)
+    const row = await ensureProfileRow(req.user.id, db)
     return res.json({ resumeText: row.resume_text || '' })
   } catch (err) {
     console.error('[GET /profile/resume]', err)
@@ -242,7 +249,8 @@ router.put('/', requireAuth, async (req, res) => {
   const { resumeText, resumeNotes, profileJson } = req.body ?? {}
 
   try {
-    const existing = await ensureProfileRow(req.user.id)
+    const db = dbFor(req)
+    const existing = await ensureProfileRow(req.user.id, db)
 
     const patch = {
       resume_updated_at: new Date().toISOString(),
@@ -253,7 +261,7 @@ router.put('/', requireAuth, async (req, res) => {
       patch.profile_json = { ...(existing.profile_json || {}), ...profileJson }
     }
 
-    const { data, error } = await supabase
+    const { data, error } = await db
       .from('profiles')
       .update(patch)
       .eq('id', req.user.id)
@@ -319,7 +327,8 @@ router.post('/extract-cv', requireAuth, async (req, res) => {
   const draft = typeof req.body?.resumeText === 'string' ? req.body.resumeText.trim() : ''
 
   try {
-    const row = await ensureProfileRow(req.user.id)
+    const db = dbFor(req)
+    const row = await ensureProfileRow(req.user.id, db)
     const saved = String(row.resume_text || '').trim()
     const resume = draft.length >= 80 ? draft : saved
     if (resume.length < 80) {
@@ -357,7 +366,8 @@ router.post('/resume-coach', requireAuth, async (req, res) => {
   const coachUiLanguage = typeof req.body?.coachUiLanguage === 'string' ? req.body.coachUiLanguage : ''
 
   try {
-    const row = await ensureProfileRow(req.user.id)
+    const db = dbFor(req)
+    const row = await ensureProfileRow(req.user.id, db)
     const saved = String(row.resume_text || '').trim()
     const resume = draftResume.length >= 80 ? draftResume : saved
     if (resume.length < 80) {
@@ -404,7 +414,7 @@ ${resume.slice(0, 48_000)}
     }
     const payload = await translateCoachPayloadToUi(payloadRaw, coachUiLanguage)
 
-    const { error } = await supabase
+    const { error } = await db
       .from('profiles')
       .update({ resume_coach: payload, resume_updated_at: new Date().toISOString() })
       .eq('id', req.user.id)
@@ -430,7 +440,8 @@ router.post('/resume-coach/translate', requireAuth, async (req, res) => {
   try {
     let baseCoach = bodyCoach
     if (!baseCoach) {
-      const row = await ensureProfileRow(req.user.id)
+      const db = dbFor(req)
+      const row = await ensureProfileRow(req.user.id, db)
       baseCoach = row.resume_coach ?? null
     }
     if (!baseCoach || typeof baseCoach !== 'object') {

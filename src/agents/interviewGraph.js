@@ -29,7 +29,7 @@ import {
 
 function makeLLM(opts = {}) {
   return new ChatGoogleGenerativeAI({
-    model:           'gemini-2.0-flash',
+    model:           process.env.GEMINI_MODEL || 'gemini-2.5-flash',
     apiKey:          process.env.GEMINI_API_KEY,
     temperature:     opts.temperature    ?? 0.8,
     streaming:       opts.streaming      ?? true,
