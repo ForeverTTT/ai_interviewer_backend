@@ -247,6 +247,7 @@ router.get('/', requireAuth, async (req, res) => {
       .eq('user_id', req.user.id)
       .order('created_at', { ascending: false })
       .limit(50)
+    console.log(`[Supabase DEBUG] Fetch Interviews for ${req.user.id} count: ${data?.length || 0} error: ${error?.message || 'none'}`)
 
     if (error) {
       console.error('[GET /interviews]', error)

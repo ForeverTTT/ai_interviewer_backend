@@ -217,6 +217,7 @@ async function fetchProfileRow(userId, db) {
     .select('id, resume_text, resume_notes, profile_json, resume_coach, resume_updated_at')
     .eq('id', userId)
     .maybeSingle()
+  console.log(`[Supabase DEBUG] userId:${userId} data:${data ? 'found' : 'missing'} error:${error?.message || 'none'}`)
 
   if (error) throw error
   return data
