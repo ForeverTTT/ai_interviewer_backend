@@ -313,6 +313,146 @@ router.put('/', requireAuth, async (req, res) => {
   }
 })
 
+/** GET /api/profile/game-stats — aggregate scores for gamification */
+router.get('/game-stats', requireAuth, async (req, res) => {
+  try {
+    const db = dbFor(req)
+    const userId = req.user.id
+
+    // 1. Fetch profile and interviews
+    const { data: profile } = await db.from('profiles').select('*').eq('id', userId).maybeSingle()
+    const { data: interviews } = await db.from('interviews').select('status, language, report_json').eq('user_id', userId)
+
+    if (!profile) return res.status(404).json({ error: 'Profile not found' })
+
+    const completedInterviews = (interviews || []).filter(iv => iv.status === 'completed')
+    const totalInterviews = completedInterviews.length
+    const germanInterviews = completedInterviews.filter(iv => iv.language === 'Deutsch').length
+
+    // 2. Calculate Dimension: 简历完整度 (Resume Completeness) 0-10
+    let resumeScore = 0
+    if (profile.resume_text?.length > 100) resumeScore += 4
+    if (profile.profile_json?.cvProfile?.personalInfo?.fullName) resumeScore += 1
+    if (profile.profile_json?.cvProfile?.workExperience?.length > 0) resumeScore += 1.5
+    if (profile.profile_json?.cvProfile?.education?.length > 0) resumeScore += 1.5
+    if (profile.profile_json?.cvProfile?.skills?.length > 0) resumeScore += 1
+    if (profile.job_search_status) resumeScore += 1
+    resumeScore = Math.min(10, resumeScore)
+
+    // 3. Calculate Dimension: 实战经验 (Interview Experience) 0-10
+    const experienceScore = Math.min(10, totalInterviews === 0 ? 0 : 2 + Math.log2(totalInterviews + 1) * 2)
+
+    // 4. Calculate Dimension: 语言能力 (Language) 0-10
+    const languageScore = Math.min(10, germanInterviews * 2.5 + (totalInterviews - germanInterviews) * 0.5)
+
+    // 5. Calculate Dimension: 软技能 (Soft Skills) 0-10
+    const softSkillsScore = Math.min(10, totalInterviews * 1.5)
+
+    // 6. Calculate Level (1-10)
+    let level = 1
+    const masteredCount = profile.mastered_questions?.length || 0
+    const radarAvg = (resumeScore + experienceScore + languageScore + softSkillsScore) / 4
+
+    if (profile.resume_text?.length > 100) level = 1
+    if (totalInterviews >= 1) level = 2
+    if (totalInterviews >= 3 && resumeScore >= 7) level = 3
+    if (masteredCount >= 3) level = 4
+    if (totalInterviews >= 5 && germanInterviews >= 1) level = 5
+    if (radarAvg >= 6.5) level = 6
+    if (masteredCount >= 8 && totalInterviews >= 10) level = 7
+    if (profile.daily_streak >= 3 && radarAvg >= 8.0) level = 8
+    if (masteredCount >= 15 && totalInterviews >= 20) level = 9
+    if (profile.job_search_status === 'hired') level = 10
+
+    // 7. Streak state check (frontend can call /check-in separately)
+    let currentStreak = profile.daily_streak || 0
+    const lastActivity = profile.last_activity_at ? new Date(profile.last_activity_at) : null
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    
+    let alreadyCheckedIn = false
+    if (lastActivity) {
+      const lastDay = new Date(lastActivity)
+      lastDay.setHours(0, 0, 0, 0)
+      const diffDays = Math.floor((today - lastDay) / (1000 * 60 * 60 * 24))
+      if (diffDays === 0) {
+        alreadyCheckedIn = true
+      } else if (diffDays > 1) {
+        currentStreak = 0 
+      }
+    }
+
+    return res.json({
+      level,
+      streak: currentStreak,
+      alreadyCheckedIn,
+      radar: {
+        resume: parseFloat(resumeScore.toFixed(1)),
+        experience: parseFloat(experienceScore.toFixed(1)),
+        language: parseFloat(languageScore.toFixed(1)),
+        softSkills: parseFloat(softSkillsScore.toFixed(1))
+      },
+      masteredCount,
+      totalInterviews,
+      nextLevelQuest: getNextLevelQuest(level, { totalInterviews, resumeScore, masteredCount, germanInterviews, radarAvg, streak: currentStreak })
+    })
+  } catch (err) {
+    console.error('[GET /game-stats]', err)
+    return res.status(500).json({ error: 'Failed to calculate game stats' })
+  }
+})
+
+/** POST /api/profile/check-in — daily check-in */
+router.post('/check-in', requireAuth, async (req, res) => {
+  try {
+    const db = dbFor(req)
+    const userId = req.user.id
+    const { data: profile } = await db.from('profiles').select('daily_streak, last_activity_at').eq('id', userId).maybeSingle()
+    
+    if (!profile) return res.status(404).json({ error: 'Profile not found' })
+
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    const lastActivity = profile.last_activity_at ? new Date(profile.last_activity_at) : null
+    
+    let newStreak = profile.daily_streak || 0
+    let alreadyCheckedIn = false
+
+    if (lastActivity) {
+      const lastDay = new Date(lastActivity)
+      lastDay.setHours(0, 0, 0, 0)
+      const diffDays = Math.floor((today - lastDay) / (1000 * 60 * 60 * 24))
+      
+      if (diffDays === 0) {
+        alreadyCheckedIn = true
+      } else if (diffDays === 1) {
+        newStreak += 1
+      } else {
+        newStreak = 1
+      }
+    } else {
+      newStreak = 1
+    }
+
+    if (!alreadyCheckedIn) {
+      await db.from('profiles').update({
+        daily_streak: newStreak,
+        last_activity_at: new Date().toISOString()
+      }).eq('id', userId)
+    }
+
+    return res.json({ streak: newStreak, alreadyCheckedIn })
+  } catch (err) {
+    console.error('[POST /check-in]', err)
+    return res.status(500).json({ error: 'Check-in failed' })
+  }
+})
+
+function getNextLevelQuest(level) {
+  if (level >= 10) return "10"
+  return String(level)
+}
+
 /** POST /api/profile/resume/parse-pdf */
 router.post('/resume/parse-pdf', requireAuth, async (req, res) => {
   const { pdfBase64 } = req.body ?? {}
