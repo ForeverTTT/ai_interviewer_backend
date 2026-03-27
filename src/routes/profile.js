@@ -214,7 +214,7 @@ Required JSON shape:
 async function fetchProfileRow(userId, db) {
   const { data, error } = await db
     .from('profiles')
-    .select('id, resume_text, resume_notes, profile_json, resume_coach, resume_updated_at')
+    .select('id, resume_text, resume_notes, profile_json, resume_coach, job_search_status, resume_updated_at')
     .eq('id', userId)
     .maybeSingle()
   console.log(`[Supabase DEBUG] userId:${userId} data:${data ? 'found' : 'missing'} error:${error?.message || 'none'}`)
@@ -232,6 +232,7 @@ async function ensureProfileRow(userId, db) {
     resume_text: '',
     resume_notes: '',
     profile_json: {},
+    job_search_status: 'seeking',
   }
   const { error } = await db.from('profiles').insert(ins)
   if (error && error.code !== '23505') throw error
@@ -250,6 +251,7 @@ router.get('/', requireAuth, async (req, res) => {
       resumeNotes: row.resume_notes ?? '',
       profileJson: row.profile_json ?? {},
       resumeCoach: row.resume_coach ?? null,
+      jobSearchStatus: row.job_search_status ?? 'seeking',
       resumeUpdatedAt: row.resume_updated_at ?? null,
     })
   } catch (err) {
@@ -272,7 +274,7 @@ router.get('/resume', requireAuth, async (req, res) => {
 
 /** PUT /api/profile */
 router.put('/', requireAuth, async (req, res) => {
-  const { resumeText, resumeNotes, profileJson } = req.body ?? {}
+  const { resumeText, resumeNotes, profileJson, jobSearchStatus } = req.body ?? {}
 
   try {
     const db = dbFor(req)
@@ -286,6 +288,7 @@ router.put('/', requireAuth, async (req, res) => {
     if (profileJson !== undefined && typeof profileJson === 'object' && profileJson !== null) {
       patch.profile_json = { ...(existing.profile_json || {}), ...profileJson }
     }
+    if (typeof jobSearchStatus === 'string') patch.job_search_status = jobSearchStatus
 
     const { data, error } = await db
       .from('profiles')
@@ -301,6 +304,7 @@ router.put('/', requireAuth, async (req, res) => {
       resumeNotes: data.resume_notes ?? '',
       profileJson: data.profile_json ?? {},
       resumeCoach: data.resume_coach ?? null,
+      jobSearchStatus: data.job_search_status ?? 'seeking',
       resumeUpdatedAt: data.resume_updated_at ?? null,
     })
   } catch (err) {
