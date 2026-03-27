@@ -4,6 +4,7 @@ import 'dotenv/config'
 import interviewsRouter from './routes/interviews.js'
 import chatRouter from './routes/chat.js'
 import profileRouter from './routes/profile.js'
+import gallupRouter from './routes/gallup.js'
 
 const app = express()
 const PORT = process.env.PORT || 5000
@@ -30,6 +31,7 @@ app.get('/api/health', (req, res) => {
 app.use('/api/interviews', interviewsRouter)
 app.use('/api/chat', chatRouter)
 app.use('/api/profile', profileRouter)
+app.use('/api/gallup', gallupRouter)
 
 // 404 handler
 app.use((req, res) => {
