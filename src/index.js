@@ -5,6 +5,7 @@ import interviewsRouter from './routes/interviews.js'
 import chatRouter from './routes/chat.js'
 import profileRouter from './routes/profile.js'
 import gallupRouter from './routes/gallup.js'
+import aiAssistantRouter from './routes/aiAssistant.js'
 
 const app = express()
 const PORT = process.env.PORT || 5000
@@ -32,6 +33,7 @@ app.use('/api/interviews', interviewsRouter)
 app.use('/api/chat', chatRouter)
 app.use('/api/profile', profileRouter)
 app.use('/api/gallup', gallupRouter)
+app.use('/api/ai-assistant', aiAssistantRouter)
 
 // 404 handler
 app.use((req, res) => {
