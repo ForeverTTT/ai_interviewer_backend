@@ -214,7 +214,7 @@ Required JSON shape:
 async function fetchProfileRow(userId, db) {
   const { data, error } = await db
     .from('profiles')
-    .select('id, resume_text, resume_notes, profile_json, resume_coach, job_search_status, resume_updated_at')
+    .select('id, resume_text, resume_notes, profile_json, resume_coach, job_search_status, resume_updated_at, avatar_id')
     .eq('id', userId)
     .maybeSingle()
   console.log(`[Supabase DEBUG] userId:${userId} data:${data ? 'found' : 'missing'} error:${error?.message || 'none'}`)
@@ -251,8 +251,8 @@ router.get('/', requireAuth, async (req, res) => {
       resumeNotes: row.resume_notes ?? '',
       profileJson: row.profile_json ?? {},
       resumeCoach: row.resume_coach ?? null,
-      jobSearchStatus: row.job_search_status ?? 'seeking',
       resumeUpdatedAt: row.resume_updated_at ?? null,
+      avatarId: row.avatar_id ?? null,
     })
   } catch (err) {
     console.error('[GET /profile]', err)
@@ -274,7 +274,7 @@ router.get('/resume', requireAuth, async (req, res) => {
 
 /** PUT /api/profile */
 router.put('/', requireAuth, async (req, res) => {
-  const { resumeText, resumeNotes, profileJson, jobSearchStatus } = req.body ?? {}
+  const { resumeText, resumeNotes, profileJson, jobSearchStatus, avatarId } = req.body ?? {}
 
   try {
     const db = dbFor(req)
@@ -289,6 +289,7 @@ router.put('/', requireAuth, async (req, res) => {
       patch.profile_json = { ...(existing.profile_json || {}), ...profileJson }
     }
     if (typeof jobSearchStatus === 'string') patch.job_search_status = jobSearchStatus
+    if (typeof avatarId === 'string' || avatarId === null) patch.avatar_id = avatarId
 
     const { data, error } = await db
       .from('profiles')
@@ -304,8 +305,8 @@ router.put('/', requireAuth, async (req, res) => {
       resumeNotes: data.resume_notes ?? '',
       profileJson: data.profile_json ?? {},
       resumeCoach: data.resume_coach ?? null,
-      jobSearchStatus: data.job_search_status ?? 'seeking',
       resumeUpdatedAt: data.resume_updated_at ?? null,
+      avatarId: data.avatar_id ?? null,
     })
   } catch (err) {
     console.error('[PUT /profile]', err)
