@@ -48,6 +48,7 @@ Analyze the candidate's answer and output a JSON object:
 ## Guidance for `suggested_focus`
 - Be specific: e.g. "Quantify impact of the ML project they mentioned" or "Clarify team size and their exact role in the thesis project."
 - When resume text exists, prefer focuses that **tie their stated stack/projects/experience to the job description** (strengths, mismatches, or missing proof). Example: "Probe depth on the React project from their CV vs JD frontend requirements" or "JD asks for Kubernetes — they did not mention it; ask if they have exposure."
-- In `gaps` or `notes`, you may briefly flag **resume–JD alignment** (e.g. strong match on X, weak evidence on Y) when inferable from the answer + materials.
+- In `gaps` or `notes`, you **MUST** flag if the answer is too short (e.g. < 20 words), too vague, or avoids the specific technical/behavioral detail requested.
+- If the answer is poor, set the `suggested_focus` to "Probe for more detail on [current topic] before moving on."
 
 Output ONLY the JSON object. No extra text.
