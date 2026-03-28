@@ -1,0 +1,627 @@
+{
+  "version": "1.0",
+  "description": "Real interview experiences collection — companies, positions, questions, and reflections",
+  "updated_at": "2026-03-28",
+  "experiences": [
+    {
+      "id": "exp_001",
+      "type": "work",
+      "company": "BMW Group",
+      "location": "München",
+      "position": "Werkstudent Frontend Development",
+      "department": "Digital Products & Services",
+      "date": "2025-11",
+      "language": "English",
+      "rounds": [
+        {
+          "round": 1,
+          "format": "Phone Screening (HR)",
+          "duration_min": 20,
+          "questions": [
+            "Walk me through your CV briefly — what brought you to Munich?",
+            "Why BMW and not a pure tech company?",
+            "How many hours per week can you commit, and how flexible is your schedule with university?",
+            "What's your expected hourly rate?"
+          ]
+        },
+        {
+          "round": 2,
+          "format": "Technical Interview (Team Lead + Senior Dev)",
+          "duration_min": 45,
+          "questions": [
+            "You mentioned React in your project — can you explain how you managed global state? Why didn't you use Redux?",
+            "What's the difference between useEffect cleanup and componentWillUnmount?",
+            "We have a design system with 200+ components. How would you approach onboarding into such a codebase?",
+            "Live coding: given an array of vehicles with nested option packages, write a function to flatten and deduplicate the options.",
+            "How do you handle accessibility in forms? Give a concrete example.",
+            "Tell me about a time you had to push back on a design that wasn't technically feasible."
+          ]
+        }
+      ],
+      "result": "Offer received",
+      "salary": "16€/h",
+      "reflection": "说实话投BMW之前没抱太大希望，毕竟大厂Werkstudent竞争很激烈。HR电话面很轻松，就是聊聊背景和时间安排。技术面是重头戏，两个人轮流问，live coding那题我一开始写了个O(n²)的，面试官提示我用Set之后才优化掉。问React的部分我答得还行，因为正好毕业设计用的就是React。最意外的是他们很在意accessibility，之前完全没准备过，只能硬扯了下aria-label的用法。最后拿到offer的时候真的很开心，16€虽然不算高但是BMW名气在那里，简历上很加分。建议大家一定要准备accessibility相关的知识，德国公司真的很看重这个。"
+    },
+    {
+      "id": "exp_002",
+      "type": "work",
+      "company": "Siemens AG",
+      "location": "Erlangen",
+      "position": "Praktikum Data Science",
+      "department": "Siemens Healthineers, R&D",
+      "date": "2025-09",
+      "language": "English",
+      "rounds": [
+        {
+          "round": 1,
+          "format": "Online Assessment",
+          "duration_min": 90,
+          "questions": [
+            "Python coding: implement K-means clustering from scratch without using sklearn.",
+            "SQL: given a patient records table and a diagnosis table, write a query to find patients with more than 3 diagnoses in the last 6 months, ordered by severity score.",
+            "Statistics MCQ: questions on p-values, confidence intervals, A/B testing, and Bayesian inference."
+          ]
+        },
+        {
+          "round": 2,
+          "format": "Technical + Behavioral (2 Researchers)",
+          "duration_min": 60,
+          "questions": [
+            "Explain your master thesis topic in 3 minutes as if I'm not a technical person.",
+            "What evaluation metrics would you use for an imbalanced binary classification problem in medical imaging?",
+            "How would you handle missing data in a clinical trial dataset — what's your decision process?",
+            "We work with DICOM images. Have you dealt with medical imaging data before? What preprocessing steps would you consider?",
+            "Describe a situation where your analysis results contradicted what the team expected. How did you handle it?",
+            "How do you stay up-to-date with ML research?"
+          ]
+        }
+      ],
+      "result": "Offer received",
+      "salary": "2100€/month (full-time internship)",
+      "reflection": "Siemens的OA难度中等偏上，K-means手写那题如果之前没练过会比较慌，我是因为上学期ML课刚写过所以还好。SQL题不算太难但是要注意edge case。技面两个researcher人都很nice，问了很多关于如何处理脏数据和缺失值的问题，感觉他们更看重你的思考过程而不是标准答案。我说了用多重插补的时候面试官追问了很多细节，幸好我论文里用过。有一点要注意：Siemens Healthineers做medical imaging相关的，如果简历里没有相关经历，最好提前了解一下DICOM格式和基本的图像预处理流程，不然会很被动。整体体验很好，面试官会引导你，不会故意刁难。"
+    },
+    {
+      "id": "exp_003",
+      "type": "work",
+      "company": "SAP SE",
+      "location": "Walldorf (Remote)",
+      "position": "Working Student Full-Stack Developer",
+      "department": "SAP Business Technology Platform",
+      "date": "2025-10",
+      "language": "English",
+      "rounds": [
+        {
+          "round": 1,
+          "format": "HR Video Call",
+          "duration_min": 25,
+          "questions": [
+            "Why SAP? What do you know about BTP?",
+            "Are you comfortable working in an agile team with daily standups?",
+            "What's your availability — can you do 20h/week?",
+            "Do you have a work permit, and when does your student visa expire?"
+          ]
+        },
+        {
+          "round": 2,
+          "format": "Technical Interview (2 Developers)",
+          "duration_min": 50,
+          "questions": [
+            "What's the difference between REST and GraphQL? When would you choose one over the other?",
+            "Explain the concept of middleware in Express.js.",
+            "How does authentication work in a single-page application? Walk me through the flow.",
+            "Live task: we have a simple TODO API. Please add pagination support — you can share your screen and code live.",
+            "How would you design the database schema for a multi-tenant SaaS application?",
+            "What's your experience with cloud platforms? Have you deployed anything on AWS or Azure?"
+          ]
+        }
+      ],
+      "result": "Offer received",
+      "salary": "17€/h",
+      "reflection": "SAP的面试体验非常专业。HR面主要确认工作许可和时间，没什么技术问题。技术面的两个developer很chill，live coding是在已有代码基础上加功能，不是从零写算法，这点我很喜欢，更接近真实工作场景。数据库设计那题我答了用tenant_id做分区，面试官追问了索引策略和数据隔离的问题，这块我准备不够充分，答得一般。SAP给的工资在Walldorf算不错的了，而且remote工作不用搬家。一个坑：SAP的流程真的很慢，从投简历到拿offer差不多6周，大家要有心理准备，中间HR可能好几天不回消息，别慌。"
+    },
+    {
+      "id": "exp_004",
+      "type": "work",
+      "company": "Celonis SE",
+      "location": "München",
+      "position": "Werkstudent Machine Learning Engineering",
+      "department": "Product Intelligence",
+      "date": "2026-01",
+      "language": "English",
+      "rounds": [
+        {
+          "round": 1,
+          "format": "Recruiter Call",
+          "duration_min": 15,
+          "questions": [
+            "Tell me briefly about your ML background.",
+            "Are you familiar with process mining?",
+            "Timeline and availability?"
+          ]
+        },
+        {
+          "round": 2,
+          "format": "Technical Deep Dive (ML Engineer + Tech Lead)",
+          "duration_min": 60,
+          "questions": [
+            "Explain the difference between batch normalization and layer normalization. When would you use each?",
+            "You trained a model and the validation loss is much lower than training loss. What could be going on?",
+            "How would you serve a PyTorch model in production with low latency requirements?",
+            "Whiteboard: design a system that takes event logs and predicts the next activity in a business process.",
+            "What's your experience with experiment tracking? MLflow, W&B?",
+            "Tell me about a project where you had to make a tradeoff between model accuracy and inference speed."
+          ]
+        },
+        {
+          "round": 3,
+          "format": "Culture Fit (Product Manager)",
+          "duration_min": 30,
+          "questions": [
+            "How do you communicate technical constraints to non-technical stakeholders?",
+            "Describe a time when you received critical feedback. How did you react?",
+            "What does 'ownership' mean to you in a work context?"
+          ]
+        }
+      ],
+      "result": "Offer received",
+      "salary": "19€/h",
+      "reflection": "Celonis是慕尼黑本地独角兽，面试难度确实比一般公司高一档。技术面问的batch norm vs layer norm那题我答反了，面试官纠正了我之后继续问下去，没有因为答错就pass掉，这点很好。系统设计题和process mining相关，我之前完全没接触过这个领域，只能从一般的sequence prediction角度去答，用了LSTM + attention的思路，面试官说思路对但是可以了解一下Transformer在event log上的应用。Culture fit那轮PM问的都是behavioral的问题，准备过STAR方法的话不难。19€时薪在慕尼黑Werkstudent里算很高了。一个经验：Celonis很看重你对process mining的兴趣，面试前最好花1-2小时看看他们的产品demo和博客，别像我一样裸面。"
+    },
+    {
+      "id": "exp_005",
+      "type": "work",
+      "company": "Allianz Technology",
+      "location": "München",
+      "position": "Praktikum Backend Development",
+      "department": "Digital Factory",
+      "date": "2025-12",
+      "language": "Mixed (German + English)",
+      "rounds": [
+        {
+          "round": 1,
+          "format": "HR Interview (German)",
+          "duration_min": 20,
+          "questions": [
+            "Erzählen Sie uns kurz über sich und warum Sie sich bei Allianz bewerben.",
+            "Wie würden Sie Ihre Deutschkenntnisse einschätzen?",
+            "Wann könnten Sie anfangen und wie lange möchten Sie das Praktikum machen?",
+            "Was erwarten Sie von diesem Praktikum?"
+          ]
+        },
+        {
+          "round": 2,
+          "format": "Technical Interview (English)",
+          "duration_min": 45,
+          "questions": [
+            "Compare SQL and NoSQL databases. In what scenario would you use MongoDB over PostgreSQL?",
+            "Explain how a message queue works. Why would you use Kafka instead of a simple HTTP call?",
+            "What is containerization? How does Docker differ from a virtual machine?",
+            "Write a REST endpoint in your preferred language that validates user input and returns proper error responses.",
+            "How do you approach debugging a production issue at 11pm?"
+          ]
+        }
+      ],
+      "result": "Offer received",
+      "salary": "1950€/month",
+      "reflection": "Allianz的HR面是德语的！！这个我事先不知道，投简历的时候JD写的是English environment，结果HR上来就说德语，我当时B1水平，磕磕巴巴地撑过去了。技术面换成英语之后就轻松多了。问的问题偏基础但是很全面，Docker那题我答得比较好因为我自己项目都用Docker部署的。Kafka那题只能说个大概，没有实际用过所以说不出太多细节。一个教训：在德国面试，即使JD写的是英语，也要做好德语面试的准备，至少自我介绍和动机要能用德语说清楚。Allianz作为DAX公司，福利和流程都很正规，就是节奏比startup慢很多。"
+    },
+    {
+      "id": "exp_006",
+      "type": "school",
+      "company": "TU München",
+      "location": "München",
+      "position": "Master Informatik — Aptitude Interview",
+      "department": "Informatics Admission Committee",
+      "date": "2025-05",
+      "language": "English",
+      "rounds": [
+        {
+          "round": 1,
+          "format": "Aptitude Assessment Interview (2 Professors + 1 PhD)",
+          "duration_min": 25,
+          "questions": [
+            "Tell us about your bachelor thesis. What was the main contribution?",
+            "Explain the time complexity of quicksort. What happens in the worst case and how can you mitigate it?",
+            "What is the difference between a process and a thread?",
+            "Given a directed graph, how would you detect a cycle?",
+            "You listed machine learning as an interest — explain the bias-variance tradeoff.",
+            "Why TUM specifically? What courses are you most interested in?"
+          ]
+        }
+      ],
+      "result": "Admitted",
+      "salary": null,
+      "reflection": "TUM Informatik的Aptitude Interview网上信息很少，我当时准备得很焦虑。实际面下来发现难度没有想象中那么恐怖，主要考察CS基础功底。两个教授轮流问，一个偏算法一个偏系统。图的环检测那题我用DFS+三色标记法答的，教授点了点头没有追问，应该是答对了。bias-variance那题我画了个图解释，感觉比纯用语言描述效果好。整个面试氛围还算友好，不会故意让你难堪。最大的建议：把本科学过的核心课（数据结构、操作系统、数据库、计算机网络）的关键概念过一遍，不需要很深但是要能清楚地解释出来。另外毕业论文一定要准备好3分钟的简短版本，这个几乎必问。"
+    },
+    {
+      "id": "exp_007",
+      "type": "school",
+      "company": "KIT (Karlsruher Institut für Technologie)",
+      "location": "Karlsruhe",
+      "position": "Master Data Science — Admission Interview",
+      "department": "Faculty of Informatics",
+      "date": "2025-06",
+      "language": "English",
+      "rounds": [
+        {
+          "round": 1,
+          "format": "Online Interview (Professor + Research Assistant)",
+          "duration_min": 20,
+          "questions": [
+            "Why Data Science and not pure Computer Science?",
+            "Explain logistic regression. How is it different from linear regression?",
+            "What is overfitting? How do you prevent it?",
+            "You mentioned a Kaggle project — what was your approach and final ranking?",
+            "What programming languages and tools are you comfortable with?",
+            "Where do you see yourself after this master's program?"
+          ]
+        }
+      ],
+      "result": "Admitted",
+      "salary": null,
+      "reflection": "KIT的Data Science面试比TUM短很多，总共就20分钟。问题偏统计和ML基础，没有考算法题。教授人很和蔼，我答logistic regression的时候说到了sigmoid函数和maximum likelihood estimation，他好像挺满意的。Kaggle那个项目真的救了我，本来只是闲着没事做的，没想到面试的时候成了最大的亮点，教授追问了好几个细节。建议想申Data Science的同学一定要有至少一个拿得出手的数据项目，Kaggle、课程project都行，有实际数据处理经验比什么都重要。KIT整体申请流程比TUM快，面试完一周就出结果了。"
+    },
+    {
+      "id": "exp_008",
+      "type": "work",
+      "company": "FlixBus (Flix SE)",
+      "location": "München",
+      "position": "Working Student Product Analyst",
+      "department": "Revenue Management",
+      "date": "2025-08",
+      "language": "English",
+      "rounds": [
+        {
+          "round": 1,
+          "format": "Case Study + Interview (Hiring Manager + Analyst)",
+          "duration_min": 60,
+          "questions": [
+            "Here's a dataset of booking data for the Munich-Berlin route over 3 months. Walk us through how you'd analyze pricing effectiveness.",
+            "The conversion rate dropped 15% last week. How would you investigate the root cause?",
+            "What SQL query would you write to find the top 10 routes by revenue per seat-kilometer?",
+            "How would you present conflicting A/B test results to a product manager who has strong opinions?",
+            "Tell us about a time you had to clean a really messy dataset. What was your approach?"
+          ]
+        }
+      ],
+      "result": "Rejected after interview",
+      "salary": null,
+      "reflection": "FlixBus只有一轮面试但是信息量巨大。一上来就给了一份真实数据集（当然做了脱敏），让我当场分析，有点case interview的感觉。我SQL写得还行，但是在讲pricing effectiveness的时候太偏技术了，没有从business角度去分析，面试官后来引导我从 elasticity 和 competitor pricing 的角度去想，我才反应过来。最后被拒了，原因应该是business sense不够强。这次面试让我意识到Product Analyst岗位不光要会写SQL和Python，更要懂业务逻辑。后来我专门花了两周学了些pricing和revenue management的基础知识，再面其他类似岗位就好多了。挂了不丢人，重要的是复盘。"
+    },
+    {
+      "id": "exp_009",
+      "type": "work",
+      "company": "Check24",
+      "location": "München",
+      "position": "Werkstudent Java Backend Development",
+      "department": "Insurance Comparison",
+      "date": "2026-02",
+      "language": "German",
+      "rounds": [
+        {
+          "round": 1,
+          "format": "Technical Interview (全德语, Team Lead + Developer)",
+          "duration_min": 50,
+          "questions": [
+            "Was ist der Unterschied zwischen einer abstrakten Klasse und einem Interface in Java?",
+            "Erklären Sie das Konzept von Dependency Injection. Warum verwenden wir Spring?",
+            "Was passiert bei einer NullPointerException und wie vermeiden Sie diese?",
+            "Live Coding: Schreiben Sie eine Methode, die prüft, ob ein String ein gültiges Datum im Format DD.MM.YYYY ist.",
+            "Wie würden Sie eine REST API versionieren?",
+            "Erzählen Sie von einem Projekt, bei dem Sie mit einer Legacy-Codebase arbeiten mussten."
+          ]
+        }
+      ],
+      "result": "Offer received",
+      "salary": "15.50€/h",
+      "reflection": "Check24全程德语面试，对德语不好的同学来说是个挑战。我当时B2水平，技术术语用德语说还是挺别扭的，好在面试官看我实在表达不清楚的时候会说'You can switch to English for this part'。Java的题目都是比较基础的，abstract class vs interface这种CS101的问题，但是用德语解释真的需要提前准备。live coding写日期验证我用了正则表达式，面试官问我为什么不用DateTimeFormatter，我说了正则的局限性之后又补了DateTimeFormatter的方案，他挺满意的。Check24工资在慕尼黑偏低，但是他们Tech团队用的技术栈很新（Spring Boot 3 + Kotlin），能学到东西。核心建议：想去德企的话，至少把技术面试中常见的术语用德语过一遍，比如Schnittstelle(接口)、Vererbung(继承)、Abhängigkeit(依赖)这些。"
+    },
+    {
+      "id": "exp_010",
+      "type": "work",
+      "company": "Lilium GmbH",
+      "location": "Weßling (near München)",
+      "position": "Praktikum Embedded Software",
+      "department": "Flight Control Systems",
+      "date": "2025-07",
+      "language": "English",
+      "rounds": [
+        {
+          "round": 1,
+          "format": "HR Screening",
+          "duration_min": 15,
+          "questions": [
+            "What interests you about electric aviation?",
+            "This is a 6-month mandatory internship — can you confirm the dates?",
+            "Do you have experience with C/C++ in embedded contexts?"
+          ]
+        },
+        {
+          "round": 2,
+          "format": "Technical Interview (2 Embedded Engineers)",
+          "duration_min": 60,
+          "questions": [
+            "What happens when you dereference a null pointer in C?",
+            "Explain the difference between stack and heap memory allocation.",
+            "How does an RTOS scheduler decide which task to run next? Compare preemptive vs cooperative scheduling.",
+            "You need to communicate between two microcontrollers. Compare SPI, I2C, and UART — which would you choose for high-speed data and why?",
+            "Write a ring buffer implementation in C with thread-safe push and pop operations.",
+            "How do you debug a system where a sensor occasionally returns garbage values but you can't reproduce it in the lab?"
+          ]
+        }
+      ],
+      "result": "Rejected (2nd round)",
+      "salary": null,
+      "reflection": "Lilium做电动飞机，听起来很酷对吧。面试难度是真的高，两个嵌入式工程师问的问题很硬核。ring buffer那题我写出来了但是thread-safe的部分用mutex实现的，面试官说在他们的实时系统里不能用mutex因为会有priority inversion的问题，应该用lock-free的方案。通信协议那题我混淆了SPI和I2C的主从关系，当场被纠正了。最后没过，复盘下来是因为我嵌入式底层经验确实不够，大部分项目都是应用层的。但这次面试让我学到了很多real-time system的知识。Lilium的工程师技术水平很高，即使挂了也是一次很有价值的学习经历。如果想去做嵌入式，RTOS、通信协议、内存管理这三块一定要吃透。"
+    },
+    {
+      "id": "exp_011",
+      "type": "work",
+      "company": "McKinsey & Company (QuantumBlack)",
+      "location": "Berlin",
+      "position": "Data Science Intern",
+      "department": "QuantumBlack Labs",
+      "date": "2026-01",
+      "language": "English",
+      "rounds": [
+        {
+          "round": 1,
+          "format": "Online Coding Assessment (HackerRank)",
+          "duration_min": 75,
+          "questions": [
+            "Implement a function to find the shortest path in a weighted graph with at most K stops.",
+            "Given a time series, implement anomaly detection using z-score and moving average.",
+            "SQL: write a query to calculate rolling 7-day revenue and identify weeks where growth exceeded 20%."
+          ]
+        },
+        {
+          "round": 2,
+          "format": "Case Interview + Technical",
+          "duration_min": 45,
+          "questions": [
+            "A retail client's customer churn increased by 8% in Q3. How would you structure an analysis to identify the drivers?",
+            "What features would you engineer from raw transaction data to predict churn?",
+            "Explain the difference between L1 and L2 regularization. When would you prefer Lasso over Ridge?",
+            "How do you handle categorical variables with high cardinality in a tree-based model?"
+          ]
+        },
+        {
+          "round": 3,
+          "format": "Behavioral (Partner-level)",
+          "duration_min": 30,
+          "questions": [
+            "Tell me about a time you led a team through ambiguity.",
+            "How do you prioritize when everything seems urgent?",
+            "What would you do if your analysis showed results that contradicted the client's hypothesis?"
+          ]
+        }
+      ],
+      "result": "Offer received",
+      "salary": "2800€/month",
+      "reflection": "QuantumBlack是McKinsey的AI部门，面试流程很长，前后折腾了差不多一个月。OA的算法题难度大概LeetCode Medium到Hard之间，图论那题我用了Dijkstra的变种，时间有点紧但最后都过了。第二轮最有意思，Case和Tech混在一起，一半时间在讨论业务问题一半时间在讨论模型。面试官是个Senior Data Scientist，一直在挑战我的假设，比如我说用随机森林预测churn，他就问我为什么不用更简单的logistic regression先建个baseline。第三轮Partner面是纯behavioral，这个人气场很强但人很nice，不断追问细节。最后拿到offer的时候不敢相信，工资2800€在实习里算非常高了。最大的心得：McKinsey类咨询公司做DS，business sense和communication能力跟技术一样重要，不能光会写代码。"
+    },
+    {
+      "id": "exp_012",
+      "type": "work",
+      "company": "Infineon Technologies",
+      "location": "Neubiberg",
+      "position": "Working Student Hardware-Software Co-Design",
+      "department": "Automotive Microcontroller Division",
+      "date": "2025-10",
+      "language": "English",
+      "rounds": [
+        {
+          "round": 1,
+          "format": "Technical Interview (Manager + 2 Engineers)",
+          "duration_min": 60,
+          "questions": [
+            "Explain the boot process of an ARM Cortex-M microcontroller.",
+            "What is DMA and why is it important for real-time applications?",
+            "How do you ensure functional safety in automotive software? Are you familiar with ISO 26262?",
+            "Draw a block diagram of how a sensor reading goes from ADC to CAN bus transmission.",
+            "You discover a timing violation in an interrupt service routine during testing. How do you approach fixing it?",
+            "What's your experience with version control in a team of 10+ developers?"
+          ]
+        }
+      ],
+      "result": "Offer received",
+      "salary": "16.50€/h",
+      "reflection": "Infineon是半导体大厂，面试直接三个人一起上，阵仗挺大的。问题很硬，ARM boot process那题我只说了个大概（Reset Handler → SystemInit → main），面试官补充了很多关于vector table和clock configuration的细节，算是变相教我了。ISO 26262我只在课上听过，如实说了不太了解，面试官也没为难，说这个进来之后会培训。DMA那题答得比较好，因为上学期嵌入式课的lab刚好用过。我感觉Infineon面试不太卡人，只要基础不太差、态度好、愿意学就行。他们更看重是否能长期留下来——面试快结束时Manager特意问了我毕业之后的打算。工资16.50€中规中矩，但Infineon的品牌在半导体行业很有分量，做硬件方向的同学推荐投。"
+    },
+    {
+      "id": "exp_013",
+      "type": "school",
+      "company": "RWTH Aachen",
+      "location": "Aachen",
+      "position": "Master Maschinenbau — Aptitude Interview",
+      "department": "Faculty of Mechanical Engineering",
+      "date": "2025-05",
+      "language": "Mixed (German + English)",
+      "rounds": [
+        {
+          "round": 1,
+          "format": "Faculty Interview (2 Professors)",
+          "duration_min": 20,
+          "questions": [
+            "Warum RWTH Aachen für Maschinenbau und nicht eine andere Universität?",
+            "Explain the first and second laws of thermodynamics in simple terms.",
+            "What is the difference between stress and strain? Draw a typical stress-strain curve for mild steel.",
+            "You mentioned FEM simulation in your CV — which software did you use and for what application?",
+            "What specialization track interests you most and why?"
+          ]
+        }
+      ],
+      "result": "Admitted",
+      "salary": null,
+      "reflection": "RWTH机械的Aptitude Interview比想象中短，就20分钟。开头用德语问了动机问题，后面技术部分切成英语了。热力学和材料力学的题都是本科基础，但是要能用英语清楚表达还是需要准备一下的。stress-strain curve我直接在纸上画了出来，标注了yield point、ultimate strength和fracture point，两个教授对视点头，感觉这样比纯口述有效得多。FEM那个问题是因为我简历上写了用ANSYS做过轴承分析，教授追问了网格划分的策略和边界条件的设定。建议：简历上写的每个项目都要能讲清楚细节，不要写自己不熟悉的东西充数。RWTH机械在德国排名数一数二，但面试难度并不夸张，好好准备基础课就行。"
+    },
+    {
+      "id": "exp_014",
+      "type": "work",
+      "company": "N26 (Neobank)",
+      "location": "Berlin (Remote)",
+      "position": "Werkstudent iOS Development",
+      "department": "Mobile Experience Team",
+      "date": "2026-03",
+      "language": "English",
+      "rounds": [
+        {
+          "round": 1,
+          "format": "HR Call",
+          "duration_min": 15,
+          "questions": [
+            "Quick intro — what's your iOS experience?",
+            "Are you based in Germany? We're remote-first but need German residency.",
+            "When can you start?"
+          ]
+        },
+        {
+          "round": 2,
+          "format": "Technical Interview (iOS Lead + Senior Dev)",
+          "duration_min": 55,
+          "questions": [
+            "Explain the Swift memory management model. What are strong, weak, and unowned references?",
+            "How does SwiftUI's state management differ from UIKit's delegation pattern?",
+            "What is Combine? How would you use it to chain multiple API calls?",
+            "Take-home prep review: walk us through the mini banking app you built. Why did you structure the architecture this way?",
+            "How do you handle offline mode in a banking app? What data do you cache locally?",
+            "Our app has 3M+ users. How would you approach reducing the crash rate from 0.5% to under 0.1%?"
+          ]
+        }
+      ],
+      "result": "Offer received",
+      "salary": "18€/h",
+      "reflection": "N26是柏林的明星Fintech，remote工作这点太爽了。面试前有个take-home assignment，要用SwiftUI写一个简单的banking app，有转账、余额查询和交易列表三个功能，给了一周时间。我花了大概两天写的，用了MVVM架构和Combine做数据绑定。技术面主要就是围绕这个take-home展开，面试官会问你每个架构决策的原因。Swift内存管理那题几乎每个iOS面试都会问，一定要能解释清楚retain cycle的场景和解决方案。offline mode那题我说了Core Data + 队列同步的方案，面试官补充了一些他们实际用的策略（比如冲突解决），交流得很愉快。N26给的18€时薪加上remote工作，性价比很高。唯一的遗憾是他们最近有裁员新闻，入职前纠结了好久，最后还是去了，毕竟学到的东西比什么都重要。"
+    },
+    {
+      "id": "exp_015",
+      "type": "work",
+      "company": "Bosch",
+      "location": "Stuttgart-Feuerbach",
+      "position": "Praktikum Computer Vision",
+      "department": "Bosch Center for Artificial Intelligence (BCAI)",
+      "date": "2025-11",
+      "language": "English",
+      "rounds": [
+        {
+          "round": 1,
+          "format": "Technical Screening (Senior Researcher, Video Call)",
+          "duration_min": 30,
+          "questions": [
+            "Walk me through your experience with deep learning frameworks — PyTorch or TensorFlow?",
+            "Explain how a convolutional neural network works. What does each layer learn?",
+            "What is transfer learning and when would you use it?",
+            "Have you worked with object detection models? Compare YOLO and Faster R-CNN."
+          ]
+        },
+        {
+          "round": 2,
+          "format": "Deep Technical + Presentation (2 Researchers + Manager)",
+          "duration_min": 75,
+          "questions": [
+            "Please present your master thesis / most relevant project (15 min presentation + Q&A).",
+            "How would you evaluate a semantic segmentation model? Beyond mIoU, what other metrics matter?",
+            "We work with automotive camera data. How do you handle domain shift between synthetic training data and real-world deployment?",
+            "Explain self-supervised learning. Give an example of a pretext task for visual representation learning.",
+            "If you had to reduce the inference time of a segmentation model by 50% without losing more than 2% accuracy, what would you try?"
+          ]
+        }
+      ],
+      "result": "Offer received",
+      "salary": "2200€/month",
+      "reflection": "BCAI是Bosch的AI研究中心，面试含金量很高。第一轮30分钟筛选问的都是CV基础，YOLO vs Faster R-CNN这题几乎每个CV岗都会问。第二轮要自己准备presentation，我讲了硕士论文里用Transformer做医学图像分割的工作，15分钟的presentation准备了两天。问答环节两个researcher的问题很尖锐，domain shift那题我讲了data augmentation、style transfer和domain adaptation三种思路，但说不出具体的论文方法名，面试官提到了DANN和CycleGAN，我记下来回去补了课。模型加速那题我答了knowledge distillation、pruning和量化，面试官追问了具体的量化方案（PTQ vs QAT），好在我之前读过一篇TensorRT的博客能扯几句。最后拿到了offer，2200€在实习里算不错。BCAI的研究氛围很浓，如果想走学术路线或者Research Engineer方向，强烈推荐。最大的建议：准备好一个能讲15-20分钟的项目presentation，要有清晰的motivation、method、result和limitation。"
+    },
+    {
+      "id": "exp_016",
+      "type": "work",
+      "company": "Personio",
+      "location": "München",
+      "position": "Working Student UX Design",
+      "department": "People Workflow Automation",
+      "date": "2025-12",
+      "language": "English",
+      "rounds": [
+        {
+          "round": 1,
+          "format": "Portfolio Review + Interview (Design Lead + UX Researcher)",
+          "duration_min": 50,
+          "questions": [
+            "Walk us through 2 projects from your portfolio. Focus on the process, not just the final designs.",
+            "How do you decide between A/B testing and user interviews for validating a design decision?",
+            "Here's a scenario: our onboarding flow has a 40% drop-off rate at step 3. How would you investigate and redesign?",
+            "What's your approach to designing for accessibility? How does it influence your decisions early in the process?",
+            "How do you handle disagreements with engineers about design feasibility?",
+            "Show us a design you're not proud of. What would you do differently today?"
+          ]
+        }
+      ],
+      "result": "Offer received",
+      "salary": "16€/h",
+      "reflection": "Personio是德国HR SaaS独角兽，设计团队氛围很好。面试只有一轮但是很充实。Portfolio review是重头戏，我展示了两个项目：一个是课程里做的食堂点餐App redesign，一个是自己做的TUM图书馆座位预约小程序。面试官不太关心视觉效果有多炫，更在意我的设计思考过程——为什么做这个决策、做了什么research、怎么验证的。那个'你不满意的设计'的问题其实是个好问题，考察你的自我反思能力，我说了本科时候做的一个dashboard设计，当时完全没做用户调研就开始画，结果上线后用户反馈很差，重新做了两轮才改好。面试官对这个回答评价很高，说他们team里就需要这种能承认错误并从中学习的人。建议做UX方向的同学：1) Portfolio不需要多，2-3个质量高的项目就够了；2) 每个项目一定要能讲清楚'为什么'而不只是'做了什么'；3) 失败案例和成功案例一样重要。"
+    },
+    {
+      "id": "exp_017",
+      "type": "school",
+      "company": "TU Berlin",
+      "location": "Berlin",
+      "position": "Master Wirtschaftsingenieurwesen — Admission Interview",
+      "department": "Faculty VII — Economics and Management",
+      "date": "2025-06",
+      "language": "German",
+      "rounds": [
+        {
+          "round": 1,
+          "format": "Aptitude Interview (Professor + Academic Advisor, 全德语)",
+          "duration_min": 20,
+          "questions": [
+            "Warum Wirtschaftsingenieurwesen und nicht reines BWL oder reines Ingenieurwesen?",
+            "Was verstehen Sie unter Supply Chain Management? Geben Sie ein Beispiel.",
+            "Erklären Sie den Break-Even-Point und wie man ihn berechnet.",
+            "Sie haben Ihr Bachelorprojekt über Lean Manufacturing geschrieben — was war Ihre wichtigste Erkenntnis?",
+            "Welche Vertiefung interessiert Sie und warum?"
+          ]
+        }
+      ],
+      "result": "Admitted",
+      "salary": null,
+      "reflection": "TU Berlin的WiIng面试全程德语，大概是我德语面试里最紧张的一次。教授问的问题不难，都是经管+工程的交叉基础知识，但是用德语解释Break-Even-Point的计算过程真的考验语言能力，我中间卡了两次，教授很耐心地等我组织语言。Supply Chain那题我举了汽车行业just-in-time的例子，教授追问了疫情期间供应链断裂的应对策略，幸好我之前看过相关的新闻，能说上几句。最大的感受是：德语面试不需要说得多完美，但一定要逻辑清晰、条理分明。我面试前把每个可能的问题都用德语写了答案大纲，虽然实际面试不可能照着念，但写的过程帮我理清了思路。对于德语B2-C1水平的同学来说，WiIng的面试难度是可以handle的，关键是提前准备好专业术语。"
+    },
+    {
+      "id": "exp_018",
+      "type": "work",
+      "company": "DeepL GmbH",
+      "location": "Köln (Remote)",
+      "position": "Werkstudent NLP / Machine Learning",
+      "department": "Research Team",
+      "date": "2026-02",
+      "language": "English",
+      "rounds": [
+        {
+          "round": 1,
+          "format": "Technical Screening (ML Engineer)",
+          "duration_min": 30,
+          "questions": [
+            "Explain the Transformer architecture. What are the key innovations compared to RNNs?",
+            "What is the attention mechanism? Walk me through scaled dot-product attention mathematically.",
+            "How does byte-pair encoding (BPE) work? Why is subword tokenization important for multilingual models?"
+          ]
+        },
+        {
+          "round": 2,
+          "format": "Deep Technical + System Design (2 Senior Researchers)",
+          "duration_min": 60,
+          "questions": [
+            "Design a system to evaluate translation quality at scale. What metrics would you use beyond BLEU?",
+            "How would you fine-tune a large language model for a specific language pair with limited parallel data?",
+            "Explain the difference between encoder-only, decoder-only, and encoder-decoder architectures. Give examples of each.",
+            "Coding: implement beam search decoding in Python. You can use pseudocode first.",
+            "What are the challenges of deploying a 7B parameter model with sub-100ms latency?"
+          ]
+        }
+      ],
+      "result": "Rejected (2nd round)",
+      "salary": null,
+      "reflection": "DeepL是做翻译的，NLP方向的dream company之一。面试难度极高，第一轮问Transformer我答得很顺，因为这是NLP必考题。但第二轮直接起飞了——beam search写伪代码我还行，但实现的时候在维护beam state的部分卡了很久。评估翻译质量那题我只说了BLEU和METEOR，面试官期望我能提到COMET、BERTScore这些更新的metric。fine-tuning with limited data那题我说了back-translation和data augmentation，但没提到few-shot learning和adapter-based方法。模型部署那题我只能泛泛地说量化和distillation，说不出具体的工程细节比如KV cache优化。最后被拒了不意外，DeepL Research team的bar真的很高，面试官自己就是发过ACL/EMNLP的大佬。虽然挂了但这次面试帮我列了一个超长的学习清单。如果想面DeepL的NLP岗，建议把Transformer从头到尾手推一遍公式，然后读几篇他们发的论文。"
+    }
+  ]
+}
