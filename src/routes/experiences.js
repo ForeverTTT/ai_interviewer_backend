@@ -1,7 +1,26 @@
 import { Router } from 'express'
+import { z } from 'zod'
 import { supabase, supabaseForUser } from '../lib/supabase.js'
+import { validate } from '../middleware/validate.js'
 
 const router = Router()
+
+const experienceSchema = z.object({
+  type: z.enum(['campus', 'social', 'internal']),
+  company: z.string().min(1).max(100),
+  location: z.string().max(100).optional().nullable(),
+  position: z.string().min(1).max(100),
+  department: z.string().max(100).optional().nullable(),
+  date: z.string().regex(/^\d{4}-\d{2}$/, "Format must be YYYY-MM"),
+  language: z.enum(['zh', 'en', 'de']),
+  rounds: z.array(z.object({
+    role: z.string().max(100).optional().nullable(),
+    content: z.string().max(2000).optional().nullable(),
+  })).optional(),
+  result: z.enum(['pending', 'offer', 'rejected', 'failed', 'withdraw']).optional().nullable(),
+  salary: z.string().max(100).optional().nullable(),
+  reflection: z.string().max(5000).optional().nullable(),
+})
 
 /**
  * GET ALL EXPERIENCES
@@ -55,7 +74,7 @@ router.get('/mine', async (req, res) => {
 /**
  * POST NEW EXPERIENCE
  */
-router.post('/', async (req, res) => {
+router.post('/', validate(experienceSchema), async (req, res) => {
   const authHeader = req.headers.authorization
   if (!authHeader) return res.status(401).json({ error: 'Unauthorized' })
 

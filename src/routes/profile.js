@@ -1,9 +1,19 @@
 import { Router } from 'express'
+import { z } from 'zod'
 import { supabase, supabaseForUser } from '../lib/supabase.js'
 import { requireAuth } from '../middleware/auth.js'
 import { assertGeminiConfigured, invokeGemini, stripJsonFence } from '../lib/geminiText.js'
+import { validate } from '../middleware/validate.js'
 
 const router = Router()
+
+const profileUpdateSchema = z.object({
+  resumeText: z.string().max(100000).optional(),
+  resumeNotes: z.string().max(5000).optional(),
+  profileJson: z.record(z.any()).optional(),
+  jobSearchStatus: z.string().max(50).optional(),
+  avatarId: z.string().max(50).nullable().optional(),
+})
 
 /** Get user-scoped Supabase client from the request (works with RLS). */
 function dbFor(req) {
@@ -273,7 +283,7 @@ router.get('/resume', requireAuth, async (req, res) => {
 })
 
 /** PUT /api/profile */
-router.put('/', requireAuth, async (req, res) => {
+router.put('/', requireAuth, validate(profileUpdateSchema), async (req, res) => {
   const { resumeText, resumeNotes, profileJson, jobSearchStatus, avatarId } = req.body ?? {}
 
   try {
