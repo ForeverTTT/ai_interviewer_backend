@@ -2,6 +2,7 @@ import { Router } from 'express'
 import { supabase, supabaseForUser } from '../lib/supabase.js'
 import { requireAuth } from '../middleware/auth.js'
 import { assertGeminiConfigured, invokeGemini, stripJsonFence } from '../lib/geminiText.js'
+import { checkTokens, deductTokens } from '../middleware/tokens.js'
 
 const router = Router()
 
@@ -264,7 +265,7 @@ router.get('/', requireAuth, async (req, res) => {
 /**
  * POST /api/interviews
  */
-router.post('/', requireAuth, async (req, res) => {
+router.post('/', requireAuth, (req, _, next) => { req.tokenCost = 300; next(); }, checkTokens, async (req, res) => {
   const { position, job_description, language, duration, resume_snapshot } = req.body ?? {}
 
   if (!position || !language || !duration) {
@@ -285,7 +286,7 @@ router.post('/', requireAuth, async (req, res) => {
 
   row.status = 'in_progress'
 
-  try {
+    try {
     const { data, error } = await dbFor(req).from('interviews').insert(row).select().single()
 
     if (error) {
@@ -300,7 +301,8 @@ router.post('/', requireAuth, async (req, res) => {
       })
     }
 
-    return res.status(201).json({ interview: data })
+    await deductTokens(req.user.id, 300)
+    return res.status(201).json({ interview: data, tokensDeducted: 300 })
   } catch (err) {
     console.error('[POST /interviews] Unexpected error:', err)
     return res.status(500).json({ error: 'Internal server error' })

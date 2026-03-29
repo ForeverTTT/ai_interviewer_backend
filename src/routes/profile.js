@@ -4,6 +4,7 @@ import { supabase, supabaseForUser } from '../lib/supabase.js'
 import { requireAuth } from '../middleware/auth.js'
 import { assertGeminiConfigured, invokeGemini, stripJsonFence } from '../lib/geminiText.js'
 import { validate } from '../middleware/validate.js'
+import { checkTokens, deductTokens, addTokens } from '../middleware/tokens.js'
 
 const router = Router()
 
@@ -224,10 +225,9 @@ Required JSON shape:
 async function fetchProfileRow(userId, db) {
   const { data, error } = await db
     .from('profiles')
-    .select('id, resume_text, resume_notes, profile_json, resume_coach, job_search_status, resume_updated_at, avatar_id')
+    .select('*')
     .eq('id', userId)
     .maybeSingle()
-  console.log(`[Supabase DEBUG] userId:${userId} data:${data ? 'found' : 'missing'} error:${error?.message || 'none'}`)
 
   if (error) throw error
   return data
@@ -241,6 +241,7 @@ async function ensureProfileRow(userId, db) {
     id: userId,
     resume_text: '',
     resume_notes: '',
+    tokens: 1000,
     profile_json: {},
     job_search_status: 'seeking',
   }
@@ -256,6 +257,7 @@ router.get('/', requireAuth, async (req, res) => {
   try {
     const db = dbFor(req)
     const row = await ensureProfileRow(req.user.id, db)
+    
     return res.json({
       resumeText: row.resume_text || '',
       resumeNotes: row.resume_notes ?? '',
@@ -263,6 +265,7 @@ router.get('/', requireAuth, async (req, res) => {
       resumeCoach: row.resume_coach ?? null,
       resumeUpdatedAt: row.resume_updated_at ?? null,
       avatarId: row.avatar_id ?? null,
+      tokens: row.tokens ?? 1000,
     })
   } catch (err) {
     console.error('[GET /profile]', err)
@@ -321,6 +324,22 @@ router.put('/', requireAuth, validate(profileUpdateSchema), async (req, res) => 
   } catch (err) {
     console.error('[PUT /profile]', err)
     return res.status(500).json({ error: 'Failed to save profile' })
+  }
+})
+
+/** POST /api/profile/recharge — mock recharge */
+router.post('/recharge', requireAuth, async (req, res) => {
+  const { amount } = req.body ?? {}
+  if (!amount || typeof amount !== 'number' || amount <= 0) {
+    return res.status(400).json({ error: 'Invalid amount' })
+  }
+
+  try {
+    await addTokens(req.user.id, amount)
+    return res.json({ success: true, added: amount })
+  } catch (err) {
+    console.error('[POST /recharge]', err)
+    return res.status(500).json({ error: 'Recharge failed' })
   }
 })
 
@@ -496,7 +515,7 @@ router.post('/resume/parse-pdf', requireAuth, async (req, res) => {
 })
 
 /** POST /api/profile/extract-cv — structured fields from resume text (Gemini JSON) */
-router.post('/extract-cv', requireAuth, async (req, res) => {
+router.post('/extract-cv', requireAuth, (req, _, next) => { req.tokenCost = 50; next(); }, checkTokens, async (req, res) => {
   if (!assertGeminiConfigured(res)) return
 
   const draft = typeof req.body?.resumeText === 'string' ? req.body.resumeText.trim() : ''
@@ -525,7 +544,8 @@ router.post('/extract-cv', requireAuth, async (req, res) => {
       return res.status(502).json({ error: 'Model returned invalid JSON', details: 'Try again or shorten resume.' })
     }
 
-    return res.json({ cvProfile: parsed })
+    await deductTokens(req.user.id, 50)
+    return res.json({ cvProfile: parsed, tokensDeducted: 50 })
   } catch (err) {
     console.error('[extract-cv]', err)
     return res.status(500).json({ error: 'Extract CV failed' })
@@ -533,7 +553,7 @@ router.post('/extract-cv', requireAuth, async (req, res) => {
 })
 
 /** POST /api/profile/resume-coach */
-router.post('/resume-coach', requireAuth, async (req, res) => {
+router.post('/resume-coach', requireAuth, (req, _, next) => { req.tokenCost = 200; next(); }, checkTokens, async (req, res) => {
   if (!assertGeminiConfigured(res)) return
 
   const targetRole = typeof req.body?.targetRole === 'string' ? req.body.targetRole.trim() : ''
@@ -603,7 +623,8 @@ ${resume.slice(0, 48_000)}
       return res.json({ coach: payload, persisted: false })
     }
 
-    return res.json({ coach: payload, persisted: true })
+    await deductTokens(req.user.id, 200)
+    return res.json({ coach: payload, persisted: true, tokensDeducted: 200 })
   } catch (err) {
     console.error('[resume-coach]', err)
     return res.status(500).json({ error: 'Resume coach failed' })

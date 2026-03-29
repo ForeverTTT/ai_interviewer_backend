@@ -2,6 +2,7 @@ import { Router } from 'express'
 import { z } from 'zod'
 import { supabase, supabaseForUser } from '../lib/supabase.js'
 import { validate } from '../middleware/validate.js'
+import { addTokens } from '../middleware/tokens.js'
 
 const router = Router()
 
@@ -107,7 +108,11 @@ router.post('/', validate(experienceSchema), async (req, res) => {
       .single()
 
     if (error) throw error
-    res.status(201).json(data)
+    
+    // Reward for community contribution
+    await addTokens(user.id, 200)
+    
+    res.status(201).json({ ...data, tokensAwarded: 200 })
   } catch (err) {
     console.error('[Experiences] Post error:', err)
     res.status(500).json({ error: err.message || 'Failed to save experience' })

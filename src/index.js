@@ -33,7 +33,7 @@ app.use(helmet({
 // 2. Global Rate Limiter
 const globalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // Limit each IP to 100 requests per windowMs
+  max: 1000, // Increased for dev/testing
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Too many requests, please try again later.' },
@@ -42,7 +42,7 @@ const globalLimiter = rateLimit({
 // 3. Strict Limiter for AI and Auth sensitive routes
 const strictLimiter = rateLimit({
   windowMs: 60 * 60 * 1000, // 1 hour
-  max: 20, // Limit each IP to 20 AI/Auth requests per hour
+  max: 500, // Increased for dev/testing
   message: { error: 'Hourly limit reached for AI/Auth services. Please wait.' },
 })
 
