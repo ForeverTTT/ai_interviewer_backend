@@ -2,6 +2,7 @@ import { Router } from 'express'
 import { requireAuth } from '../middleware/auth.js'
 import { getGraph, RESPONSE_NODES, AGENT_LABELS } from '../agents/interviewGraph.js'
 import { sessionStore, getMaxQuestions } from '../agents/utils.js'
+import { synthesizeSpeechVertex } from '../lib/ttsVertex.js'
 
 const router = Router()
 
@@ -270,6 +271,22 @@ router.post('/tts', requireAuth, async (req, res) => {
   const modelId = process.env.GEMINI_TTS_MODEL || 'gemini-2.5-flash-preview-tts'
   const isTtsModel = modelId.includes('tts')
 
+  // --- Enterprise Vertex TTS Fallback ---
+  if (process.env.GCP_PROJECT_ID) {
+    try {
+      const { audioContent, contentType } = await synthesizeSpeechVertex(text, language, false)
+      console.log(`[TTS Provider: VertexAI] Synthesized "${text.slice(0, 30)}..." in ${language} (${audioContent.length} bytes, MP3)`)
+      return res.set({
+        'Content-Type': 'audio/mpeg',
+        'Content-Length': audioContent.length,
+        'X-TTS-Source': 'VertexAI'
+      }).send(audioContent)
+    } catch (err) {
+      console.warn('[TTS Vertex] Enterprise fallback failed, trying generic:', err.message)
+      // gracefully continue to Gemini logic
+    }
+  }
+
   try {
     let lastErr = ''
     const maxAttempts = Math.max(ttsKeyPool.size, 1)
@@ -306,7 +323,9 @@ router.post('/tts', requireAuth, async (req, res) => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       })
-
+      
+      console.log(`[TTS Provider: Gemini] Using key ...${apiKey.slice(-6)} on model ${modelId}`)
+      
       if (ttsRes.status === 429) {
         ttsKeyPool.markExhausted(apiKey)
         lastErr = await ttsRes.text()
@@ -355,12 +374,28 @@ router.post('/tts-stream', requireAuth, async (req, res) => {
   const { text, language = 'English' } = req.body
   if (!text?.trim()) return res.status(400).json({ error: 'text is required' })
 
-  if (!ttsKeyPool.size) return res.status(500).json({ error: 'No TTS API keys configured' })
-
-  const voiceName = TTS_VOICES[language] || TTS_VOICES.English
-  const prompt = buildTtsPrompt(text)
   const modelId = process.env.GEMINI_TTS_MODEL || 'gemini-2.5-flash-preview-tts'
   const isTtsModel = modelId.includes('tts')
+
+  // --- Enterprise Vertex TTS Fallback ---
+  if (process.env.GCP_PROJECT_ID) {
+    try {
+      const { audioContent, contentType } = await synthesizeSpeechVertex(text, language, true)
+      console.log(`[TTS Stream Provider: VertexAI] Full buffer response in ${language} (${audioContent.length} bytes, PCM)`)
+      
+      return res.set({
+        'Content-Type': 'audio/pcm',
+        'Content-Length': audioContent.length,
+        'X-Sample-Rate': '24000',
+        'X-TTS-Source': 'VertexAI'
+      }).send(audioContent)
+    } catch (err) {
+      console.warn('[TTS Vertex Stream] Enterprise fallback failed:', err.message)
+      // continue to generic
+    }
+  }
+
+  if (!ttsKeyPool.size) return res.status(500).json({ error: 'No TTS API keys configured' })
 
   const reqBody = isTtsModel
     ? {

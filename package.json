@@ -9,8 +9,11 @@
     "dev": "nodemon src/index.js"
   },
   "dependencies": {
+    "@google-cloud/text-to-speech": "^6.4.0",
+    "@google-cloud/vertexai": "^1.10.3",
     "@langchain/core": "^1.1.35",
     "@langchain/google-genai": "^2.1.26",
+    "@langchain/google-vertexai": "^2.1.26",
     "@langchain/langgraph": "^1.2.5",
     "@supabase/supabase-js": "^2.45.0",
     "cors": "^2.8.5",
