@@ -10,8 +10,8 @@
  */
 
 import { StateGraph, Annotation, START, END } from '@langchain/langgraph'
-import { ChatGoogleGenerativeAI }              from '@langchain/google-genai'
-import { ChatVertexAI }                       from '@langchain/google-vertexai'
+import { ChatGoogleGenerativeAI } from '@langchain/google-genai'
+import { ChatVertexAI } from '@langchain/google-vertexai'
 import {
   HumanMessage,
   AIMessage,
@@ -30,30 +30,30 @@ import {
 
 function makeLLM(opts = {}) {
   const isVertex = !!process.env.GCP_PROJECT_ID
-  
+
   if (isVertex) {
     // Enterprise stable (Vertex AI)
     return new ChatVertexAI({
-      model:           opts.model || process.env.GCP_MODEL || 'gemini-1.5-flash-002',
-      project:         process.env.GCP_PROJECT_ID,
-      location:        process.env.GCP_LOCATION || 'us-central1',
-      temperature:     opts.temperature    ?? 0.8,
-      streaming:       opts.streaming      ?? true,
-      maxOutputTokens: opts.maxTokens      ?? 1024,
+      model: opts.model || process.env.GCP_MODEL || 'gemini-1.5-flash-002',
+      project: process.env.GCP_PROJECT_ID,
+      location: process.env.GCP_LOCATION || 'us-central1',
+      temperature: opts.temperature ?? 0.8,
+      streaming: opts.streaming ?? true,
+      maxOutputTokens: opts.maxTokens ?? 1024,
     })
   } else {
     // Consumer / Free tier (AI Studio)
     return new ChatGoogleGenerativeAI({
-      model:           process.env.GEMINI_MODEL || 'gemini-2.0-flash',
-      apiKey:          process.env.GEMINI_API_KEY,
-      temperature:     opts.temperature    ?? 0.8,
-      streaming:       opts.streaming      ?? true,
-      maxOutputTokens: opts.maxTokens      ?? 1024,
+      model: process.env.GEMINI_MODEL || 'gemini-2.0-flash',
+      apiKey: process.env.GEMINI_API_KEY,
+      temperature: opts.temperature ?? 0.8,
+      streaming: opts.streaming ?? true,
+      maxOutputTokens: opts.maxTokens ?? 1024,
       safetySettings: [
-        { category: 'HARM_CATEGORY_HARASSMENT',         threshold: 'BLOCK_NONE' },
-        { category: 'HARM_CATEGORY_HATE_SPEECH',        threshold: 'BLOCK_NONE' },
+        { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_NONE' },
+        { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_NONE' },
         { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_NONE' },
-        { category: 'HARM_CATEGORY_DANGEROUS_CONTENT',  threshold: 'BLOCK_NONE' },
+        { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_NONE' },
       ],
     })
   }
@@ -64,7 +64,7 @@ let responseLLM = null
 let feedbackLLM = null
 
 function ensureLLMs() {
-  if (!analyzerLLM) analyzerLLM = makeLLM({ temperature: 0.3,  streaming: true, maxTokens: 1024 })
+  if (!analyzerLLM) analyzerLLM = makeLLM({ temperature: 0.3, streaming: true, maxTokens: 1024 })
   if (!responseLLM) responseLLM = makeLLM({ temperature: 0.85, streaming: true, maxTokens: 1024 })
   if (!feedbackLLM) feedbackLLM = makeLLM({ temperature: 0.75, streaming: true, maxTokens: 4096 })
 }
@@ -79,17 +79,17 @@ const InterviewStateAnnotation = Annotation.Root({
 
   config: Annotation({ value: (_, v) => v, default: () => ({}) }),
 
-  phase:           Annotation({ value: (_, v) => v, default: () => 'opening' }),
-  questionCount:   Annotation({ value: (_, v) => v, default: () => 0 }),
-  technicalCount:  Annotation({ value: (_, v) => v, default: () => 0 }),
+  phase: Annotation({ value: (_, v) => v, default: () => 'opening' }),
+  questionCount: Annotation({ value: (_, v) => v, default: () => 0 }),
+  technicalCount: Annotation({ value: (_, v) => v, default: () => 0 }),
   behavioralCount: Annotation({ value: (_, v) => v, default: () => 0 }),
-  exploreCount:    Annotation({ value: (_, v) => v, default: () => 0 }),
+  exploreCount: Annotation({ value: (_, v) => v, default: () => 0 }),
 
   /** Ordered slots after self-intro: explore | technical | behavioral */
   plan: Annotation({ value: (_, v) => v, default: () => [] }),
   planIndex: Annotation({ value: (_, v) => v, default: () => 0 }),
 
-  interviewerName: Annotation({ value: (_, v) => v, default: () => 'Dr. Schmidt' }),
+  interviewerName: Annotation({ value: (_, v) => v, default: () => 'Anna Müller' }),
 
   nextQuestionType: Annotation({ value: (_, v) => v, default: () => 'technical' }),
 
@@ -135,7 +135,7 @@ export async function initInterviewGraph() {
     loadKnowledge('technical_domains'),
     loadKnowledge('behavioral_competencies'),
   ])
-  _domains      = domains
+  _domains = domains
   _competencies = competencies
 }
 
@@ -177,17 +177,17 @@ async function analyzeAnswerNode(state) {
   const userAnswer = lastUser?.content || ''
 
   const prompt = renderPrompt(_prompts.analyzer, {
-    POSITION:         config?.position       || '',
-    LANGUAGE:         config?.language       || 'English',
-    JOB_DESCRIPTION:  config?.jobDescription || '(not provided)',
-    RESUME_SNAPSHOT:    resumeSnapshotFromConfig(config),
-    QUESTION_COUNT:   String(questionCount),
-    TECHNICAL_COUNT:  String(technicalCount),
+    POSITION: config?.position || '',
+    LANGUAGE: config?.language || 'English',
+    JOB_DESCRIPTION: config?.jobDescription || '(not provided)',
+    RESUME_SNAPSHOT: resumeSnapshotFromConfig(config),
+    QUESTION_COUNT: String(questionCount),
+    TECHNICAL_COUNT: String(technicalCount),
     BEHAVIORAL_COUNT: String(behavioralCount),
-    EXPLORE_COUNT:    String(exploreCount),
-    PLAN_INDEX:       String(planIndex),
-    PLAN_LENGTH:      String(planLen),
-    USER_ANSWER:      userAnswer,
+    EXPLORE_COUNT: String(exploreCount),
+    PLAN_INDEX: String(planIndex),
+    PLAN_LENGTH: String(planLen),
+    USER_ANSWER: userAnswer,
     ANALYSIS_HISTORY: analysisNotes.slice(-3).join('\n\n---\n\n') || 'none yet',
   })
 
@@ -235,13 +235,13 @@ async function generateOpeningNode(state) {
 
   const systemPrompt = renderPrompt(_prompts.opening, {
     INTERVIEWER_NAME: interviewerName,
-    POSITION:         config?.position       || '',
-    LANGUAGE:         config?.language       || 'English',
-    JOB_DESCRIPTION:  config?.jobDescription || '',
-    RESUME_SNAPSHOT:    snap,
+    POSITION: config?.position || '',
+    LANGUAGE: config?.language || 'English',
+    JOB_DESCRIPTION: config?.jobDescription || '',
+    RESUME_SNAPSHOT: snap,
   })
 
-  const lang    = config?.language || 'English'
+  const lang = config?.language || 'English'
   const trigger = lang === 'Deutsch'
     ? 'Kurze Begrüßung + Bitte zur Selbstvorstellung. Maximal 50 Wörter.'
     : 'Brief greeting + ask for self-introduction. 50 words max.'
@@ -254,32 +254,32 @@ async function generateOpeningNode(state) {
   console.warn('[Opening Output]:', response.content)
 
   return {
-    messages:          [response],
-    phase:             'questioning',
-    questionCount:     0,
-    technicalCount:    0,
-    behavioralCount:   0,
-    exploreCount:      0,
+    messages: [response],
+    phase: 'questioning',
+    questionCount: 0,
+    technicalCount: 0,
+    behavioralCount: 0,
+    exploreCount: 0,
   }
 }
 
 async function askExploreNode(state) {
   const { config, interviewerName, rawMessages, analysisNotes, planIndex } = state
-  const maxQ      = Array.isArray(state.plan) && state.plan.length > 0
+  const maxQ = Array.isArray(state.plan) && state.plan.length > 0
     ? state.plan.length
     : getMaxQuestions(config?.duration)
   const lastNotes = analysisNotes.slice(-2).join('\n') || 'No prior analysis.'
-  const snap      = resumeSnapshotFromConfig(config)
+  const snap = resumeSnapshotFromConfig(config)
 
   const systemPrompt = renderPrompt(_prompts.explore, {
-    INTERVIEWER_NAME:     interviewerName,
-    POSITION:             config?.position       || '',
-    LANGUAGE:             config?.language       || 'English',
-    MAX_QUESTIONS:        String(maxQ),
-    JOB_DESCRIPTION:      config?.jobDescription || '',
-    RESUME_SNAPSHOT:      snap,
-    ANALYSIS_NOTES:       lastNotes,
-    QUESTION_NUMBER:      String(planIndex + 1),
+    INTERVIEWER_NAME: interviewerName,
+    POSITION: config?.position || '',
+    LANGUAGE: config?.language || 'English',
+    MAX_QUESTIONS: String(maxQ),
+    JOB_DESCRIPTION: config?.jobDescription || '',
+    RESUME_SNAPSHOT: snap,
+    ANALYSIS_NOTES: lastNotes,
+    QUESTION_NUMBER: String(planIndex + 1),
     CONVERSATION_HISTORY: formatConversationHistory(rawMessages, 6),
   })
 
@@ -291,31 +291,31 @@ async function askExploreNode(state) {
   console.warn('[Explore Output]:', response.content)
 
   return {
-    messages:      [response],
-    planIndex:     planIndex + 1,
+    messages: [response],
+    planIndex: planIndex + 1,
     questionCount: state.questionCount + 1,
-    exploreCount:  state.exploreCount + 1,
+    exploreCount: state.exploreCount + 1,
   }
 }
 
 async function askTechnicalNode(state) {
   const { config, interviewerName, rawMessages, analysisNotes, planIndex } = state
-  const domain    = findRelevantDomain(config?.position, _domains)
-  const maxQ      = Array.isArray(state.plan) && state.plan.length > 0
+  const domain = findRelevantDomain(config?.position, _domains)
+  const maxQ = Array.isArray(state.plan) && state.plan.length > 0
     ? state.plan.length
     : getMaxQuestions(config?.duration)
   const lastNotes = analysisNotes.slice(-2).join('\n') || 'No prior analysis.'
 
   const systemPrompt = renderPrompt(_prompts.technical, {
-    INTERVIEWER_NAME:     interviewerName,
-    POSITION:             config?.position       || '',
-    LANGUAGE:             config?.language       || 'English',
-    MAX_QUESTIONS:        String(maxQ),
-    JOB_DESCRIPTION:      config?.jobDescription || '',
-    RESUME_SNAPSHOT:      resumeSnapshotFromConfig(config),
-    DOMAIN_TOPICS:        domain?.topics?.slice(0, 6).map(t => `• ${t}`).join('\n') || '',
-    ANALYSIS_NOTES:       lastNotes,
-    QUESTION_NUMBER:      String(planIndex + 1),
+    INTERVIEWER_NAME: interviewerName,
+    POSITION: config?.position || '',
+    LANGUAGE: config?.language || 'English',
+    MAX_QUESTIONS: String(maxQ),
+    JOB_DESCRIPTION: config?.jobDescription || '',
+    RESUME_SNAPSHOT: resumeSnapshotFromConfig(config),
+    DOMAIN_TOPICS: domain?.topics?.slice(0, 6).map(t => `• ${t}`).join('\n') || '',
+    ANALYSIS_NOTES: lastNotes,
+    QUESTION_NUMBER: String(planIndex + 1),
     CONVERSATION_HISTORY: formatConversationHistory(rawMessages, 6),
   })
 
@@ -327,36 +327,36 @@ async function askTechnicalNode(state) {
   console.warn('[Technical Output]:', response.content)
 
   return {
-    messages:       [response],
-    planIndex:      planIndex + 1,
-    questionCount:  state.questionCount + 1,
+    messages: [response],
+    planIndex: planIndex + 1,
+    questionCount: state.questionCount + 1,
     technicalCount: state.technicalCount + 1,
   }
 }
 
 async function askBehavioralNode(state) {
   const { config, interviewerName, rawMessages, analysisNotes, planIndex } = state
-  const maxQ        = Array.isArray(state.plan) && state.plan.length > 0
+  const maxQ = Array.isArray(state.plan) && state.plan.length > 0
     ? state.plan.length
     : getMaxQuestions(config?.duration)
-  const usedNotes   = analysisNotes.join(' ')
-  const competency  = findUnusedCompetency(_competencies, usedNotes)
-  const lastNotes   = analysisNotes.slice(-2).join('\n') || 'No prior analysis.'
+  const usedNotes = analysisNotes.join(' ')
+  const competency = findUnusedCompetency(_competencies, usedNotes)
+  const lastNotes = analysisNotes.slice(-2).join('\n') || 'No prior analysis.'
 
   const systemPrompt = renderPrompt(_prompts.behavioral, {
-    INTERVIEWER_NAME:       interviewerName,
-    POSITION:               config?.position       || '',
-    LANGUAGE:               config?.language       || 'English',
-    MAX_QUESTIONS:          String(maxQ),
-    JOB_DESCRIPTION:        config?.jobDescription || '',
-    RESUME_SNAPSHOT:        resumeSnapshotFromConfig(config),
-    COMPETENCY_NAME:        competency?.name       || 'Teamwork',
+    INTERVIEWER_NAME: interviewerName,
+    POSITION: config?.position || '',
+    LANGUAGE: config?.language || 'English',
+    MAX_QUESTIONS: String(maxQ),
+    JOB_DESCRIPTION: config?.jobDescription || '',
+    RESUME_SNAPSHOT: resumeSnapshotFromConfig(config),
+    COMPETENCY_NAME: competency?.name || 'Teamwork',
     COMPETENCY_DESCRIPTION: config?.language === 'Deutsch'
       ? (competency?.description_de || competency?.description || '')
       : (competency?.description || ''),
-    ANALYSIS_NOTES:         lastNotes,
-    QUESTION_NUMBER:        String(planIndex + 1),
-    CONVERSATION_HISTORY:   formatConversationHistory(rawMessages, 6),
+    ANALYSIS_NOTES: lastNotes,
+    QUESTION_NUMBER: String(planIndex + 1),
+    CONVERSATION_HISTORY: formatConversationHistory(rawMessages, 6),
   })
 
   const response = await responseLLM.invoke([
@@ -367,9 +367,9 @@ async function askBehavioralNode(state) {
   console.warn('[Behavioral Output]:', response.content)
 
   return {
-    messages:        [response],
-    planIndex:       planIndex + 1,
-    questionCount:   state.questionCount + 1,
+    messages: [response],
+    planIndex: planIndex + 1,
+    questionCount: state.questionCount + 1,
     behavioralCount: state.behavioralCount + 1,
   }
 }
@@ -378,12 +378,12 @@ async function giveFeedbackNode(state) {
   const { config, rawMessages, analysisNotes, questionCount, technicalCount, behavioralCount } = state
 
   const systemPrompt = renderPrompt(_prompts.feedback, {
-    POSITION:             config?.position    || '',
-    LANGUAGE:             config?.language    || 'English',
-    QUESTION_COUNT:       String(questionCount),
-    TECHNICAL_COUNT:      String(technicalCount),
-    BEHAVIORAL_COUNT:     String(behavioralCount),
-    ANALYSIS_NOTES:       analysisNotes.join('\n\n') || 'No analysis notes available.',
+    POSITION: config?.position || '',
+    LANGUAGE: config?.language || 'English',
+    QUESTION_COUNT: String(questionCount),
+    TECHNICAL_COUNT: String(technicalCount),
+    BEHAVIORAL_COUNT: String(behavioralCount),
+    ANALYSIS_NOTES: analysisNotes.join('\n\n') || 'No analysis notes available.',
     CONVERSATION_HISTORY: formatConversationHistory(rawMessages, 14),
   })
 
@@ -394,41 +394,41 @@ async function giveFeedbackNode(state) {
 
   return {
     messages: [response],
-    phase:    'closed',
+    phase: 'closed',
   }
 }
 
 function buildGraph() {
   const graph = new StateGraph(InterviewStateAnnotation)
 
-  graph.addNode('route_turn',       routeTurnNode)
-  graph.addNode('analyze_answer',   analyzeAnswerNode)
+  graph.addNode('route_turn', routeTurnNode)
+  graph.addNode('analyze_answer', analyzeAnswerNode)
   graph.addNode('generate_opening', generateOpeningNode)
-  graph.addNode('ask_explore',      askExploreNode)
-  graph.addNode('ask_technical',    askTechnicalNode)
-  graph.addNode('ask_behavioral',   askBehavioralNode)
-  graph.addNode('give_feedback',    giveFeedbackNode)
+  graph.addNode('ask_explore', askExploreNode)
+  graph.addNode('ask_technical', askTechnicalNode)
+  graph.addNode('ask_behavioral', askBehavioralNode)
+  graph.addNode('give_feedback', giveFeedbackNode)
 
   graph.addEdge(START, 'route_turn')
 
   graph.addConditionalEdges('route_turn', routeTurnEdge, {
-    opening:  'generate_opening',
-    analyze:  'analyze_answer',
+    opening: 'generate_opening',
+    analyze: 'analyze_answer',
     feedback: 'give_feedback',
   })
 
   graph.addConditionalEdges('analyze_answer', routeQuestionEdge, {
-    explore:    'ask_explore',
-    technical:  'ask_technical',
+    explore: 'ask_explore',
+    technical: 'ask_technical',
     behavioral: 'ask_behavioral',
-    feedback:   'give_feedback',
+    feedback: 'give_feedback',
   })
 
   graph.addEdge('generate_opening', END)
-  graph.addEdge('ask_explore',      END)
-  graph.addEdge('ask_technical',    END)
-  graph.addEdge('ask_behavioral',   END)
-  graph.addEdge('give_feedback',    END)
+  graph.addEdge('ask_explore', END)
+  graph.addEdge('ask_technical', END)
+  graph.addEdge('ask_behavioral', END)
+  graph.addEdge('give_feedback', END)
 
   return graph.compile()
 }
@@ -452,10 +452,10 @@ export const RESPONSE_NODES = new Set([
 ])
 
 export const AGENT_LABELS = {
-  generate_opening: { name: 'opening',    label: '面试官',       emoji: '👔' },
-  ask_explore:      { name: 'explore',    label: '经历深挖',     emoji: '📎' },
-  ask_technical:    { name: 'technical',  label: '技术面试官',   emoji: '💡' },
-  ask_behavioral:   { name: 'behavioral', label: '行为面试官',   emoji: '🤝' },
-  give_feedback:    { name: 'feedback',   label: '面试反馈',     emoji: '📋' },
-  analyze_answer:   { name: 'analyzer',   label: '分析中...',    emoji: '🔍' },
+  generate_opening: { name: 'opening', label: '面试官', emoji: '👔' },
+  ask_explore: { name: 'explore', label: '经历深挖', emoji: '📎' },
+  ask_technical: { name: 'technical', label: '技术面试官', emoji: '💡' },
+  ask_behavioral: { name: 'behavioral', label: '行为面试官', emoji: '🤝' },
+  give_feedback: { name: 'feedback', label: '面试反馈', emoji: '📋' },
+  analyze_answer: { name: 'analyzer', label: '分析中...', emoji: '🔍' },
 }
