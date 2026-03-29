@@ -195,7 +195,10 @@ const TTS_VOICES = {
 const TTS_MODEL = process.env.GEMINI_TTS_MODEL || 'gemini-2.5-flash-preview-tts'
 
 function buildTtsPrompt(text) {
-  return String(text || '').trim().slice(0, 4500)
+  return String(text || '')
+    .replace(/(?<!\b(?:Dr|Mr|Mrs|Ms|Sr|Jr|St|i\.e|e\.g|etc|prof|vs))\s*([.?!。？！])\s+/gi, '$1   ') 
+    .trim()
+    .slice(0, 4500)
 }
 
 // ── API Key rotation pool ─────────────────────────────────────────
@@ -395,7 +398,8 @@ router.post('/tts-stream', requireAuth, async (req, res) => {
     }
   }
 
-  if (!ttsKeyPool.size) return res.status(500).json({ error: 'No TTS API keys configured' })
+  const voiceName = TTS_VOICES[language] || TTS_VOICES.English
+  const prompt = buildTtsPrompt(text)
 
   const reqBody = isTtsModel
     ? {

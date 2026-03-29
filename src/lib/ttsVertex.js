@@ -54,20 +54,36 @@ export async function synthesizeSpeechVertex(text, language = 'English', isStrea
   const tier = process.env.GCP_TTS_VOICE_TIER || 'Studio'
   const voices = VOICE_TIERS[tier] || VOICE_TIERS.Studio
   const voiceName = voices[language] || voices.English
+  const isJourney = tier === 'Journey'
+
+  let input
+  if (isJourney) {
+    // Journey voices do NOT support SSML, speakingRate, or pitch parameters
+    input = { text }
+  } else {
+    const escapedText = text
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+    const ssml = `<speak>${escapedText.replace(/(?<!\b(?:Dr|Mr|Mrs|Ms|Sr|Jr|St|i\.e|e\.g|etc|prof|vs))\s*([.?!。？！])\s*/gi, '$1<break time="700ms"/> ')}</speak>`
+    input = { ssml }
+  }
+
+  const audioConfig = {
+    audioEncoding: isStream ? 'LINEAR16' : 'MP3',
+    sampleRateHertz: 24000,
+  }
+  if (!isJourney) {
+    audioConfig.speakingRate = 0.9
+  }
 
   const request = {
-    input: { text },
-    voice: { 
-      languageCode: VOICE_LANG_MAP[language] || 'en-US', 
+    input,
+    voice: {
+      languageCode: VOICE_LANG_MAP[language] || 'en-US',
       name: voiceName,
-      ssmlGender: voiceName.includes('Journey-F') ? 'FEMALE' : 'MALE'
     },
-    audioConfig: { 
-      audioEncoding: isStream ? 'LINEAR16' : 'MP3', 
-      sampleRateHertz: 24000,
-      speakingRate: 1.05,
-      pitch: 0
-    },
+    audioConfig,
   }
 
   if (isStream) console.log(`[TTS] Streaming audio for ${language} with ${voiceName}`)
@@ -76,5 +92,5 @@ export async function synthesizeSpeechVertex(text, language = 'English', isStrea
   return {
     audioContent: response.audioContent,
     contentType: isStream ? 'audio/l16' : 'audio/mpeg'
-  } 
+  }
 }
