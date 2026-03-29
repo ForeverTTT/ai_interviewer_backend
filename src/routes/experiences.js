@@ -1,47 +1,125 @@
 import { Router } from 'express'
-import { readFile } from 'fs/promises'
-import { join, dirname } from 'path'
-import { fileURLToPath } from 'url'
-
-const __dirname = dirname(fileURLToPath(import.meta.url))
-const DATA_PATH = join(__dirname, '..', '..', 'data', 'knowledge_base', 'interview_experiences.json')
+import { supabase, supabaseForUser } from '../lib/supabase.js'
 
 const router = Router()
 
-let _cache = null
-let _cacheTime = 0
-const CACHE_TTL = 5 * 60 * 1000
-
-async function loadExperiences() {
-  if (_cache && Date.now() - _cacheTime < CACHE_TTL) return _cache
-  const raw = await readFile(DATA_PATH, 'utf-8')
-  _cache = JSON.parse(raw)
-  _cacheTime = Date.now()
-  return _cache
-}
-
+/**
+ * GET ALL EXPERIENCES
+ */
 router.get('/', async (_req, res) => {
   try {
-    const data = await loadExperiences()
+    const { data, error, count } = await supabase
+      .from('interview_experiences')
+      .select('*', { count: 'exact' })
+      .order('created_at', { ascending: false })
+
+    if (error) throw error
+
     res.json({
-      total: data.experiences.length,
-      experiences: data.experiences,
+      total: count || 0,
+      experiences: data || [],
     })
   } catch (err) {
-    console.error('[Experiences] Load error:', err)
-    res.status(500).json({ error: 'Failed to load experiences' })
+    console.error('[Experiences] Database load error:', err)
+    res.status(500).json({ error: err.message || 'Failed to load experiences' })
   }
 })
 
-router.get('/:id', async (req, res) => {
+/**
+ * GET MY EXPERIENCES
+ */
+router.get('/mine', async (req, res) => {
+  const authHeader = req.headers.authorization
+  if (!authHeader) return res.status(401).json({ error: 'Unauthorized' })
+
   try {
-    const data = await loadExperiences()
-    const entry = data.experiences.find(e => e.id === req.params.id)
-    if (!entry) return res.status(404).json({ error: 'Experience not found' })
-    res.json(entry)
+    const token = authHeader.split(' ')[1]
+    const userClient = supabaseForUser(token)
+    const { data: { user }, error: userError } = await userClient.auth.getUser()
+    if (userError || !user) return res.status(401).json({ error: 'Unauthorized' })
+
+    const { data, error } = await supabase
+      .from('interview_experiences')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+
+    if (error) throw error
+    res.json({ experiences: data || [] })
   } catch (err) {
-    console.error('[Experiences] Load error:', err)
-    res.status(500).json({ error: 'Failed to load experience' })
+    console.error('[Experiences] Mine error:', err)
+    res.status(500).json({ error: err.message || 'Failed to load your experiences' })
+  }
+})
+
+/**
+ * POST NEW EXPERIENCE
+ */
+router.post('/', async (req, res) => {
+  const authHeader = req.headers.authorization
+  if (!authHeader) return res.status(401).json({ error: 'Unauthorized' })
+
+  try {
+    const token = authHeader.split(' ')[1]
+    const userClient = supabaseForUser(token)
+    const { data: { user }, error: userError } = await userClient.auth.getUser()
+    if (userError || !user) return res.status(401).json({ error: 'Unauthorized' })
+
+    const { type, company, location, position, department, date, language, rounds, result, salary, reflection } = req.body
+
+    const { data, error } = await supabase
+      .from('interview_experiences')
+      .insert([{
+        type,
+        company,
+        location,
+        position,
+        department,
+        date,
+        language,
+        rounds: rounds || [],
+        result,
+        salary,
+        reflection,
+        user_id: user.id,
+        publisher: user.user_metadata?.full_name || user.email.split('@')[0]
+      }])
+      .select()
+      .single()
+
+    if (error) throw error
+    res.status(201).json(data)
+  } catch (err) {
+    console.error('[Experiences] Post error:', err)
+    res.status(500).json({ error: err.message || 'Failed to save experience' })
+  }
+})
+
+/**
+ * DELETE EXPERIENCE
+ */
+router.delete('/:id', async (req, res) => {
+  const authHeader = req.headers.authorization
+  if (!authHeader) return res.status(401).json({ error: 'Unauthorized' })
+
+  try {
+    const token = authHeader.split(' ')[1]
+    const userClient = supabaseForUser(token)
+    const { data: { user }, error: userError } = await userClient.auth.getUser()
+    if (userError || !user) return res.status(401).json({ error: 'Unauthorized' })
+
+    // Only allow deletion if user_id matches
+    const { error } = await supabase
+      .from('interview_experiences')
+      .delete()
+      .eq('id', req.params.id)
+      .eq('user_id', user.id)
+
+    if (error) throw error
+    res.json({ success: true })
+  } catch (err) {
+    console.error('[Experiences] Delete error:', err)
+    res.status(500).json({ error: err.message || 'Failed to delete experience' })
   }
 })
 
