@@ -11,6 +11,7 @@
 
 import { StateGraph, Annotation, START, END } from '@langchain/langgraph'
 import { ChatGoogleGenerativeAI }              from '@langchain/google-genai'
+import { ChatVertexAI }                       from '@langchain/google-vertexai'
 import {
   HumanMessage,
   AIMessage,
@@ -28,19 +29,34 @@ import {
 } from './utils.js'
 
 function makeLLM(opts = {}) {
-  return new ChatGoogleGenerativeAI({
-    model:           process.env.GEMINI_MODEL || 'gemini-2.5-flash',
-    apiKey:          process.env.GEMINI_API_KEY,
-    temperature:     opts.temperature    ?? 0.8,
-    streaming:       opts.streaming      ?? true,
-    maxOutputTokens: opts.maxTokens      ?? 512,
-    safetySettings: [
-      { category: 'HARM_CATEGORY_HARASSMENT',         threshold: 'BLOCK_NONE' },
-      { category: 'HARM_CATEGORY_HATE_SPEECH',        threshold: 'BLOCK_NONE' },
-      { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_NONE' },
-      { category: 'HARM_CATEGORY_DANGEROUS_CONTENT',  threshold: 'BLOCK_NONE' },
-    ],
-  })
+  const isVertex = !!process.env.GCP_PROJECT_ID
+  
+  if (isVertex) {
+    // Enterprise stable (Vertex AI)
+    return new ChatVertexAI({
+      model:           opts.model || process.env.GCP_MODEL || 'gemini-1.5-flash-002',
+      project:         process.env.GCP_PROJECT_ID,
+      location:        process.env.GCP_LOCATION || 'us-central1',
+      temperature:     opts.temperature    ?? 0.8,
+      streaming:       opts.streaming      ?? true,
+      maxOutputTokens: opts.maxTokens      ?? 1024,
+    })
+  } else {
+    // Consumer / Free tier (AI Studio)
+    return new ChatGoogleGenerativeAI({
+      model:           process.env.GEMINI_MODEL || 'gemini-2.0-flash',
+      apiKey:          process.env.GEMINI_API_KEY,
+      temperature:     opts.temperature    ?? 0.8,
+      streaming:       opts.streaming      ?? true,
+      maxOutputTokens: opts.maxTokens      ?? 1024,
+      safetySettings: [
+        { category: 'HARM_CATEGORY_HARASSMENT',         threshold: 'BLOCK_NONE' },
+        { category: 'HARM_CATEGORY_HATE_SPEECH',        threshold: 'BLOCK_NONE' },
+        { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_NONE' },
+        { category: 'HARM_CATEGORY_DANGEROUS_CONTENT',  threshold: 'BLOCK_NONE' },
+      ],
+    })
+  }
 }
 
 let analyzerLLM = null
