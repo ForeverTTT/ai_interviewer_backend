@@ -3,7 +3,7 @@ import { join, dirname } from 'path'
 import { fileURLToPath } from 'url'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
-const DATA_DIR   = join(__dirname, '..', '..', 'data')
+const DATA_DIR = join(__dirname, '..', '..', 'data')
 
 // ── File loaders ────────────────────────────────────────────────
 
@@ -16,7 +16,7 @@ export async function loadPrompt(name) {
 /** Load a JSON knowledge base from data/knowledge_base/<name>.json */
 export async function loadKnowledge(name) {
   const path = join(DATA_DIR, 'knowledge_base', `${name}.json`)
-  const raw  = await readFile(path, 'utf-8')
+  const raw = await readFile(path, 'utf-8')
   return JSON.parse(raw)
 }
 
@@ -28,7 +28,7 @@ export async function loadKnowledge(name) {
  */
 export function getMaxQuestions(durationMinutes) {
   const d = Number(durationMinutes) || 10
-  if (d <= 5)  return 3
+  if (d <= 5) return 3
   if (d <= 10) return 5
   if (d <= 15) return 7
   return 9
@@ -167,11 +167,10 @@ export function formatConversationHistory(messages, maxTurns = 6) {
 
 /** Return a consistent interviewer name for the session */
 const INTERVIEWER_NAMES = [
-  'Dr. Schmidt',
-  'Ms. Müller',
-  'Mr. Wagner',
-  'Ms. Fischer',
-  'Dr. Weber',
+  'Anna Müller',
+  'Thomas Schmidt',
+  'Julia Fischer',
+  'Michael Weber',
 ]
 
 export function getInterviewerName(sessionId = '') {
@@ -196,14 +195,14 @@ export const sessionStore = {
     const maxQ = getMaxQuestions(config?.duration)
     const state = {
       userId,
-      phase:           'opening',
-      questionCount:   0,
-      technicalCount:  0,
+      phase: 'opening',
+      questionCount: 0,
+      technicalCount: 0,
       behavioralCount: 0,
-      exploreCount:    0,
-      plan:            buildInterviewPlan(maxQ),
-      planIndex:       0,
-      analysisNotes:   [],
+      exploreCount: 0,
+      plan: buildInterviewPlan(maxQ),
+      planIndex: 0,
+      analysisNotes: [],
       config,
       interviewerName: getInterviewerName(userId),
       createdAt: Date.now(),
