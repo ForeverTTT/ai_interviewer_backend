@@ -2,23 +2,25 @@ import { Router } from 'express'
 import { z } from 'zod'
 import { supabase, supabaseForUser } from '../lib/supabase.js'
 import { validate } from '../middleware/validate.js'
-import { addTokens } from '../middleware/tokens.js'
+import { addTokens, deductTokens } from '../middleware/tokens.js'
 
 const router = Router()
 
 const experienceSchema = z.object({
-  type: z.enum(['campus', 'social', 'internal']),
+  type: z.string().min(1).max(50),
   company: z.string().min(1).max(100),
   location: z.string().max(100).optional().nullable(),
   position: z.string().min(1).max(100),
   department: z.string().max(100).optional().nullable(),
   date: z.string().regex(/^\d{4}-\d{2}$/, "Format must be YYYY-MM"),
-  language: z.enum(['zh', 'en', 'de']),
+  language: z.string().max(50).optional().nullable(),
   rounds: z.array(z.object({
-    role: z.string().max(100).optional().nullable(),
-    content: z.string().max(2000).optional().nullable(),
+    round: z.number().optional(),
+    format: z.string().max(200).optional().nullable(),
+    duration_min: z.number().optional().nullable(),
+    questions: z.array(z.string().max(2000)).optional(),
   })).optional(),
-  result: z.enum(['pending', 'offer', 'rejected', 'failed', 'withdraw']).optional().nullable(),
+  result: z.string().max(50).optional().nullable(),
   salary: z.string().max(100).optional().nullable(),
   reflection: z.string().max(5000).optional().nullable(),
 })
@@ -132,7 +134,6 @@ router.delete('/:id', async (req, res) => {
     const { data: { user }, error: userError } = await userClient.auth.getUser()
     if (userError || !user) return res.status(401).json({ error: 'Unauthorized' })
 
-    // Only allow deletion if user_id matches
     const { error } = await supabase
       .from('interview_experiences')
       .delete()
@@ -140,7 +141,10 @@ router.delete('/:id', async (req, res) => {
       .eq('user_id', user.id)
 
     if (error) throw error
-    res.json({ success: true })
+
+    await deductTokens(user.id, 200)
+
+    res.json({ success: true, tokensDeducted: 200 })
   } catch (err) {
     console.error('[Experiences] Delete error:', err)
     res.status(500).json({ error: err.message || 'Failed to delete experience' })
