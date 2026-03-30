@@ -11,7 +11,8 @@ const router = Router()
 const profileUpdateSchema = z.object({
   resumeText: z.string().max(100000).optional(),
   resumeNotes: z.string().max(5000).optional(),
-  profileJson: z.record(z.any()).optional(),
+  // Zod v4: z.record requires (keyType, valueType)
+  profileJson: z.record(z.string(), z.any()).optional(),
   jobSearchStatus: z.string().max(50).optional(),
   avatarId: z.string().max(50).nullable().optional(),
 })
@@ -125,12 +126,13 @@ async function translateCoachPayloadToUi(payload, uiCode) {
 async function extractPdfText(buffer) {
   let parser = null
   try {
-    const mod = await import('pdf-parse')
-    const PDFParse = mod?.PDFParse
-    if (typeof PDFParse !== 'function') throw new Error('pdf parser unavailable')
+    const { PDFParse } = await import('pdf-parse')
     parser = new PDFParse({ data: buffer })
     const result = await parser.getText()
     return String(result?.text || '').replace(/\u0000/g, '').trim()
+  } catch (err) {
+    console.error('[extractPdfText] error:', err)
+    throw new Error('PDF parsing failed')
   } finally {
     if (parser && typeof parser.destroy === 'function') {
       try {
@@ -464,14 +466,17 @@ router.post('/check-in', requireAuth, async (req, res) => {
       newStreak = 1
     }
 
+    let tokensAwarded = 0
     if (!alreadyCheckedIn) {
       await db.from('profiles').update({
         daily_streak: newStreak,
         last_activity_at: new Date().toISOString()
       }).eq('id', userId)
+      await addTokens(userId, 200)
+      tokensAwarded = 200
     }
 
-    return res.json({ streak: newStreak, alreadyCheckedIn })
+    return res.json({ streak: newStreak, alreadyCheckedIn, tokensAwarded })
   } catch (err) {
     console.error('[POST /check-in]', err)
     return res.status(500).json({ error: 'Check-in failed' })

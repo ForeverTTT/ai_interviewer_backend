@@ -87,6 +87,18 @@ router.post('/', validate(experienceSchema), async (req, res) => {
     const { data: { user }, error: userError } = await userClient.auth.getUser()
     if (userError || !user) return res.status(401).json({ error: 'Unauthorized' })
 
+    const todayStart = new Date()
+    todayStart.setHours(0, 0, 0, 0)
+    const { count: todayCount, error: countErr } = await supabase
+      .from('interview_experiences')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', user.id)
+      .gte('created_at', todayStart.toISOString())
+    if (countErr) throw countErr
+    if (todayCount >= 1) {
+      return res.status(429).json({ error: 'DAILY_LIMIT', message: 'You can only share 1 experience per day.' })
+    }
+
     const { type, company, location, position, department, date, language, rounds, result, salary, reflection } = req.body
 
     const { data, error } = await supabase
