@@ -11,6 +11,41 @@ function dbFor(req) {
   return req.accessToken ? supabaseForUser(req.accessToken) : supabase
 }
 
+/**
+ * Backup helpers — write to interviews_backup using admin client.
+ * Non-blocking: failures are logged but never break the main flow.
+ */
+async function backupInsert(originalId, row) {
+  try {
+    await supabase.from('interviews_backup').insert({
+      original_id: originalId,
+      user_id: row.user_id,
+      position: row.position,
+      job_description: row.job_description ?? '',
+      language: row.language,
+      duration: row.duration,
+      resume_snapshot: row.resume_snapshot ?? null,
+      status: row.status ?? 'in_progress',
+      transcript_json: row.transcript_json ?? null,
+      report_json: row.report_json ?? null,
+    })
+  } catch (err) {
+    console.error('[interviews_backup] insert failed:', err)
+  }
+}
+
+async function backupUpdate(originalId, fields) {
+  try {
+    const { updated_at, report_markdown, report_ui_locale, ...safeFields } = fields
+    await supabase
+      .from('interviews_backup')
+      .update(safeFields)
+      .eq('original_id', originalId)
+  } catch (err) {
+    console.error('[interviews_backup] update failed:', err)
+  }
+}
+
 const REPORT_JSON_SYSTEM = `You are an expert interview coach for internships and early-career hiring in Germany and Europe.
 Read the mock interview transcript and return ONE JSON object only. No markdown code fences. No text before or after the JSON.
 
@@ -302,6 +337,9 @@ router.post('/', requireAuth, (req, _, next) => { req.tokenCost = 300; next(); }
     }
 
     await deductTokens(req.user.id, 300)
+
+    backupInsert(data.id, data)
+
     return res.status(201).json({ interview: data, tokensDeducted: 300 })
   } catch (err) {
     console.error('[POST /interviews] Unexpected error:', err)
@@ -412,6 +450,8 @@ Return the JSON object now.`
       })
     }
 
+    backupUpdate(id, updateRow)
+
     return res.json({ interview: updated })
   } catch (err) {
     console.error('[finalize]', err)
@@ -459,6 +499,9 @@ router.post('/:id/transcript', requireAuth, async (req, res) => {
       })
     }
     if (!updated) return res.status(404).json({ error: 'Interview not found' })
+
+    backupUpdate(id, { transcript_json: sanitized })
+
     return res.json({ ok: true, interview: updated })
   } catch (err) {
     console.error('[POST /transcript]', err)
@@ -571,6 +614,8 @@ router.post('/:id/report/translate', requireAuth, async (req, res) => {
       console.error('[POST /interviews/:id/report/translate] update', upErr)
       return res.status(500).json({ error: 'Failed to save translated report', details: upErr.message })
     }
+
+    backupUpdate(id, { report_json: nextReportJson, report_ui_locale: uiLocale })
 
     return res.json({ interview: updated, report: nextReportJson })
   } catch (err) {
