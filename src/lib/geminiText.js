@@ -6,12 +6,13 @@ function getApiKey() {
 }
 
 export function assertGeminiConfigured(res) {
-    const projectId = process.env.GCP_PROJECT_ID || process.env.GOOGLE_CLOUD_PROJECT
-    const hasVertex = projectId && process.env.GCP_LOCATION
+    const projectId = process.env.GCP_PROJECT_ID || process.env.GOOGLE_CLOUD_PROJECT || 'aiinterviewer-491711'
+    const location = process.env.GCP_LOCATION || 'us-central1'
+    const hasVertex = !!projectId
     const hasKey = !!getApiKey()
     
     if (!hasKey && !hasVertex) {
-      const debugInfo = `[V3-VERTEX-FIX] (IDs: GCP=${!!process.env.GCP_PROJECT_ID}, GOOGLE=${!!process.env.GOOGLE_CLOUD_PROJECT}, LOC=${!!process.env.GCP_LOCATION})`
+      const debugInfo = `[V4-HARD-FIX] (IDs: GCP=${!!process.env.GCP_PROJECT_ID}, GOOGLE=${!!process.env.GOOGLE_CLOUD_PROJECT}, LOC=${!!process.env.GCP_LOCATION})`
       res.status(503).json({ 
         error: 'LLM not configured', 
         hint: `Set GCP_PROJECT_ID & GCP_LOCATION in Cloud Run. ${debugInfo}` 
@@ -30,11 +31,11 @@ export async function invokeGemini(system, user, opts = {}) {
   let llm
 
   if (isVertex) {
-    const projectId = process.env.GCP_PROJECT_ID || process.env.GOOGLE_CLOUD_PROJECT
+    const projectId = process.env.GCP_PROJECT_ID || process.env.GOOGLE_CLOUD_PROJECT || 'aiinterviewer-491711'
     const location = process.env.GCP_LOCATION || 'us-central1'
     // Enterprise stable (Vertex AI)
     llm = new ChatVertexAI({
-      model: opts.model || process.env.GCP_MODEL || 'gemini-1.5-flash-002',
+      model: opts.model || process.env.GCP_MODEL || 'gemini-1.5-flash',
       project: projectId,
       location: location,
       temperature: opts.temperature ?? 0.35,
