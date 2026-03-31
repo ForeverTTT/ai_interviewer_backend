@@ -20,11 +20,11 @@ export async function invokeGemini(system, user, opts = {}) {
   let llm
 
   if (!apiKey) {
-    const projectId = process.env.GCP_PROJECT_ID || process.env.GOOGLE_CLOUD_PROJECT || 'aiinterviewer-491711'
+    const projectId = process.env.GCP_PROJECT_ID || process.env.GOOGLE_CLOUD_PROJECT || '530979174916'
     const location = process.env.GCP_LOCATION || 'us-central1'
     // Force Enterprise stable (Vertex AI)
     llm = new ChatVertexAI({
-      model: opts.model || process.env.GCP_MODEL || 'gemini-1.5-flash',
+      model: opts.model || process.env.GCP_MODEL || 'gemini-1.5-flash-001',
       project: projectId,
       location: location,
       temperature: opts.temperature ?? 0.35,
