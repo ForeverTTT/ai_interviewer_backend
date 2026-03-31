@@ -14,7 +14,7 @@ const profileUpdateSchema = z.object({
   // Zod v4: z.record requires (keyType, valueType)
   profileJson: z.record(z.string(), z.any()).optional(),
   jobSearchStatus: z.string().max(50).optional(),
-  avatarId: z.string().max(50).nullable().optional(),
+  avatarId: z.string().max(5000000).nullable().optional(),
 })
 
 /** Get user-scoped Supabase client from the request (works with RLS). */
