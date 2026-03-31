@@ -6,20 +6,8 @@ function getApiKey() {
 }
 
 export function assertGeminiConfigured(res) {
-    const projectId = process.env.GCP_PROJECT_ID || process.env.GOOGLE_CLOUD_PROJECT || 'aiinterviewer-491711'
-    const location = process.env.GCP_LOCATION || 'us-central1'
-    const hasVertex = !!projectId
-    const hasKey = !!getApiKey()
-    
-    if (!hasKey && !hasVertex) {
-      const debugInfo = `[V4-HARD-FIX] (IDs: GCP=${!!process.env.GCP_PROJECT_ID}, GOOGLE=${!!process.env.GOOGLE_CLOUD_PROJECT}, LOC=${!!process.env.GCP_LOCATION})`
-      res.status(503).json({ 
-        error: 'LLM not configured', 
-        hint: `Set GCP_PROJECT_ID & GCP_LOCATION in Cloud Run. ${debugInfo}` 
-      })
-    return false
-  }
-  return true
+    // FORCE TRUE since we have a hardcoded fallback for aiinterviewer-491711
+    return true
 }
 
 /**
@@ -27,13 +15,14 @@ export function assertGeminiConfigured(res) {
  * Switches between Vertex AI (GCP) and Google AI Studio based on .env
  */
 export async function invokeGemini(system, user, opts = {}) {
-  const isVertex = !!(process.env.GCP_PROJECT_ID || process.env.GOOGLE_CLOUD_PROJECT)
+  // Always use Vertex unless explicitly provided a GEMINI_API_KEY
+  const apiKey = getApiKey()
   let llm
 
-  if (isVertex) {
+  if (!apiKey) {
     const projectId = process.env.GCP_PROJECT_ID || process.env.GOOGLE_CLOUD_PROJECT || 'aiinterviewer-491711'
     const location = process.env.GCP_LOCATION || 'us-central1'
-    // Enterprise stable (Vertex AI)
+    // Force Enterprise stable (Vertex AI)
     llm = new ChatVertexAI({
       model: opts.model || process.env.GCP_MODEL || 'gemini-1.5-flash',
       project: projectId,
@@ -42,13 +31,7 @@ export async function invokeGemini(system, user, opts = {}) {
       maxOutputTokens: opts.maxOutputTokens ?? 8192,
     })
   } else {
-    // Consumer / Free tier (AI Studio)
-    const apiKey = getApiKey()
-    if (!apiKey) {
-      const debug = `[isVertex=${isVertex}, GCP=${!!process.env.GCP_PROJECT_ID}, GOOGLE=${!!process.env.GOOGLE_CLOUD_PROJECT}, LOC=${!!process.env.GCP_LOCATION}]`
-      throw new Error(`GEMINI_API_KEY missing and no Vertex config found. Debug: ${debug}`)
-    }
-    
+    // Fallback to Consumer / Free tier only if key exists
     llm = new ChatGoogleGenerativeAI({
       model: opts.model || process.env.GEMINI_MODEL || 'gemini-2.0-flash',
       apiKey,

@@ -29,12 +29,13 @@ import {
 } from './utils.js'
 
 function makeLLM(opts = {}) {
-  const isVertex = !!(process.env.GCP_PROJECT_ID || process.env.GOOGLE_CLOUD_PROJECT || true)
+  // Always use Vertex unless explicitly provided a GEMINI_API_KEY
+  const apiKey = getApiKey()
 
-  if (isVertex) {
+  if (!apiKey) {
     const projectId = process.env.GCP_PROJECT_ID || process.env.GOOGLE_CLOUD_PROJECT || 'aiinterviewer-491711'
     const location = process.env.GCP_LOCATION || 'us-central1'
-    // Enterprise stable (Vertex AI)
+    // Force Enterprise stable (Vertex AI)
     return new ChatVertexAI({
       model: opts.model || process.env.GCP_MODEL || 'gemini-1.5-flash',
       project: projectId,
