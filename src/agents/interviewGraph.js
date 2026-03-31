@@ -37,7 +37,7 @@ function makeLLM(opts = {}) {
     const location = process.env.GCP_LOCATION || 'us-central1'
     // Force Enterprise stable (Vertex AI)
     return new ChatVertexAI({
-      model: opts.model || process.env.GCP_MODEL || 'gemini-1.5-flash-001',
+      model: opts.model || process.env.GCP_MODEL || 'gemini-2.0-flash',
       project: projectId,
       location: location,
       temperature: opts.temperature ?? 0.8,
