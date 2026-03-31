@@ -14,6 +14,9 @@ const app = express()
 const PORT = process.env.PORT || 5000
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000'
 
+// Trust proxy for Cloud Run / Load Balancer
+app.set('trust proxy', 1)
+
 // 1. Security Headers (Helmet)
 // Includes CSP, HSTS, X-Frame-Options, etc.
 app.use(helmet({

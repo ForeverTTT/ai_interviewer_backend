@@ -124,23 +124,13 @@ async function translateCoachPayloadToUi(payload, uiCode) {
 }
 
 async function extractPdfText(buffer) {
-  let parser = null
   try {
-    const { PDFParse } = await import('pdf-parse')
-    parser = new PDFParse({ data: buffer })
-    const result = await parser.getText()
-    return String(result?.text || '').replace(/\u0000/g, '').trim()
+    const { default: pdf } = await import('pdf-parse')
+    const data = await pdf(buffer)
+    return String(data?.text || '').replace(/\u0000/g, '').trim()
   } catch (err) {
     console.error('[extractPdfText] error:', err)
     throw new Error('PDF parsing failed')
-  } finally {
-    if (parser && typeof parser.destroy === 'function') {
-      try {
-        await parser.destroy()
-      } catch {
-        // ignore parser cleanup errors
-      }
-    }
   }
 }
 
