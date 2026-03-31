@@ -6,15 +6,16 @@ function getApiKey() {
 }
 
 export function assertGeminiConfigured(res) {
-  const hasVertex = process.env.GCP_PROJECT_ID && process.env.GCP_LOCATION
-  const hasKey = !!getApiKey()
-  
-  if (!hasKey && !hasVertex) {
-    const debugInfo = `(Found GCP_PROJECT_ID: ${!!process.env.GCP_PROJECT_ID}, GCP_LOCATION: ${!!process.env.GCP_LOCATION})`
-    res.status(503).json({ 
-      error: 'LLM not configured', 
-      hint: `Set GEMINI_API_KEY or (GCP_PROJECT_ID + GCP_LOCATION) in Cloud Run variables. ${debugInfo}` 
-    })
+    const projectId = process.env.GCP_PROJECT_ID || process.env.GOOGLE_CLOUD_PROJECT
+    const hasVertex = projectId && process.env.GCP_LOCATION
+    const hasKey = !!getApiKey()
+    
+    if (!hasKey && !hasVertex) {
+      const debugInfo = `(Found IDs: GCP=${!!process.env.GCP_PROJECT_ID}, GOOGLE=${!!process.env.GOOGLE_CLOUD_PROJECT}, LOC=${!!process.env.GCP_LOCATION})`
+      res.status(503).json({ 
+        error: 'LLM not configured', 
+        hint: `Set GCP_PROJECT_ID & GCP_LOCATION in Cloud Run. ${debugInfo}` 
+      })
     return false
   }
   return true
@@ -25,15 +26,17 @@ export function assertGeminiConfigured(res) {
  * Switches between Vertex AI (GCP) and Google AI Studio based on .env
  */
 export async function invokeGemini(system, user, opts = {}) {
-  const isVertex = !!process.env.GCP_PROJECT_ID
+  const isVertex = !!(process.env.GCP_PROJECT_ID || process.env.GOOGLE_CLOUD_PROJECT)
   let llm
 
   if (isVertex) {
+    const projectId = process.env.GCP_PROJECT_ID || process.env.GOOGLE_CLOUD_PROJECT
+    const location = process.env.GCP_LOCATION || 'us-central1'
     // Enterprise stable (Vertex AI)
     llm = new ChatVertexAI({
       model: opts.model || process.env.GCP_MODEL || 'gemini-1.5-flash-002',
-      project: process.env.GCP_PROJECT_ID,
-      location: process.env.GCP_LOCATION || 'us-central1',
+      project: projectId,
+      location: location,
       temperature: opts.temperature ?? 0.35,
       maxOutputTokens: opts.maxOutputTokens ?? 8192,
     })
@@ -41,7 +44,7 @@ export async function invokeGemini(system, user, opts = {}) {
     // Consumer / Free tier (AI Studio)
     const apiKey = getApiKey()
     if (!apiKey) {
-      const debug = `[isVertex=${isVertex}, GCP_PROJECT_ID=${!!process.env.GCP_PROJECT_ID}, GCP_LOCATION=${!!process.env.GCP_LOCATION}]`
+      const debug = `[isVertex=${isVertex}, GCP=${!!process.env.GCP_PROJECT_ID}, GOOGLE=${!!process.env.GOOGLE_CLOUD_PROJECT}, LOC=${!!process.env.GCP_LOCATION}]`
       throw new Error(`GEMINI_API_KEY missing and no Vertex config found. Debug: ${debug}`)
     }
     

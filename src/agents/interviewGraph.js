@@ -29,17 +29,19 @@ import {
 } from './utils.js'
 
 function makeLLM(opts = {}) {
-  const isVertex = !!process.env.GCP_PROJECT_ID
+  const isVertex = !!(process.env.GCP_PROJECT_ID || process.env.GOOGLE_CLOUD_PROJECT)
 
   if (isVertex) {
+    const projectId = process.env.GCP_PROJECT_ID || process.env.GOOGLE_CLOUD_PROJECT
+    const location = process.env.GCP_LOCATION || 'us-central1'
     // Enterprise stable (Vertex AI)
     return new ChatVertexAI({
       model: opts.model || process.env.GCP_MODEL || 'gemini-1.5-flash-002',
-      project: process.env.GCP_PROJECT_ID,
-      location: process.env.GCP_LOCATION || 'us-central1',
+      project: projectId,
+      location: location,
       temperature: opts.temperature ?? 0.8,
       streaming: opts.streaming ?? true,
-      maxOutputTokens: opts.maxTokens ?? 1024,
+      maxOutputTokens: opts.maxOutputTokens ?? opts.maxTokens ?? 1024,
     })
   } else {
     // Consumer / Free tier (AI Studio)
