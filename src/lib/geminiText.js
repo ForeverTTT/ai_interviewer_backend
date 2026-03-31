@@ -11,7 +11,7 @@ export function assertGeminiConfigured(res) {
     const hasKey = !!getApiKey()
     
     if (!hasKey && !hasVertex) {
-      const debugInfo = `(Found IDs: GCP=${!!process.env.GCP_PROJECT_ID}, GOOGLE=${!!process.env.GOOGLE_CLOUD_PROJECT}, LOC=${!!process.env.GCP_LOCATION})`
+      const debugInfo = `[V3-VERTEX-FIX] (IDs: GCP=${!!process.env.GCP_PROJECT_ID}, GOOGLE=${!!process.env.GOOGLE_CLOUD_PROJECT}, LOC=${!!process.env.GCP_LOCATION})`
       res.status(503).json({ 
         error: 'LLM not configured', 
         hint: `Set GCP_PROJECT_ID & GCP_LOCATION in Cloud Run. ${debugInfo}` 
