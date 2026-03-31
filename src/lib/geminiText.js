@@ -7,8 +7,14 @@ function getApiKey() {
 
 export function assertGeminiConfigured(res) {
   const hasVertex = process.env.GCP_PROJECT_ID && process.env.GCP_LOCATION
-  if (!getApiKey() && !hasVertex) {
-    res.status(503).json({ error: 'LLM not configured', hint: 'Set GEMINI_API_KEY or (GCP_PROJECT_ID + GCP_LOCATION) in backend .env' })
+  const hasKey = !!getApiKey()
+  
+  if (!hasKey && !hasVertex) {
+    const debugInfo = `(Found GCP_PROJECT_ID: ${!!process.env.GCP_PROJECT_ID}, GCP_LOCATION: ${!!process.env.GCP_LOCATION})`
+    res.status(503).json({ 
+      error: 'LLM not configured', 
+      hint: `Set GEMINI_API_KEY or (GCP_PROJECT_ID + GCP_LOCATION) in Cloud Run variables. ${debugInfo}` 
+    })
     return false
   }
   return true
@@ -34,7 +40,10 @@ export async function invokeGemini(system, user, opts = {}) {
   } else {
     // Consumer / Free tier (AI Studio)
     const apiKey = getApiKey()
-    if (!apiKey) throw new Error('GEMINI_API_KEY missing')
+    if (!apiKey) {
+      const debug = `[isVertex=${isVertex}, GCP_PROJECT_ID=${!!process.env.GCP_PROJECT_ID}, GCP_LOCATION=${!!process.env.GCP_LOCATION}]`
+      throw new Error(`GEMINI_API_KEY missing and no Vertex config found. Debug: ${debug}`)
+    }
     
     llm = new ChatGoogleGenerativeAI({
       model: opts.model || process.env.GEMINI_MODEL || 'gemini-2.0-flash',
