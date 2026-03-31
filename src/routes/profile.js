@@ -125,12 +125,25 @@ async function translateCoachPayloadToUi(payload, uiCode) {
 
 async function extractPdfText(buffer) {
   try {
-    const { default: pdf } = await import('pdf-parse')
-    const data = await pdf(buffer)
-    return String(data?.text || '').replace(/\u0000/g, '').trim()
+    const { default: pdf } = await import('pdf-parse-fork')
+    // PDF parse might be a CommonJS module with default or just a function
+    const parse = typeof pdf === 'function' ? pdf : pdf?.default || pdf
+    
+    if (typeof parse !== 'function') {
+      throw new Error('PDF parser not initialized correctly')
+    }
+
+    const data = await parse(buffer)
+    const text = String(data?.text || '').replace(/\u0000/g, '').trim()
+    
+    if (!text) {
+      console.warn('[extractPdfText] Warning: Extracted text is empty')
+    }
+    
+    return text
   } catch (err) {
     console.error('[extractPdfText] error:', err)
-    throw new Error('PDF parsing failed')
+    throw new Error(`PDF parsing failed: ${err.message}`)
   }
 }
 

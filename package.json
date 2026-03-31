@@ -22,7 +22,7 @@
     "express-rate-limit": "^8.3.1",
     "helmet": "^8.1.0",
     "langchain": "^1.2.36",
-    "pdf-parse": "1.1.1",
+    "pdf-parse-fork": "^1.2.0",
     "uuid": "^13.0.0",
     "zod": "^4.3.6"
   },
