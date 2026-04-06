@@ -2,12 +2,13 @@ import textToSpeech from '@google-cloud/text-to-speech'
 
 let client = null
 
-/**
- * Initializes the GCP Text-to-Speech client if configured.
- */
+export function getGcpProjectId() {
+  return process.env.GCP_PROJECT_ID || process.env.GOOGLE_CLOUD_PROJECT || ''
+}
+
 function getTtsClient() {
   if (client) return client
-  if (!process.env.GCP_PROJECT_ID) return null
+  if (!getGcpProjectId()) return null
   try {
     client = new textToSpeech.TextToSpeechClient()
     return client

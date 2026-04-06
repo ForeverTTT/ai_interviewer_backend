@@ -2,7 +2,7 @@ import { Router } from 'express'
 import { requireAuth } from '../middleware/auth.js'
 import { getGraph, RESPONSE_NODES, AGENT_LABELS } from '../agents/interviewGraph.js'
 import { sessionStore, getMaxQuestions } from '../agents/utils.js'
-import { synthesizeSpeechVertex } from '../lib/ttsVertex.js'
+import { synthesizeSpeechVertex, getGcpProjectId } from '../lib/ttsVertex.js'
 
 const router = Router()
 
@@ -277,7 +277,7 @@ router.post('/tts', requireAuth, async (req, res) => {
   const isTtsModel = modelId.includes('tts')
 
   // --- Enterprise Vertex TTS Fallback ---
-  if (process.env.GCP_PROJECT_ID) {
+  if (getGcpProjectId()) {
     try {
       const { audioContent, contentType } = await synthesizeSpeechVertex(text, language, false)
       console.log(`[TTS Provider: VertexAI] Synthesized "${text.slice(0, 30)}..." in ${language} (${audioContent.length} bytes, MP3)`)
@@ -383,7 +383,7 @@ router.post('/tts-stream', requireAuth, async (req, res) => {
   const isTtsModel = modelId.includes('tts')
 
   // --- Enterprise Vertex TTS Fallback ---
-  if (process.env.GCP_PROJECT_ID) {
+  if (getGcpProjectId()) {
     try {
       const { audioContent, contentType } = await synthesizeSpeechVertex(text, language, true)
       console.log(`[TTS Stream Provider: VertexAI] Full buffer response in ${language} (${audioContent.length} bytes, PCM)`)
