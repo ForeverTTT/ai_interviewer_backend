@@ -87,8 +87,8 @@ router.post('/', validate(experienceSchema), async (req, res) => {
     const { data: { user }, error: userError } = await userClient.auth.getUser()
     if (userError || !user) return res.status(401).json({ error: 'Unauthorized' })
 
-    const todayStart = new Date()
-    todayStart.setHours(0, 0, 0, 0)
+    const now = new Date()
+    const todayStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()))
     const { count: todayCount, error: countErr } = await supabase
       .from('interview_experiences')
       .select('id', { count: 'exact', head: true })

@@ -28,8 +28,21 @@ import {
   formatConversationHistory,
 } from './utils.js'
 
+function getApiKey() {
+  return process.env.GEMINI_API_KEY
+}
+
+function getInterviewerContext(roleTrack, language) {
+  if (roleTrack === 'school') {
+    if (language === 'Deutsch') return 'ein erfahrener Professor an einer deutschen Universität'
+    if (language === 'zh' || language === '中文') return 'a professor at a German university responsible for admissions'
+    return 'a professor at a German university responsible for admissions'
+  }
+  if (language === 'Deutsch') return 'eine erfahrene Führungskraft bei einem deutschen Unternehmen'
+  return 'a senior hiring manager at a German company'
+}
+
 function makeLLM(opts = {}) {
-  // Always use Vertex unless explicitly provided a GEMINI_API_KEY
   const apiKey = getApiKey()
 
   if (!apiKey) {
@@ -238,6 +251,7 @@ async function generateOpeningNode(state) {
 
   const systemPrompt = renderPrompt(_prompts.opening, {
     INTERVIEWER_NAME: interviewerName,
+    INTERVIEWER_CONTEXT: getInterviewerContext(config?.roleTrack, config?.language),
     POSITION: config?.position || '',
     LANGUAGE: config?.language || 'English',
     JOB_DESCRIPTION: config?.jobDescription || '',
@@ -254,6 +268,7 @@ async function generateOpeningNode(state) {
     new HumanMessage(trigger),
   ])
 
+  console.warn('[Opening] roleTrack=%s, context=%s', config?.roleTrack, getInterviewerContext(config?.roleTrack, config?.language))
   console.warn('[Opening Output]:', response.content)
 
   return {
@@ -276,6 +291,7 @@ async function askExploreNode(state) {
 
   const systemPrompt = renderPrompt(_prompts.explore, {
     INTERVIEWER_NAME: interviewerName,
+    INTERVIEWER_CONTEXT: getInterviewerContext(config?.roleTrack, config?.language),
     POSITION: config?.position || '',
     LANGUAGE: config?.language || 'English',
     MAX_QUESTIONS: String(maxQ),
@@ -311,6 +327,7 @@ async function askTechnicalNode(state) {
 
   const systemPrompt = renderPrompt(_prompts.technical, {
     INTERVIEWER_NAME: interviewerName,
+    INTERVIEWER_CONTEXT: getInterviewerContext(config?.roleTrack, config?.language),
     POSITION: config?.position || '',
     LANGUAGE: config?.language || 'English',
     MAX_QUESTIONS: String(maxQ),
@@ -348,6 +365,7 @@ async function askBehavioralNode(state) {
 
   const systemPrompt = renderPrompt(_prompts.behavioral, {
     INTERVIEWER_NAME: interviewerName,
+    INTERVIEWER_CONTEXT: getInterviewerContext(config?.roleTrack, config?.language),
     POSITION: config?.position || '',
     LANGUAGE: config?.language || 'English',
     MAX_QUESTIONS: String(maxQ),

@@ -39,10 +39,12 @@ router.post('/message', requireAuth, async (req, res) => {
     language = 'English',
     duration = 10,
     resumeSnapshot = '',
+    roleTrack = 'work',
     sessionId,        // "new" resets the session
   } = req.body
 
   const userId = req.user.id
+  console.log('[Chat /message] roleTrack received:', roleTrack)
 
   // ── SSE headers ──────────────────────────────────────────────
   res.setHeader('Content-Type', 'text/event-stream; charset=utf-8')
@@ -58,7 +60,7 @@ router.post('/message', requireAuth, async (req, res) => {
     const resumeTrim = typeof resumeSnapshot === 'string'
       ? resumeSnapshot.trim().slice(0, 50_000)
       : ''
-    const config = { position, jobDescription, language, duration, resumeSnapshot: resumeTrim }
+    const config = { position, jobDescription, language, duration, resumeSnapshot: resumeTrim, roleTrack }
     const isNewSession = sessionId === 'new' || !sessionStore.get(userId)
 
     let session
@@ -521,7 +523,7 @@ router.post('/tts-stream', requireAuth, async (req, res) => {
  */
 router.post('/reset', requireAuth, (req, res) => {
   const userId = req.user.id
-  const { position, jobDescription, language, duration, resumeSnapshot = '' } = req.body ?? {}
+  const { position, jobDescription, language, duration, resumeSnapshot = '', roleTrack = 'work' } = req.body ?? {}
   const resumeTrim = typeof resumeSnapshot === 'string'
     ? resumeSnapshot.trim().slice(0, 50_000)
     : ''
@@ -532,6 +534,7 @@ router.post('/reset', requireAuth, (req, res) => {
     language,
     duration,
     resumeSnapshot: resumeTrim,
+    roleTrack,
   })
   res.json({ ok: true, message: 'Session reset' })
 })
