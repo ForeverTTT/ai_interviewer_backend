@@ -336,7 +336,7 @@ email_optional = false
 
 [auth.external.google]
 enabled = true
-client_id = "98967167596-e1n18r7e9c979jlal6v7d85nqjr60pej.apps.googleusercontent.com"
+client_id = "557559701677-2i6c5pqj14tgsvr6g4v18fnno9pqsr4r.apps.googleusercontent.com"
 # Set SUPABASE_AUTH_EXTERNAL_GOOGLE_SECRET when pushing config. Never commit the secret.
 secret = "env(SUPABASE_AUTH_EXTERNAL_GOOGLE_SECRET)"
 redirect_uri = ""
