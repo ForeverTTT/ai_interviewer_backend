@@ -5,6 +5,7 @@ import { assertGeminiConfigured, invokeGemini, stripJsonFence } from '../lib/gem
 import { checkTokens, deductTokens } from '../middleware/tokens.js'
 import { recordInterviewEvent } from '../lib/interviewEvents.js'
 import { errorSummary, logStructured, normalizeRequestId, requestContext } from '../lib/observability.js'
+import { selectFinalizeMessages, shouldReuseFinalizedInterview } from '../lib/interviewFinalize.js'
 
 const router = Router()
 
@@ -482,15 +483,13 @@ router.post('/:id/finalize', requireAuth, async (req, res) => {
   if (!assertGeminiConfigured(res)) return
 
   const { id } = req.params
-  const messages = req.body?.messages
+  const requestMessages = req.body?.messages
+  const forceRegenerate = req.body?.forceRegenerate === true
   const reportUiLanguage = req.body?.reportUiLanguage
   const finalizeStartedAt = Date.now()
   let stage = 'validation'
   let modelUsed = null
-
-  if (!Array.isArray(messages)) {
-    return res.status(400).json({ error: 'messages array required', requestId: req.requestId, stage })
-  }
+  let messages = Array.isArray(requestMessages) ? requestMessages : []
 
   try {
     stage = 'database_fetch'
@@ -520,6 +519,27 @@ router.post('/:id/finalize', requireAuth, async (req, res) => {
       })
     }
 
+    messages = selectFinalizeMessages(requestMessages, iv.transcript_json)
+    if (!messages) {
+      await recordInterviewEvent({
+        interviewId: id,
+        userId: req.user.id,
+        requestId: req.requestId,
+        eventType: 'finalize_failed',
+        stage: 'validation',
+        httpStatus: 400,
+        error: new Error('No saved interview transcript'),
+        messageCount: 0,
+        metadata: { forceRegenerate },
+      })
+      return res.status(400).json({
+        error: 'No saved interview transcript',
+        requestId: req.requestId,
+        stage: 'validation',
+        retryable: false,
+      })
+    }
+
     await recordInterviewEvent({
       interviewId: id,
       userId: req.user.id,
@@ -527,9 +547,10 @@ router.post('/:id/finalize', requireAuth, async (req, res) => {
       eventType: 'finalize_request_received',
       stage: 'request',
       messageCount: messages.length,
+      metadata: { forceRegenerate },
     })
 
-    if (iv.status === 'completed' && iv.report_json) {
+    if (shouldReuseFinalizedInterview(iv, forceRegenerate)) {
       await recordInterviewEvent({
         interviewId: id,
         userId: req.user.id,
@@ -539,6 +560,7 @@ router.post('/:id/finalize', requireAuth, async (req, res) => {
         model: iv.finalize_model,
         durationMs: Date.now() - finalizeStartedAt,
         messageCount: messages.length,
+        metadata: { forceRegenerate },
       })
       return res.json({ interview: iv, requestId: req.requestId, reused: true })
     }
@@ -561,6 +583,7 @@ router.post('/:id/finalize', requireAuth, async (req, res) => {
         p_interview_id: id,
         p_request_id: req.requestId,
         p_lock_seconds: Math.round(FINALIZE_LOCK_MS / 1000),
+        p_force: forceRegenerate,
       })
       .maybeSingle()
 
@@ -586,7 +609,7 @@ router.post('/:id/finalize', requireAuth, async (req, res) => {
       eventType: 'finalize_started',
       stage,
       messageCount: messages.length,
-      metadata: { attempt: finalizeAttempt },
+      metadata: { attempt: finalizeAttempt, forceRegenerate },
     })
 
     const transcriptText = formatMessagesForPrompt(messages)
@@ -666,13 +689,7 @@ Return the JSON object now.`
         error: e,
         messageCount: messages.length,
       })
-      parsed = {
-        summary: ['报告生成格式异常，请稍后点击「重新生成报告」重试。'],
-        strengths: [],
-        toImprove: [{ title: '说明', why: '模型未返回可解析的结构化 JSON。', how: '请检查 GEMINI 配置后重试。' }],
-        qaReview: [],
-        transcriptLineReview: [],
-      }
+      throw new Error('Gemini returned an invalid structured report', { cause: e })
     }
 
     const reportJson = normalizeReportJson(parsed, messages)
@@ -753,7 +770,7 @@ Return the JSON object now.`
       error: 'Finalize failed',
       requestId: req.requestId,
       stage,
-      retryable: stage === 'gemini',
+      retryable: ['gemini', 'report_parse', 'database_save'].includes(stage),
     })
   }
 })

@@ -9,6 +9,10 @@ import {
   invokeWithGeminiQuotaFallback,
   isGeminiQuotaError,
 } from '../src/lib/geminiFallback.js'
+import {
+  selectFinalizeMessages,
+  shouldReuseFinalizedInterview,
+} from '../src/lib/interviewFinalize.js'
 
 test('normalizes request IDs without accepting unsafe input', () => {
   assert.equal(normalizeRequestId('web-123:attempt.1'), 'web-123:attempt.1')
@@ -70,4 +74,17 @@ test('does not retry non-quota failures', async () => {
     },
   ))
   assert.equal(attempts, 1)
+})
+
+test('report regeneration recovers the persisted transcript when the client has none', () => {
+  const stored = [{ role: 'assistant', content: 'Tell me about yourself.' }]
+  assert.equal(selectFinalizeMessages(undefined, stored), stored)
+  assert.equal(selectFinalizeMessages([], stored), stored)
+  assert.equal(selectFinalizeMessages(undefined, null), null)
+})
+
+test('forced report regeneration never reuses a completed report', () => {
+  const interview = { status: 'completed', report_json: { summary: ['old'] } }
+  assert.equal(shouldReuseFinalizedInterview(interview, false), true)
+  assert.equal(shouldReuseFinalizedInterview(interview, true), false)
 })
