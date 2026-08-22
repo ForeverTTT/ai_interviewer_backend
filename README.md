@@ -74,14 +74,80 @@ backend/
 
 ---
 
-## 🚀 安装与部署
+## 🚀 安装、运行与部署
+
+### 本地开发
+
+本项目是 Node.js 后端，不使用 Python `venv`。每个项目的依赖安装在本目录的
+`node_modules` 中，并由 `package-lock.json` 锁定版本，相当于项目级的隔离环境。
+
+前置要求：安装 Node.js 18 或更高版本（推荐使用当前 LTS 版本）。在仓库根目录执行：
 
 ```bash
-cd backend
-npm install
-cp .env.example .env   # 配置关键环境变量
-npm run dev            # 启动本地开发服务（热更新支持）
+cd ai_interviewer_backend
+
+# 严格按照 package-lock.json 安装依赖
+npm ci
+
+# macOS / Linux
+cp .env.example .env
+
+# Windows PowerShell（与上一条二选一）
+Copy-Item .env.example .env
 ```
+
+编辑 `.env`，填入 Supabase Service Role Key 和 Gemini API Key。`.env` 包含密钥，
+不得提交到 Git。然后启动开发服务器：
+
+```bash
+npm run dev
+```
+
+默认监听 `http://localhost:5000`。可用健康检查确认服务正常：
+
+```bash
+curl http://localhost:5000/api/health
+```
+
+若不需要热更新，可运行生产启动命令：
+
+```bash
+npm start
+```
+
+### 本地 Supabase
+
+本仓库的 `supabase/` 包含本地认证、数据库表、RLS、头像存储桶和测试题数据。
+确保 Docker Desktop 正在运行，然后在后端目录执行：
+
+```bash
+npx supabase start
+npx supabase db reset
+```
+
+本地服务默认地址：API `http://127.0.0.1:54321`，Studio
+`http://127.0.0.1:54323`，测试邮件 `http://127.0.0.1:54324`。可用
+`npx supabase status` 查看本机生成的开发密钥；这些密钥只能用于本地开发。
+
+停止本地 Supabase：
+
+```bash
+npx supabase stop
+```
+
+### Docker 部署
+
+从后端目录构建镜像；不要把本地 `.env` 打包进镜像：
+
+```bash
+cd ai_interviewer_backend
+docker build -t interviewde-backend .
+docker run --rm -p 8080:8080 --env-file .env -e PORT=8080 interviewde-backend
+```
+
+服务启动后访问 `http://localhost:8080/api/health`。部署到 Cloud Run 等平台时，
+应通过平台的环境变量或 Secret Manager 配置密钥，并让平台注入 `PORT`；不要在镜像、
+Dockerfile 或代码仓库中写入密钥。
 
 ---
 

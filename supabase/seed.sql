@@ -1,0 +1,26 @@
+insert into public.gallup_questions (index_number, category, question_zh, question_en, question_de) values
+  (1, 'executing', '我会把目标拆解成清晰且可执行的步骤。', 'I break goals into clear, actionable steps.', 'Ich zerlege Ziele in klare, umsetzbare Schritte.'),
+  (2, 'executing', '即使任务枯燥，我也会坚持把它完成。', 'I finish tasks even when the work becomes repetitive.', 'Ich erledige Aufgaben auch dann, wenn sie eintönig werden.'),
+  (3, 'executing', '我习惯为自己的工作结果承担责任。', 'I take ownership of the results of my work.', 'Ich übernehme Verantwortung für die Ergebnisse meiner Arbeit.'),
+  (4, 'executing', '面对紧迫期限时，我能保持条理。', 'I stay organized when deadlines are tight.', 'Bei knappen Fristen bleibe ich organisiert.'),
+  (5, 'executing', '我喜欢建立流程，让团队执行更高效。', 'I enjoy creating processes that help teams execute efficiently.', 'Ich entwickle gern Prozesse, die Teams effizienter machen.'),
+  (6, 'influencing', '我能够清楚表达观点并说服他人。', 'I communicate ideas clearly and can persuade others.', 'Ich kommuniziere Ideen klar und kann andere überzeugen.'),
+  (7, 'influencing', '在团队中，我愿意主动推动决策。', 'I am willing to drive decisions within a team.', 'Ich treibe Entscheidungen im Team aktiv voran.'),
+  (8, 'influencing', '公开表达或展示成果会让我充满动力。', 'Presenting ideas or results in public energizes me.', 'Ideen oder Ergebnisse öffentlich zu präsentieren motiviert mich.'),
+  (9, 'influencing', '遇到阻力时，我会寻找新的沟通方式。', 'When I face resistance, I look for a new way to communicate.', 'Bei Widerstand suche ich nach neuen Kommunikationswegen.'),
+  (10, 'influencing', '我容易让他人对一个共同目标产生热情。', 'I can build enthusiasm around a shared goal.', 'Ich kann Begeisterung für ein gemeinsames Ziel wecken.'),
+  (11, 'relationship', '我会主动了解团队成员的需求和感受。', 'I actively seek to understand teammates needs and feelings.', 'Ich versuche aktiv, die Bedürfnisse und Gefühle meines Teams zu verstehen.'),
+  (12, 'relationship', '我擅长帮助不同观点的人找到共同点。', 'I help people with different views find common ground.', 'Ich helfe Menschen mit unterschiedlichen Ansichten, Gemeinsamkeiten zu finden.'),
+  (13, 'relationship', '建立长期信任对我比短期胜利更重要。', 'Building long-term trust matters more to me than a short-term win.', 'Langfristiges Vertrauen ist mir wichtiger als ein kurzfristiger Erfolg.'),
+  (14, 'relationship', '团队成员遇到困难时，我通常愿意提供支持。', 'I readily support teammates when they struggle.', 'Ich unterstütze Teammitglieder gern, wenn sie Schwierigkeiten haben.'),
+  (15, 'relationship', '我能感受到团队氛围的变化。', 'I notice changes in the emotional climate of a team.', 'Ich bemerke Veränderungen in der Stimmung eines Teams.'),
+  (16, 'strategic', '我喜欢从多个角度分析复杂问题。', 'I enjoy analyzing complex problems from several angles.', 'Ich analysiere komplexe Probleme gern aus mehreren Perspektiven.'),
+  (17, 'strategic', '我经常能提前看到一个决定的长期影响。', 'I often anticipate the long-term effects of a decision.', 'Ich erkenne oft früh die langfristigen Folgen einer Entscheidung.'),
+  (18, 'strategic', '信息不完整时，我仍能提出可行的方向。', 'I can identify a viable direction even with incomplete information.', 'Auch bei unvollständigen Informationen finde ich eine tragfähige Richtung.'),
+  (19, 'strategic', '我会主动寻找规律，而不只处理表面问题。', 'I look for patterns rather than only treating surface problems.', 'Ich suche nach Mustern, statt nur oberflächliche Probleme zu behandeln.'),
+  (20, 'strategic', '我喜欢比较不同方案并权衡取舍。', 'I enjoy comparing alternatives and weighing trade-offs.', 'Ich vergleiche gern Alternativen und wäge Zielkonflikte ab.')
+on conflict (index_number) do update set
+  category = excluded.category,
+  question_zh = excluded.question_zh,
+  question_en = excluded.question_en,
+  question_de = excluded.question_de;

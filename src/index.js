@@ -9,6 +9,7 @@ import profileRouter from './routes/profile.js'
 import gallupRouter from './routes/gallup.js'
 import aiAssistantRouter from './routes/aiAssistant.js'
 import experiencesRouter from './routes/experiences.js'
+import { attachInterviewLiveSocket } from './live/interviewLiveSocket.js'
 
 const app = express()
 const PORT = process.env.PORT || 5000
@@ -88,11 +89,15 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: 'Internal server error' })
 })
 
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   console.log(`
 ╔══════════════════════════════════════╗
 ║  InterviewDE Backend                 ║
 ║  Running on http://localhost:${PORT}   ║
 ╚══════════════════════════════════════╝
   `)
+})
+
+attachInterviewLiveSocket(server, {
+  allowedOrigins: [FRONTEND_URL, 'http://localhost:3000', 'http://127.0.0.1:3000'],
 })

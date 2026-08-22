@@ -11,6 +11,7 @@
   "dependencies": {
     "@google-cloud/text-to-speech": "^6.4.0",
     "@google-cloud/vertexai": "^1.10.3",
+    "@google/genai": "^1.47.0",
     "@langchain/core": "^1.1.35",
     "@langchain/google-genai": "^2.1.26",
     "@langchain/google-vertexai": "^2.1.26",
@@ -24,9 +25,11 @@
     "langchain": "^1.2.36",
     "pdf-parse-fork": "^1.2.0",
     "uuid": "^13.0.0",
+    "ws": "^8.20.0",
     "zod": "^4.3.6"
   },
   "devDependencies": {
-    "nodemon": "^3.1.4"
+    "nodemon": "^3.1.4",
+    "supabase": "^2.115.0"
   }
 }

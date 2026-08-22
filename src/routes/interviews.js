@@ -64,7 +64,9 @@ JSON schema (types only):
   ],
   "qaReview": [
     {
-      "questionSummary": "string — what the interviewer asked (concise)",
+      "questionIndex": 0,
+      "questionSummary": "string — short topic/category label, e.g. Self-introduction and motivation",
+      "questionText": "string — the interviewer's exact full question copied verbatim from the numbered transcript line",
       "yourAnswerSummary": "string — what the candidate actually said; MUST paraphrase or quote ONLY from the transcript, never invent facts",
       "referenceExample": "string — a strong example answer for this type of question (structure STAR for behavioral, clarity for technical). Do NOT claim the candidate said this; it is a model answer outline.",
       "gaps": ["string", "..."],
@@ -87,7 +89,10 @@ Content rules:
 - toImprove: 2 to 6 objects; each must have non-empty title, why, and how.
 - qaReview: REQUIRED. Walk the transcript in order. Pair substantive interviewer turns with the candidate's reply.
   - Include at least 3 rounds and at most 10 rounds.
-  - questionSummary and yourAnswerSummary: Concise summary of the round.
+  - questionIndex: The exact numbered-line index of the ASSISTANT turn containing this round's question.
+  - questionSummary: A concise topic/category label, not a replacement for the original question.
+  - questionText: Copy the complete interviewer question verbatim from that ASSISTANT transcript line. Never paraphrase, translate, shorten, or invent it.
+  - yourAnswerSummary: Concise summary of the candidate's answer.
   - referenceExample: Realistic model answer for the JD, plain text, no markdown, no bracket placeholders.
   - gaps and howToImprove: Analysis of the performance.
 - transcriptLineReview: REQUIRED. Emit EXACTLY one object per numbered line index.
@@ -99,14 +104,14 @@ ALL string values MUST be written in the "Interview language" specified in the u
 
 function reportUiLanguageLine(code) {
   const c = String(code || 'en').toLowerCase()
-  if (c.startsWith('zh')) return 'LANGUAGE: Write every string value in Simplified Chinese (简体中文).'
+  if (c.startsWith('zh') || c.startsWith('chinese') || c.includes('中文')) return 'LANGUAGE: Write every string value in Simplified Chinese (简体中文).'
   if (c.startsWith('de')) return 'LANGUAGE: Write every string value in German.'
   return 'LANGUAGE: Write every string value in English.'
 }
 
 function uiCodeToTargetLang(uiCode) {
   const c = String(uiCode || '').toLowerCase().trim()
-  if (c.startsWith('zh')) return 'zh-CN'
+  if (c.startsWith('zh') || c.startsWith('chinese') || c.includes('中文')) return 'zh-CN'
   if (c.startsWith('de')) return 'de'
   return 'en'
 }
@@ -168,6 +173,7 @@ async function translateInterviewReportToUi(payload, uiCode) {
       ? await Promise.all(payload.qaReview.map(async (x) => ({
         ...x,
         questionSummary: await tr(x?.questionSummary),
+        questionText: String(x?.questionText || ''),
         yourAnswerSummary: String(x?.yourAnswerSummary || ''),
         referenceExample: String(x?.referenceExample || ''),
         gaps: await Promise.all((Array.isArray(x?.gaps) ? x.gaps : []).map(tr)),
@@ -199,7 +205,16 @@ function parseJsonObjectOrNull(raw) {
   return null
 }
 
-function normalizeReportJson(raw) {
+function normalizeReportJson(raw, messages = []) {
+  const interviewerTurns = Array.isArray(messages)
+    ? messages
+      .map((message, index) => ({
+        index,
+        role: message?.role === 'assistant' ? 'assistant' : 'user',
+        content: typeof message?.content === 'string' ? message.content.trim() : '',
+      }))
+      .filter((message) => message.role === 'assistant' && message.content)
+    : []
   const summary = Array.isArray(raw?.summary)
     ? raw.summary.map((s) => String(s || '').trim()).filter(Boolean)
     : (raw?.summary != null && String(raw.summary).trim() ? [String(raw.summary).trim()] : [])
@@ -220,16 +235,25 @@ function normalizeReportJson(raw) {
 
   const qaReview = Array.isArray(raw?.qaReview)
     ? raw.qaReview
-      .map((x) => ({
-        questionSummary: String(x?.questionSummary || x?.question || '').trim(),
-        yourAnswerSummary: String(x?.yourAnswerSummary || x?.candidateAnswer || x?.yourAnswer || '').trim(),
-        referenceExample: String(x?.referenceExample || x?.referenceAnswer || '').trim(),
-        gaps: Array.isArray(x?.gaps)
-          ? x.gaps.map((g) => String(g || '').trim()).filter(Boolean)
-          : [],
-        howToImprove: String(x?.howToImprove || x?.improvementTip || '').trim(),
-      }))
-      .filter((x) => x.questionSummary || x.yourAnswerSummary || x.referenceExample)
+      .map((x, reviewIndex) => {
+        const requestedIndex = Number(x?.questionIndex)
+        const indexedTurn = Number.isInteger(requestedIndex)
+          ? interviewerTurns.find((turn) => turn.index === requestedIndex)
+          : null
+        const transcriptTurn = indexedTurn || interviewerTurns[reviewIndex] || null
+        return {
+          questionIndex: transcriptTurn?.index ?? (Number.isInteger(requestedIndex) ? requestedIndex : -1),
+          questionSummary: String(x?.questionSummary || x?.question || '').trim(),
+          questionText: transcriptTurn?.content || String(x?.questionText || x?.exactQuestion || '').trim(),
+          yourAnswerSummary: String(x?.yourAnswerSummary || x?.candidateAnswer || x?.yourAnswer || '').trim(),
+          referenceExample: String(x?.referenceExample || x?.referenceAnswer || '').trim(),
+          gaps: Array.isArray(x?.gaps)
+            ? x.gaps.map((g) => String(g || '').trim()).filter(Boolean)
+            : [],
+          howToImprove: String(x?.howToImprove || x?.improvementTip || '').trim(),
+        }
+      })
+      .filter((x) => x.questionSummary || x.questionText || x.yourAnswerSummary || x.referenceExample)
       .slice(0, 12)
     : []
 
@@ -405,7 +429,7 @@ Return the JSON object now.`
       }
     }
 
-    const reportJson = normalizeReportJson(parsed)
+    const reportJson = normalizeReportJson(parsed, messages)
 
     const updateRow = {
       transcript_json: messages,

@@ -1,0 +1,6 @@
+.env
+aiinterviewer-491711-390bc0fa3739.json
+.tools/
+.runtime/
+node_modules/
+npm-debug.log*

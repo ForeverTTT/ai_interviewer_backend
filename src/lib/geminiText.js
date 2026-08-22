@@ -22,23 +22,27 @@ export async function invokeGemini(system, user, opts = {}) {
   if (!apiKey) {
     const projectId = process.env.GCP_PROJECT_ID || process.env.GOOGLE_CLOUD_PROJECT || '530979174916'
     const location = process.env.GCP_LOCATION || 'us-central1'
+    const model = opts.model || process.env.GCP_MODEL || 'gemini-3.7-flash'
     // Force Enterprise stable (Vertex AI)
-    llm = new ChatVertexAI({
-      model: opts.model || process.env.GCP_MODEL || 'gemini-2.0-flash',
+    const fields = {
+      model,
       project: projectId,
       location: location,
-      temperature: opts.temperature ?? 0.35,
       maxOutputTokens: opts.maxOutputTokens ?? 8192,
-    })
+    }
+    if (model !== 'gemini-3.7-flash') fields.temperature = opts.temperature ?? 0.35
+    llm = new ChatVertexAI(fields)
   } else {
+    const model = opts.model || process.env.GEMINI_MODEL || 'gemini-3.7-flash'
     // Fallback to Consumer / Free tier only if key exists
-    llm = new ChatGoogleGenerativeAI({
-      model: opts.model || process.env.GEMINI_MODEL || 'gemini-2.0-flash',
+    const fields = {
+      model,
       apiKey,
-      temperature: opts.temperature ?? 0.35,
       streaming: false,
       maxOutputTokens: opts.maxOutputTokens ?? 8192,
-    })
+    }
+    if (model !== 'gemini-3.7-flash') fields.temperature = opts.temperature ?? 0.35
+    llm = new ChatGoogleGenerativeAI(fields)
   }
 
   const res = await llm.invoke([

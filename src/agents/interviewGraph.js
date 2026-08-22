@@ -12,6 +12,7 @@
 import { StateGraph, Annotation, START, END } from '@langchain/langgraph'
 import { ChatGoogleGenerativeAI } from '@langchain/google-genai'
 import { ChatVertexAI } from '@langchain/google-vertexai'
+import { createGeminiLiveTextModel } from '../lib/geminiLive.js'
 import {
   HumanMessage,
   AIMessage,
@@ -35,10 +36,11 @@ function getApiKey() {
 function getInterviewerContext(roleTrack, language) {
   if (roleTrack === 'school') {
     if (language === 'Deutsch') return 'ein erfahrener Professor an einer deutschen Universität'
-    if (language === 'zh' || language === '中文') return 'a professor at a German university responsible for admissions'
+    if (language === 'Chinese' || language === 'zh' || language === '中文') return '一位负责招生面试的德国大学资深教授'
     return 'a professor at a German university responsible for admissions'
   }
   if (language === 'Deutsch') return 'eine erfahrene Führungskraft bei einem deutschen Unternehmen'
+  if (language === 'Chinese' || language === 'zh' || language === '中文') return '一位德国企业的资深招聘经理'
   return 'a senior hiring manager at a German company'
 }
 
@@ -48,21 +50,23 @@ function makeLLM(opts = {}) {
   if (!apiKey) {
     const projectId = process.env.GCP_PROJECT_ID || process.env.GOOGLE_CLOUD_PROJECT || '530979174916'
     const location = process.env.GCP_LOCATION || 'us-central1'
+    const model = opts.model || process.env.GCP_MODEL || 'gemini-3.7-flash'
     // Force Enterprise stable (Vertex AI)
-    return new ChatVertexAI({
-      model: opts.model || process.env.GCP_MODEL || 'gemini-2.0-flash',
+    const fields = {
+      model,
       project: projectId,
       location: location,
-      temperature: opts.temperature ?? 0.8,
       streaming: opts.streaming ?? true,
       maxOutputTokens: opts.maxOutputTokens ?? opts.maxTokens ?? 1024,
-    })
+    }
+    if (model !== 'gemini-3.7-flash') fields.temperature = opts.temperature ?? 0.8
+    return new ChatVertexAI(fields)
   } else {
+    const model = process.env.GEMINI_MODEL || 'gemini-3.7-flash'
     // Consumer / Free tier (AI Studio)
-    return new ChatGoogleGenerativeAI({
-      model: process.env.GEMINI_MODEL || 'gemini-2.0-flash',
+    const fields = {
+      model,
       apiKey: process.env.GEMINI_API_KEY,
-      temperature: opts.temperature ?? 0.8,
       streaming: opts.streaming ?? true,
       maxOutputTokens: opts.maxTokens ?? 1024,
       safetySettings: [
@@ -71,7 +75,9 @@ function makeLLM(opts = {}) {
         { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_NONE' },
         { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_NONE' },
       ],
-    })
+    }
+    if (model !== 'gemini-3.7-flash') fields.temperature = opts.temperature ?? 0.8
+    return new ChatGoogleGenerativeAI(fields)
   }
 }
 
@@ -81,7 +87,10 @@ let feedbackLLM = null
 
 function ensureLLMs() {
   if (!analyzerLLM) analyzerLLM = makeLLM({ temperature: 0.3, streaming: true, maxTokens: 1024 })
-  if (!responseLLM) responseLLM = makeLLM({ temperature: 0.85, streaming: true, maxTokens: 1024 })
+  if (!responseLLM) responseLLM = createGeminiLiveTextModel({
+    model: process.env.GEMINI_LIVE_MODEL || 'gemini-3.1-flash-live-preview',
+    timeoutMs: 45_000,
+  })
   if (!feedbackLLM) feedbackLLM = makeLLM({ temperature: 0.75, streaming: true, maxTokens: 4096 })
 }
 
