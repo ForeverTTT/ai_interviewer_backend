@@ -3,6 +3,8 @@ import { supabase, supabaseForUser } from '../lib/supabase.js'
 import { requireAuth } from '../middleware/auth.js'
 import { assertGeminiConfigured, invokeGemini, stripJsonFence } from '../lib/geminiText.js'
 import { checkTokens, deductTokens } from '../middleware/tokens.js'
+import { recordInterviewEvent } from '../lib/interviewEvents.js'
+import { errorSummary, logStructured, normalizeRequestId, requestContext } from '../lib/observability.js'
 
 const router = Router()
 
@@ -36,7 +38,20 @@ async function backupInsert(originalId, row) {
 
 async function backupUpdate(originalId, fields) {
   try {
-    const { updated_at, report_markdown, report_ui_locale, ...safeFields } = fields
+    const {
+      updated_at,
+      report_markdown,
+      report_ui_locale,
+      finalize_status,
+      finalize_attempts,
+      finalize_last_error,
+      finalize_last_error_stage,
+      finalize_request_id,
+      finalize_model,
+      finalize_started_at,
+      finalized_at,
+      ...safeFields
+    } = fields
     await supabase
       .from('interviews_backup')
       .update(safeFields)
@@ -296,6 +311,43 @@ function formatNumberedTranscriptLines(messages) {
     .join('\n')
 }
 
+const CLIENT_INTERVIEW_EVENTS = new Set([
+  'finalize_clicked',
+  'finalize_request_sent',
+  'finalize_response_received',
+  'finalize_client_error',
+  'interview_exit',
+])
+
+const FINALIZE_LOCK_MS = 2 * 60 * 1000
+
+function finalizedRecently(interview) {
+  if (interview?.finalize_status !== 'processing') return false
+  const startedAt = Date.parse(interview.finalize_started_at || '')
+  return Number.isFinite(startedAt) && Date.now() - startedAt < FINALIZE_LOCK_MS
+}
+
+async function markFinalizeFailed(req, interviewId, stage, error) {
+  const summary = errorSummary(error)
+  const { error: updateError } = await dbFor(req)
+    .from('interviews')
+    .update({
+      finalize_status: 'failed',
+      finalize_last_error: summary.message,
+      finalize_last_error_stage: stage,
+    })
+    .eq('id', interviewId)
+    .eq('user_id', req.user.id)
+
+  if (updateError) {
+    logStructured('error', 'finalize_failure_state_save_failed', requestContext(req, {
+      interviewId,
+      stage,
+      errorMessage: updateError.message,
+    }))
+  }
+}
+
 /**
  * GET /api/interviews
  */
@@ -371,21 +423,77 @@ router.post('/', requireAuth, (req, _, next) => { req.tokenCost = 300; next(); }
   }
 })
 
-/**
- * POST /api/interviews/:id/finalize
- */
+/** POST /api/interviews/:id/events - authenticated client lifecycle events. */
+router.post('/:id/events', requireAuth, async (req, res) => {
+  const { id } = req.params
+  const eventType = String(req.body?.eventType || '')
+  if (!CLIENT_INTERVIEW_EVENTS.has(eventType)) {
+    return res.status(400).json({ error: 'Unsupported event type', requestId: req.requestId })
+  }
+
+  const { data: interview, error } = await dbFor(req)
+    .from('interviews')
+    .select('id')
+    .eq('id', id)
+    .eq('user_id', req.user.id)
+    .maybeSingle()
+
+  if (error || !interview) {
+    return res.status(error ? 500 : 404).json({
+      error: error ? 'Database error' : 'Interview not found',
+      requestId: req.requestId,
+    })
+  }
+
+  const eventRequestId = normalizeRequestId(req.body?.requestId || req.requestId)
+  await recordInterviewEvent({
+    interviewId: id,
+    userId: req.user.id,
+    requestId: eventRequestId,
+    eventType,
+    eventSource: 'client',
+    stage: req.body?.stage,
+    httpStatus: Number.isInteger(req.body?.httpStatus) ? req.body.httpStatus : undefined,
+    error: req.body?.errorMessage ? new Error(String(req.body.errorMessage).slice(0, 500)) : undefined,
+    messageCount: Number.isInteger(req.body?.messageCount) ? req.body.messageCount : undefined,
+    metadata: req.body?.metadata,
+  })
+
+  return res.status(202).json({ ok: true, requestId: eventRequestId })
+})
+
+/** GET /api/interviews/:id/events - latest diagnostic lifecycle for the owner. */
+router.get('/:id/events', requireAuth, async (req, res) => {
+  const limit = Math.min(Math.max(Number(req.query.limit) || 100, 1), 500)
+  const { data, error } = await dbFor(req)
+    .from('interview_events')
+    .select('*')
+    .eq('interview_id', req.params.id)
+    .eq('user_id', req.user.id)
+    .order('created_at', { ascending: true })
+    .limit(limit)
+
+  if (error) return res.status(500).json({ error: 'Failed to load interview events', requestId: req.requestId })
+  return res.json({ events: data || [], requestId: req.requestId })
+})
+
+/** POST /api/interviews/:id/finalize */
 router.post('/:id/finalize', requireAuth, async (req, res) => {
   if (!assertGeminiConfigured(res)) return
 
   const { id } = req.params
   const messages = req.body?.messages
   const reportUiLanguage = req.body?.reportUiLanguage
+  const finalizeStartedAt = Date.now()
+  let stage = 'validation'
+  let modelUsed = null
 
   if (!Array.isArray(messages)) {
-    return res.status(400).json({ error: 'messages array required' })
+    return res.status(400).json({ error: 'messages array required', requestId: req.requestId, stage })
   }
 
   try {
+    stage = 'database_fetch'
     const { data: iv, error: fetchErr } = await dbFor(req)
       .from('interviews')
       .select('*')
@@ -394,8 +502,92 @@ router.post('/:id/finalize', requireAuth, async (req, res) => {
       .maybeSingle()
 
     if (fetchErr || !iv) {
-      return res.status(fetchErr ? 500 : 404).json({ error: fetchErr ? 'Database error' : 'Interview not found' })
+      const status = fetchErr ? 500 : 404
+      await recordInterviewEvent({
+        interviewId: id,
+        userId: req.user.id,
+        requestId: req.requestId,
+        eventType: 'finalize_failed',
+        stage,
+        httpStatus: status,
+        error: fetchErr || new Error('Interview not found'),
+        messageCount: messages.length,
+      })
+      return res.status(status).json({
+        error: fetchErr ? 'Database error' : 'Interview not found',
+        requestId: req.requestId,
+        stage,
+      })
     }
+
+    await recordInterviewEvent({
+      interviewId: id,
+      userId: req.user.id,
+      requestId: req.requestId,
+      eventType: 'finalize_request_received',
+      stage: 'request',
+      messageCount: messages.length,
+    })
+
+    if (iv.status === 'completed' && iv.report_json) {
+      await recordInterviewEvent({
+        interviewId: id,
+        userId: req.user.id,
+        requestId: req.requestId,
+        eventType: 'finalize_idempotent_replay',
+        stage: 'completed',
+        model: iv.finalize_model,
+        durationMs: Date.now() - finalizeStartedAt,
+        messageCount: messages.length,
+      })
+      return res.json({ interview: iv, requestId: req.requestId, reused: true })
+    }
+
+    if (finalizedRecently(iv)) {
+      await recordInterviewEvent({
+        interviewId: id,
+        userId: req.user.id,
+        requestId: req.requestId,
+        eventType: 'finalize_already_processing',
+        stage: 'processing',
+        messageCount: messages.length,
+      })
+      return res.status(202).json({ processing: true, requestId: req.requestId })
+    }
+
+    stage = 'claim'
+    const { data: claimed, error: claimError } = await dbFor(req)
+      .rpc('claim_interview_finalize', {
+        p_interview_id: id,
+        p_request_id: req.requestId,
+        p_lock_seconds: Math.round(FINALIZE_LOCK_MS / 1000),
+      })
+      .maybeSingle()
+
+    if (claimError) throw claimError
+    if (!claimed) {
+      await recordInterviewEvent({
+        interviewId: id,
+        userId: req.user.id,
+        requestId: req.requestId,
+        eventType: 'finalize_already_processing',
+        stage,
+        messageCount: messages.length,
+      })
+      return res.status(202).json({ processing: true, requestId: req.requestId })
+    }
+
+    const finalizeAttempt = Number(claimed.finalize_attempts || 1)
+
+    await recordInterviewEvent({
+      interviewId: id,
+      userId: req.user.id,
+      requestId: req.requestId,
+      eventType: 'finalize_started',
+      stage,
+      messageCount: messages.length,
+      metadata: { attempt: finalizeAttempt },
+    })
 
     const transcriptText = formatMessagesForPrompt(messages)
     const numberedLines = formatNumberedTranscriptLines(messages)
@@ -414,12 +606,66 @@ ${numberedLines || '(none)'}
 
 Return the JSON object now.`
 
-    const raw = await invokeGemini(REPORT_JSON_SYSTEM, userPayload, { temperature: 0.3, maxOutputTokens: 32768 })
+    stage = 'gemini'
+    const geminiStartedAt = Date.now()
+    const raw = await invokeGemini(REPORT_JSON_SYSTEM, userPayload, {
+      temperature: 0.3,
+      maxOutputTokens: 32768,
+      onModelAttempt: async ({ model, attempt, fallback }) => {
+        modelUsed = model
+        await recordInterviewEvent({
+          interviewId: id,
+          userId: req.user.id,
+          requestId: req.requestId,
+          eventType: fallback ? 'gemini_fallback_started' : 'gemini_started',
+          stage,
+          model,
+          messageCount: messages.length,
+          metadata: { attempt },
+        })
+      },
+      onFallback: async ({ fromModel, toModel, error }) => {
+        await recordInterviewEvent({
+          interviewId: id,
+          userId: req.user.id,
+          requestId: req.requestId,
+          eventType: 'gemini_quota_exhausted',
+          stage,
+          model: fromModel,
+          error,
+          messageCount: messages.length,
+          metadata: { fallbackFrom: fromModel, fallbackTo: toModel },
+        })
+      },
+    })
+
+    await recordInterviewEvent({
+      interviewId: id,
+      userId: req.user.id,
+      requestId: req.requestId,
+      eventType: 'gemini_completed',
+      stage,
+      model: modelUsed,
+      durationMs: Date.now() - geminiStartedAt,
+      messageCount: messages.length,
+    })
+
+    stage = 'report_parse'
     let parsed
     try {
       parsed = JSON.parse(stripJsonFence(raw))
     } catch (e) {
       console.error('[finalize] JSON parse', e, raw?.slice?.(0, 400))
+      await recordInterviewEvent({
+        interviewId: id,
+        userId: req.user.id,
+        requestId: req.requestId,
+        eventType: 'report_parse_failed',
+        stage,
+        model: modelUsed,
+        error: e,
+        messageCount: messages.length,
+      })
       parsed = {
         summary: ['报告生成格式异常，请稍后点击「重新生成报告」重试。'],
         strengths: [],
@@ -430,13 +676,20 @@ Return the JSON object now.`
     }
 
     const reportJson = normalizeReportJson(parsed, messages)
+    stage = 'database_save'
 
     const updateRow = {
       transcript_json: messages,
       report_json: reportJson,
       report_markdown: null,
       status: 'completed',
-      report_ui_locale: String(iv.language || 'en').slice(0, 32),
+      report_ui_locale: String(reportUiLanguage || iv.language || 'en').slice(0, 32),
+      finalize_status: 'completed',
+      finalize_last_error: null,
+      finalize_last_error_stage: null,
+      finalize_request_id: req.requestId,
+      finalize_model: modelUsed,
+      finalized_at: new Date().toISOString(),
     }
 
     let updated, upErr
@@ -463,23 +716,45 @@ Return the JSON object now.`
     }
 
     if (upErr) {
-      console.error('[finalize] update', upErr)
-      const noCol = /column|does not exist|schema cache/i.test(String(upErr.message || upErr))
-      return res.status(500).json({
-        error: 'Failed to save report',
-        details: upErr.message,
-        hint: noCol
-          ? 'Run supabase/migration_interviews_complete.sql and migration_report_ui_locale.sql in Supabase SQL Editor, wait ~1 min for schema cache.'
-          : undefined,
-      })
+      throw upErr
     }
 
-    backupUpdate(id, updateRow)
+    await backupUpdate(id, updateRow)
 
-    return res.json({ interview: updated })
+    await recordInterviewEvent({
+      interviewId: id,
+      userId: req.user.id,
+      requestId: req.requestId,
+      eventType: 'finalize_completed',
+      stage: 'completed',
+      model: modelUsed,
+      httpStatus: 200,
+      durationMs: Date.now() - finalizeStartedAt,
+      messageCount: messages.length,
+    })
+
+    return res.json({ interview: updated, requestId: req.requestId })
   } catch (err) {
-    console.error('[finalize]', err)
-    return res.status(500).json({ error: 'Finalize failed' })
+    const httpStatus = stage === 'gemini' ? 502 : 500
+    await markFinalizeFailed(req, id, stage, err)
+    await recordInterviewEvent({
+      interviewId: id,
+      userId: req.user.id,
+      requestId: req.requestId,
+      eventType: 'finalize_failed',
+      stage,
+      model: modelUsed,
+      httpStatus,
+      error: err,
+      durationMs: Date.now() - finalizeStartedAt,
+      messageCount: messages.length,
+    })
+    return res.status(httpStatus).json({
+      error: 'Finalize failed',
+      requestId: req.requestId,
+      stage,
+      retryable: stage === 'gemini',
+    })
   }
 })
 

@@ -25,7 +25,7 @@
 | **HTTP 框架**| Express 4 | 业务接口转发与中间件支持 |
 | **数据库/认证** | Supabase SDK | 使用 **Service Role**（管理权限）与 **Auth API**（用户校验） |
 | **Agent 编排** | LangGraph | 根据面试状态选择提问、追问、流程节点和反馈生成 |
-| **AI 模型** | Google Gemini | 文本流程默认 `gemini-3.7-flash`；实时语音默认 `gemini-3.1-flash-live-preview` |
+| **AI 模型** | Google Gemini | 文本流程默认 `gemini-3.7-flash`，配额耗尽时重试 `gemini-3.5-flash-lite`；实时语音默认 `gemini-3.1-flash-live-preview` |
 | **其他组件** | pdf-parse, cors, dotenv | 提供 PDF 提取、跨域支持及配置管理 |
 
 ---

@@ -1,5 +1,9 @@
 import { ChatGoogleGenerativeAI } from '@langchain/google-genai'
 import { ChatVertexAI } from '@langchain/google-vertexai'
+import {
+  invokeWithGeminiQuotaFallback,
+  supportsSamplingTemperature,
+} from './geminiFallback.js'
 
 function getApiKey() {
   return process.env.GEMINI_API_KEY
@@ -17,38 +21,46 @@ export function assertGeminiConfigured(res) {
 export async function invokeGemini(system, user, opts = {}) {
   // Always use Vertex unless explicitly provided a GEMINI_API_KEY
   const apiKey = getApiKey()
-  let llm
+  const primaryModel = opts.model
+    || (apiKey ? process.env.GEMINI_MODEL : process.env.GCP_MODEL)
+    || 'gemini-3.7-flash'
 
-  if (!apiKey) {
-    const projectId = process.env.GCP_PROJECT_ID || process.env.GOOGLE_CLOUD_PROJECT || '530979174916'
-    const location = process.env.GCP_LOCATION || 'us-central1'
-    const model = opts.model || process.env.GCP_MODEL || 'gemini-3.7-flash'
-    // Force Enterprise stable (Vertex AI)
-    const fields = {
-      model,
-      project: projectId,
-      location: location,
-      maxOutputTokens: opts.maxOutputTokens ?? 8192,
+  const createLlm = (model) => {
+    if (!apiKey) {
+      const projectId = process.env.GCP_PROJECT_ID || process.env.GOOGLE_CLOUD_PROJECT || '530979174916'
+      const location = process.env.GCP_LOCATION || 'us-central1'
+      const fields = {
+        model,
+        project: projectId,
+        location,
+        maxOutputTokens: opts.maxOutputTokens ?? 8192,
+      }
+      if (supportsSamplingTemperature(model)) fields.temperature = opts.temperature ?? 0.35
+      return new ChatVertexAI(fields)
     }
-    if (model !== 'gemini-3.7-flash') fields.temperature = opts.temperature ?? 0.35
-    llm = new ChatVertexAI(fields)
-  } else {
-    const model = opts.model || process.env.GEMINI_MODEL || 'gemini-3.7-flash'
-    // Fallback to Consumer / Free tier only if key exists
+
     const fields = {
       model,
       apiKey,
       streaming: false,
       maxOutputTokens: opts.maxOutputTokens ?? 8192,
     }
-    if (model !== 'gemini-3.7-flash') fields.temperature = opts.temperature ?? 0.35
-    llm = new ChatGoogleGenerativeAI(fields)
+    if (supportsSamplingTemperature(model)) fields.temperature = opts.temperature ?? 0.35
+    return new ChatGoogleGenerativeAI(fields)
   }
 
-  const res = await llm.invoke([
+  const messages = [
     { role: 'system', content: system },
     { role: 'user', content: user },
-  ])
+  ]
+  const res = await invokeWithGeminiQuotaFallback(
+    primaryModel,
+    (model) => createLlm(model).invoke(messages),
+    {
+      onModelAttempt: opts.onModelAttempt,
+      onFallback: opts.onFallback,
+    },
+  )
 
   const c = res.content
   if (typeof c === 'string') return c

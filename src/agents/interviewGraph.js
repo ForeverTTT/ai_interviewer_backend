@@ -14,6 +14,10 @@ import { ChatGoogleGenerativeAI } from '@langchain/google-genai'
 import { ChatVertexAI } from '@langchain/google-vertexai'
 import { createGeminiLiveTextModel } from '../lib/geminiLive.js'
 import {
+  invokeWithGeminiQuotaFallback,
+  supportsSamplingTemperature,
+} from '../lib/geminiFallback.js'
+import {
   HumanMessage,
   AIMessage,
   SystemMessage,
@@ -46,27 +50,28 @@ function getInterviewerContext(roleTrack, language) {
 
 function makeLLM(opts = {}) {
   const apiKey = getApiKey()
+  const primaryModel = opts.model
+    || (apiKey ? process.env.GEMINI_MODEL : process.env.GCP_MODEL)
+    || 'gemini-3.7-flash'
 
-  if (!apiKey) {
-    const projectId = process.env.GCP_PROJECT_ID || process.env.GOOGLE_CLOUD_PROJECT || '530979174916'
-    const location = process.env.GCP_LOCATION || 'us-central1'
-    const model = opts.model || process.env.GCP_MODEL || 'gemini-3.7-flash'
-    // Force Enterprise stable (Vertex AI)
-    const fields = {
-      model,
-      project: projectId,
-      location: location,
-      streaming: opts.streaming ?? true,
-      maxOutputTokens: opts.maxOutputTokens ?? opts.maxTokens ?? 1024,
+  const createLlm = (model) => {
+    if (!apiKey) {
+      const projectId = process.env.GCP_PROJECT_ID || process.env.GOOGLE_CLOUD_PROJECT || '530979174916'
+      const location = process.env.GCP_LOCATION || 'us-central1'
+      const fields = {
+        model,
+        project: projectId,
+        location,
+        streaming: opts.streaming ?? true,
+        maxOutputTokens: opts.maxOutputTokens ?? opts.maxTokens ?? 1024,
+      }
+      if (supportsSamplingTemperature(model)) fields.temperature = opts.temperature ?? 0.8
+      return new ChatVertexAI(fields)
     }
-    if (model !== 'gemini-3.7-flash') fields.temperature = opts.temperature ?? 0.8
-    return new ChatVertexAI(fields)
-  } else {
-    const model = process.env.GEMINI_MODEL || 'gemini-3.7-flash'
-    // Consumer / Free tier (AI Studio)
+
     const fields = {
       model,
-      apiKey: process.env.GEMINI_API_KEY,
+      apiKey,
       streaming: opts.streaming ?? true,
       maxOutputTokens: opts.maxTokens ?? 1024,
       safetySettings: [
@@ -76,8 +81,19 @@ function makeLLM(opts = {}) {
         { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_NONE' },
       ],
     }
-    if (model !== 'gemini-3.7-flash') fields.temperature = opts.temperature ?? 0.8
+    if (supportsSamplingTemperature(model)) fields.temperature = opts.temperature ?? 0.8
     return new ChatGoogleGenerativeAI(fields)
+  }
+
+  const primaryLlm = createLlm(primaryModel)
+  let fallbackLlm = null
+
+  return {
+    invoke: (...args) => invokeWithGeminiQuotaFallback(primaryModel, (model) => {
+      if (model === primaryModel) return primaryLlm.invoke(...args)
+      if (!fallbackLlm) fallbackLlm = createLlm(model)
+      return fallbackLlm.invoke(...args)
+    }),
   }
 }
 

@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import 'dotenv/config'
+import { errorSummary, logStructured, requestContext } from '../lib/observability.js'
 
 /**
  * Middleware to verify Supabase JWT token and attach user to request.
@@ -7,6 +8,7 @@ import 'dotenv/config'
 export async function requireAuth(req, res, next) {
   const authHeader = req.headers.authorization
   if (!authHeader?.startsWith('Bearer ')) {
+    logStructured('warn', 'auth_rejected', requestContext(req, { reason: 'missing_authorization' }))
     return res.status(401).json({ error: 'Missing or invalid Authorization header' })
   }
 
@@ -22,15 +24,16 @@ export async function requireAuth(req, res, next) {
     const { data: { user }, error } = await supabase.auth.getUser(token)
 
     if (error || !user) {
+      logStructured('warn', 'auth_rejected', requestContext(req, { reason: 'invalid_or_expired_token' }))
       return res.status(401).json({ error: 'Invalid or expired token' })
     }
 
     req.user = user
     req.accessToken = token
-    console.log(`[Auth] User identified: ${user.id} (Email: ${user.email})`)
+    logStructured('info', 'auth_succeeded', requestContext(req))
     next()
   } catch (err) {
-    console.error('[Auth Middleware] Error:', err)
+    logStructured('error', 'auth_error', requestContext(req, { errorMessage: errorSummary(err).message }))
     return res.status(500).json({ error: 'Internal server error' })
   }
 }

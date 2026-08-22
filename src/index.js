@@ -10,6 +10,7 @@ import gallupRouter from './routes/gallup.js'
 import aiAssistantRouter from './routes/aiAssistant.js'
 import experiencesRouter from './routes/experiences.js'
 import { attachInterviewLiveSocket } from './live/interviewLiveSocket.js'
+import { errorSummary, logStructured, requestContext, requestIdMiddleware } from './lib/observability.js'
 
 const app = express()
 const PORT = process.env.PORT || 5000
@@ -54,7 +55,9 @@ const strictLimiter = rateLimit({
 app.use(cors({
   origin: [FRONTEND_URL, 'http://localhost:3000', 'http://localhost:3001', 'http://localhost:5173'],
   credentials: true,
+  exposedHeaders: ['X-Request-Id'],
 }))
+app.use(requestIdMiddleware)
 app.use(express.json({ limit: '10mb' }))
 app.use(express.urlencoded({ extended: true }))
 app.use('/api/', globalLimiter) // Apply to all API routes
@@ -85,8 +88,10 @@ app.use((req, res) => {
 
 // Error handler
 app.use((err, req, res, next) => {
-  console.error('[Express Error]', err)
-  res.status(500).json({ error: 'Internal server error' })
+  logStructured('error', 'express_error', requestContext(req, {
+    errorMessage: errorSummary(err).message,
+  }))
+  res.status(500).json({ error: 'Internal server error', requestId: req.requestId })
 })
 
 const server = app.listen(PORT, () => {
