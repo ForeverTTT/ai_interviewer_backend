@@ -4,16 +4,28 @@
 
 后端服务负责处理核心业务逻辑，包括面试会话流管理、多模态报告生成、简历解析诊断（Gemini API）以及基于授权用户的数据库操作。应用采用 **Node.js ES 模块** (`"type": "module"`) 开发。
 
+## 🌐 线上环境
+
+- Cloud Run API：<https://interview-backend-557559701677.europe-west1.run.app>
+- 健康检查：<https://interview-backend-557559701677.europe-west1.run.app/api/health>
+- 生产前端：<https://aiinterviewer-491711-7b1cf.web.app>
+- Google Cloud 项目：`aiinterviewer-491711-7b1cf`（区域 `europe-west1`）
+- 数据库与认证：Supabase Cloud；用户通过 Supabase Google OAuth 登录
+
+当前 Cloud Run 配置为 1 vCPU、512 MiB、最少 0 / 最多 2 个实例、每实例并发 20。
+生产密钥只能配置在 Cloud Run 环境变量或 Secret Manager 中，不能提交到仓库。
+
 ---
 
 ## 🛠️ 技术栈
 
 | 模块 | 技术 | 说明 |
 | :--- | :--- | :--- |
-| **运行时** | Node.js 18+ | 建议通过 `nvm` 管理版本 |
+| **运行时** | Node.js 22+ | 本地建议使用当前 LTS；Cloud Run 使用 Google Buildpacks 构建 |
 | **HTTP 框架**| Express 4 | 业务接口转发与中间件支持 |
 | **数据库/认证** | Supabase SDK | 使用 **Service Role**（管理权限）与 **Auth API**（用户校验） |
-| **AI 模型** | Google Gemini | **Dialog**: `gemini-1.5-flash` / `gemini-2.0-flash` <br> **CV Analysis**: `gemini-1.5-pro` |
+| **Agent 编排** | LangGraph | 根据面试状态选择提问、追问、流程节点和反馈生成 |
+| **AI 模型** | Google Gemini | 文本流程默认 `gemini-3.7-flash`；实时语音默认 `gemini-3.1-flash-live-preview` |
 | **其他组件** | pdf-parse, cors, dotenv | 提供 PDF 提取、跨域支持及配置管理 |
 
 ---
@@ -81,7 +93,7 @@ backend/
 本项目是 Node.js 后端，不使用 Python `venv`。每个项目的依赖安装在本目录的
 `node_modules` 中，并由 `package-lock.json` 锁定版本，相当于项目级的隔离环境。
 
-前置要求：安装 Node.js 18 或更高版本（推荐使用当前 LTS 版本）。在仓库根目录执行：
+前置要求：安装 Node.js 22 或更高版本（推荐使用当前 LTS 版本）。在仓库根目录执行：
 
 ```bash
 cd ai_interviewer_backend
@@ -148,6 +160,31 @@ docker run --rm -p 8080:8080 --env-file .env -e PORT=8080 interviewde-backend
 服务启动后访问 `http://localhost:8080/api/health`。部署到 Cloud Run 等平台时，
 应通过平台的环境变量或 Secret Manager 配置密钥，并让平台注入 `PORT`；不要在镜像、
 Dockerfile 或代码仓库中写入密钥。
+
+### Cloud Run 部署
+
+生产环境通过 Google Cloud Buildpacks 构建并部署，避免把本地 `.env` 上传到构建环境。
+先完成 `gcloud auth login`，并确认项目已关联账单账户、Cloud Run、Cloud Build 和
+Artifact Registry API 已启用。随后执行：
+
+```bash
+gcloud builds submit \
+  --pack image=europe-west1-docker.pkg.dev/aiinterviewer-491711-7b1cf/cloud-run-source-deploy/interview-backend:buildpack \
+  --project=aiinterviewer-491711-7b1cf \
+  --region=europe-west1
+
+gcloud run deploy interview-backend \
+  --image=europe-west1-docker.pkg.dev/aiinterviewer-491711-7b1cf/cloud-run-source-deploy/interview-backend:buildpack \
+  --project=aiinterviewer-491711-7b1cf \
+  --region=europe-west1 \
+  --allow-unauthenticated \
+  --execution-environment=gen2 \
+  --cpu=1 --memory=512Mi --min=0 --max=2 --concurrency=20 --port=8080
+```
+
+部署前须在 Cloud Run 中配置 `SUPABASE_URL`、`SUPABASE_SERVICE_ROLE_KEY`、
+`GEMINI_API_KEY`、Gemini 模型变量和生产 `FRONTEND_URL`。推荐用 Secret Manager
+保存私钥。部署后用 `/api/health` 检查服务，并确认 CORS 允许生产前端域名。
 
 ---
 
