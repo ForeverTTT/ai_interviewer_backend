@@ -1,3 +1,10 @@
 node_modules
 npm-debug.log
 .git
+.env
+.env.*
+!.env.example
+aiinterviewer-491711-390bc0fa3739.json
+client_secret_*.json
+.runtime
+.tools
