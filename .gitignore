@@ -3,5 +3,6 @@ aiinterviewer-491711-390bc0fa3739.json
 client_secret_*.json
 .tools/
 .runtime/
+logs/
 node_modules/
 npm-debug.log*
