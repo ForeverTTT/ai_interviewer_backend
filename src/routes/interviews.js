@@ -6,6 +6,7 @@ import { checkTokens, deductTokens } from '../middleware/tokens.js'
 import { recordInterviewEvent } from '../lib/interviewEvents.js'
 import { errorSummary, logStructured, normalizeRequestId, requestContext } from '../lib/observability.js'
 import { selectFinalizeMessages, shouldReuseFinalizedInterview } from '../lib/interviewFinalize.js'
+import { normalizeInterviewerStyle } from '../config/interviewerStyles.js'
 
 const router = Router()
 
@@ -27,6 +28,7 @@ async function backupInsert(originalId, row) {
       job_description: row.job_description ?? '',
       language: row.language,
       duration: row.duration,
+      interviewer_style: row.interviewer_style ?? 'balanced',
       resume_snapshot: row.resume_snapshot ?? null,
       status: row.status ?? 'in_progress',
       transcript_json: row.transcript_json ?? null,
@@ -378,7 +380,7 @@ router.get('/', requireAuth, async (req, res) => {
  * POST /api/interviews
  */
 router.post('/', requireAuth, (req, _, next) => { req.tokenCost = 300; next(); }, checkTokens, async (req, res) => {
-  const { position, job_description, language, duration, resume_snapshot } = req.body ?? {}
+  const { position, job_description, language, duration, resume_snapshot, interviewer_style } = req.body ?? {}
 
   if (!position || !language || !duration) {
     return res.status(400).json({ error: 'position, language, and duration are required' })
@@ -390,6 +392,7 @@ router.post('/', requireAuth, (req, _, next) => { req.tokenCost = 300; next(); }
     job_description: job_description != null ? String(job_description).trim() : '',
     language,
     duration: Number(duration),
+    interviewer_style: normalizeInterviewerStyle(interviewer_style),
   }
 
   if (resume_snapshot != null && String(resume_snapshot).trim()) {

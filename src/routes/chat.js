@@ -3,6 +3,11 @@ import { requireAuth } from '../middleware/auth.js'
 import { getGraph, RESPONSE_NODES, AGENT_LABELS } from '../agents/interviewGraph.js'
 import { sessionStore, getMaxQuestions } from '../agents/utils.js'
 import { synthesizeSpeechVertex, getGcpProjectId } from '../lib/ttsVertex.js'
+import {
+  getInterviewerVoice,
+  getTtsDeliveryPrompt,
+  normalizeInterviewerStyle,
+} from '../config/interviewerStyles.js'
 
 const router = Router()
 
@@ -40,6 +45,7 @@ router.post('/message', requireAuth, async (req, res) => {
     duration = 10,
     resumeSnapshot = '',
     roleTrack = 'work',
+    interviewerStyle = 'balanced',
     sessionId,        // "new" resets the session
   } = req.body
 
@@ -60,7 +66,15 @@ router.post('/message', requireAuth, async (req, res) => {
     const resumeTrim = typeof resumeSnapshot === 'string'
       ? resumeSnapshot.trim().slice(0, 50_000)
       : ''
-    const config = { position, jobDescription, language, duration, resumeSnapshot: resumeTrim, roleTrack }
+    const config = {
+      position,
+      jobDescription,
+      language,
+      duration,
+      resumeSnapshot: resumeTrim,
+      roleTrack,
+      interviewerStyle: normalizeInterviewerStyle(interviewerStyle),
+    }
     const isNewSession = sessionId === 'new' || !sessionStore.get(userId)
 
     let session
@@ -177,30 +191,39 @@ router.post('/message', requireAuth, async (req, res) => {
 // ── POST /api/chat/tts ───────────────────────────────────────────
 /**
  * Convert text to speech using Gemini's neural TTS.
- * Body: { text: string, language: "English"|"Deutsch" }
+ * Body: { text: string, language: "English"|"Deutsch"|"Chinese" }
  * Returns: audio/wav binary
  *
- * Voice mapping (Gemini built-in voices):
- *   English → Kore  (professional female)
- *   Deutsch → Fenrir (authoritative male — suits German corporate context)
+ * Voice mapping is selected from the interviewer style and language, with
+ * optional per-language environment overrides.
  *
  * Falls back gracefully: if Gemini TTS is unavailable the client should
  * fall back to browser SpeechSynthesis.
  */
 
-// Voices: avoid "Firm"/"Excitable" for long interview playback — use Warm/Smooth (Gemini 2.5 voice library)
-const TTS_VOICES = {
-  English: process.env.GEMINI_TTS_VOICE_EN || 'Sulafat',   // Warm
-  Deutsch: process.env.GEMINI_TTS_VOICE_DE || 'Despina',  // Smooth (better than Fenrir "Excitable" for DE)
+// Explicit environment values override the style-based recommended voices.
+const TTS_VOICE_OVERRIDES = {
+  English: process.env.GEMINI_TTS_VOICE_EN,
+  Deutsch: process.env.GEMINI_TTS_VOICE_DE,
+  Chinese: process.env.GEMINI_TTS_VOICE_ZH,
 }
 
 const TTS_MODEL = process.env.GEMINI_TTS_MODEL || 'gemini-2.5-flash-preview-tts'
 
-function buildTtsPrompt(text) {
-  return String(text || '')
+const TTS_SCRIPT_LABELS = {
+  Chinese: '只朗读以下面试台词：',
+  Deutsch: 'Sprich nur den folgenden Interviewtext:',
+  English: 'Speak only the following interview line:',
+}
+
+function buildTtsPrompt(text, language = 'English', interviewerStyle = 'balanced') {
+  const script = String(text || '')
     .replace(/(?<!\b(?:Dr|Mr|Mrs|Ms|Sr|Jr|St|i\.e|e\.g|etc|prof|vs))\s*([.?!。？！])\s+/gi, '$1   ') 
     .trim()
     .slice(0, 4500)
+  const persona = getTtsDeliveryPrompt(interviewerStyle, language)
+  const scriptLabel = TTS_SCRIPT_LABELS[language] || TTS_SCRIPT_LABELS.English
+  return `${persona}\n\n${scriptLabel}\n${script}`
 }
 
 // ── API Key rotation pool ─────────────────────────────────────────
@@ -268,18 +291,19 @@ function pcmToWav(pcmBase64, sampleRate = 24000) {
 }
 
 router.post('/tts', requireAuth, async (req, res) => {
-  const { text, language = 'English' } = req.body
+  const { text, language = 'English', interviewerStyle = 'balanced' } = req.body
   if (!text?.trim()) return res.status(400).json({ error: 'text is required' })
 
-  const voiceName = TTS_VOICES[language] || TTS_VOICES.English
-  const prompt = buildTtsPrompt(text)
+  const style = normalizeInterviewerStyle(interviewerStyle)
+  const voiceName = TTS_VOICE_OVERRIDES[language] || getInterviewerVoice(style, language)
+  const prompt = buildTtsPrompt(text, language, style)
   const modelId = process.env.GEMINI_TTS_MODEL || 'gemini-2.5-flash-preview-tts'
   const isTtsModel = modelId.includes('tts')
 
   // --- Enterprise Vertex TTS Fallback ---
   if (getGcpProjectId()) {
     try {
-      const { audioContent, contentType } = await synthesizeSpeechVertex(text, language, false)
+      const { audioContent, contentType } = await synthesizeSpeechVertex(text, language, false, style)
       console.log(`[TTS Provider: VertexAI] Synthesized "${text.slice(0, 30)}..." in ${language} (${audioContent.length} bytes, MP3)`)
       return res.set({
         'Content-Type': 'audio/mpeg',
@@ -372,20 +396,21 @@ router.post('/tts', requireAuth, async (req, res) => {
 /**
  * Streaming TTS: returns raw PCM chunks via chunked transfer encoding
  * as soon as Gemini produces them, instead of waiting for the full audio.
- * Body: { text: string, language: "English"|"Deutsch" }
+ * Body: { text: string, language: "English"|"Deutsch"|"Chinese" }
  * Returns: audio/pcm (16-bit mono), sample rate in X-Sample-Rate header
  */
 router.post('/tts-stream', requireAuth, async (req, res) => {
-  const { text, language = 'English' } = req.body
+  const { text, language = 'English', interviewerStyle = 'balanced' } = req.body
   if (!text?.trim()) return res.status(400).json({ error: 'text is required' })
 
+  const style = normalizeInterviewerStyle(interviewerStyle)
   const modelId = process.env.GEMINI_TTS_MODEL || 'gemini-2.5-flash-preview-tts'
   const isTtsModel = modelId.includes('tts')
 
   // --- Enterprise Vertex TTS Fallback ---
   if (getGcpProjectId()) {
     try {
-      const { audioContent, contentType } = await synthesizeSpeechVertex(text, language, true)
+      const { audioContent, contentType } = await synthesizeSpeechVertex(text, language, true, style)
       console.log(`[TTS Stream Provider: VertexAI] Full buffer response in ${language} (${audioContent.length} bytes, PCM)`)
       
       return res.set({
@@ -400,8 +425,8 @@ router.post('/tts-stream', requireAuth, async (req, res) => {
     }
   }
 
-  const voiceName = TTS_VOICES[language] || TTS_VOICES.English
-  const prompt = buildTtsPrompt(text)
+  const voiceName = TTS_VOICE_OVERRIDES[language] || getInterviewerVoice(style, language)
+  const prompt = buildTtsPrompt(text, language, style)
 
   const reqBody = isTtsModel
     ? {
@@ -523,7 +548,15 @@ router.post('/tts-stream', requireAuth, async (req, res) => {
  */
 router.post('/reset', requireAuth, (req, res) => {
   const userId = req.user.id
-  const { position, jobDescription, language, duration, resumeSnapshot = '', roleTrack = 'work' } = req.body ?? {}
+  const {
+    position,
+    jobDescription,
+    language,
+    duration,
+    resumeSnapshot = '',
+    roleTrack = 'work',
+    interviewerStyle = 'balanced',
+  } = req.body ?? {}
   const resumeTrim = typeof resumeSnapshot === 'string'
     ? resumeSnapshot.trim().slice(0, 50_000)
     : ''
@@ -535,6 +568,7 @@ router.post('/reset', requireAuth, (req, res) => {
     duration,
     resumeSnapshot: resumeTrim,
     roleTrack,
+    interviewerStyle: normalizeInterviewerStyle(interviewerStyle),
   })
   res.json({ ok: true, message: 'Session reset' })
 })
@@ -560,6 +594,7 @@ router.get('/session', requireAuth, (req, res) => {
     maxQuestions: maxQ,
     progress: planLen ? Math.round(((session.planIndex ?? 0) / planLen) * 100) : 0,
     interviewerName: session.interviewerName,
+    interviewerStyle: session.config?.interviewerStyle || 'balanced',
   })
 })
 

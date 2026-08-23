@@ -13,6 +13,7 @@ import { StateGraph, Annotation, START, END } from '@langchain/langgraph'
 import { ChatGoogleGenerativeAI } from '@langchain/google-genai'
 import { ChatVertexAI } from '@langchain/google-vertexai'
 import { createGeminiLiveTextModel } from '../lib/geminiLive.js'
+import { getInterviewerStylePrompt } from '../config/interviewerStyles.js'
 import {
   invokeWithGeminiQuotaFallback,
   supportsSamplingTemperature,
@@ -37,15 +38,22 @@ function getApiKey() {
   return process.env.GEMINI_API_KEY
 }
 
-function getInterviewerContext(roleTrack, language) {
+function getInterviewerContext(roleTrack, language, interviewerStyle) {
+  let roleContext
   if (roleTrack === 'school') {
-    if (language === 'Deutsch') return 'ein erfahrener Professor an einer deutschen Universität'
-    if (language === 'Chinese' || language === 'zh' || language === '中文') return '一位负责招生面试的德国大学资深教授'
-    return 'a professor at a German university responsible for admissions'
+    if (language === 'Deutsch') roleContext = 'ein erfahrener Professor an einer deutschen Universität'
+    if (language === 'Chinese' || language === 'zh' || language === '中文') {
+      roleContext = '一位负责招生面试的德国大学资深教授'
+    }
+    roleContext ||= 'a professor at a German university responsible for admissions'
+  } else {
+    if (language === 'Deutsch') roleContext = 'eine erfahrene Führungskraft bei einem deutschen Unternehmen'
+    if (language === 'Chinese' || language === 'zh' || language === '中文') {
+      roleContext = '一位德国企业的资深招聘经理'
+    }
+    roleContext ||= 'a senior hiring manager at a German company'
   }
-  if (language === 'Deutsch') return 'eine erfahrene Führungskraft bei einem deutschen Unternehmen'
-  if (language === 'Chinese' || language === 'zh' || language === '中文') return '一位德国企业的资深招聘经理'
-  return 'a senior hiring manager at a German company'
+  return `${roleContext}.\n\n${getInterviewerStylePrompt(interviewerStyle)}`
 }
 
 function makeLLM(opts = {}) {
@@ -276,7 +284,7 @@ async function generateOpeningNode(state) {
 
   const systemPrompt = renderPrompt(_prompts.opening, {
     INTERVIEWER_NAME: interviewerName,
-    INTERVIEWER_CONTEXT: getInterviewerContext(config?.roleTrack, config?.language),
+    INTERVIEWER_CONTEXT: getInterviewerContext(config?.roleTrack, config?.language, config?.interviewerStyle),
     POSITION: config?.position || '',
     LANGUAGE: config?.language || 'English',
     JOB_DESCRIPTION: config?.jobDescription || '',
@@ -293,7 +301,7 @@ async function generateOpeningNode(state) {
     new HumanMessage(trigger),
   ])
 
-  console.warn('[Opening] roleTrack=%s, context=%s', config?.roleTrack, getInterviewerContext(config?.roleTrack, config?.language))
+  console.warn('[Opening] roleTrack=%s, context=%s', config?.roleTrack, getInterviewerContext(config?.roleTrack, config?.language, config?.interviewerStyle))
   console.warn('[Opening Output]:', response.content)
 
   return {
@@ -316,7 +324,7 @@ async function askExploreNode(state) {
 
   const systemPrompt = renderPrompt(_prompts.explore, {
     INTERVIEWER_NAME: interviewerName,
-    INTERVIEWER_CONTEXT: getInterviewerContext(config?.roleTrack, config?.language),
+    INTERVIEWER_CONTEXT: getInterviewerContext(config?.roleTrack, config?.language, config?.interviewerStyle),
     POSITION: config?.position || '',
     LANGUAGE: config?.language || 'English',
     MAX_QUESTIONS: String(maxQ),
@@ -352,7 +360,7 @@ async function askTechnicalNode(state) {
 
   const systemPrompt = renderPrompt(_prompts.technical, {
     INTERVIEWER_NAME: interviewerName,
-    INTERVIEWER_CONTEXT: getInterviewerContext(config?.roleTrack, config?.language),
+    INTERVIEWER_CONTEXT: getInterviewerContext(config?.roleTrack, config?.language, config?.interviewerStyle),
     POSITION: config?.position || '',
     LANGUAGE: config?.language || 'English',
     MAX_QUESTIONS: String(maxQ),
@@ -390,7 +398,7 @@ async function askBehavioralNode(state) {
 
   const systemPrompt = renderPrompt(_prompts.behavioral, {
     INTERVIEWER_NAME: interviewerName,
-    INTERVIEWER_CONTEXT: getInterviewerContext(config?.roleTrack, config?.language),
+    INTERVIEWER_CONTEXT: getInterviewerContext(config?.roleTrack, config?.language, config?.interviewerStyle),
     POSITION: config?.position || '',
     LANGUAGE: config?.language || 'English',
     MAX_QUESTIONS: String(maxQ),
@@ -426,6 +434,7 @@ async function giveFeedbackNode(state) {
   const systemPrompt = renderPrompt(_prompts.feedback, {
     POSITION: config?.position || '',
     LANGUAGE: config?.language || 'English',
+    INTERVIEWER_CONTEXT: getInterviewerContext(config?.roleTrack, config?.language, config?.interviewerStyle),
     QUESTION_COUNT: String(questionCount),
     TECHNICAL_COUNT: String(technicalCount),
     BEHAVIORAL_COUNT: String(behavioralCount),

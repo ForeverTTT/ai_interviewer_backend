@@ -1,11 +1,25 @@
 import { WebSocket, WebSocketServer } from 'ws'
 import { createClient } from '@supabase/supabase-js'
 import { GoogleGenAI, Modality } from '@google/genai'
+import {
+  getInterviewerStylePrompt,
+  getInterviewerVoice,
+  normalizeInterviewerStyle,
+} from '../config/interviewerStyles.js'
 
 const LIVE_PATH = '/api/chat/live'
 const LIVE_MODEL = process.env.GEMINI_LIVE_MODEL || 'gemini-3.1-flash-live-preview'
-const LIVE_VOICE = process.env.GEMINI_LIVE_VOICE || 'Kore'
 const MAX_CONTEXT_CHARS = 50_000
+
+const LIVE_VOICE_OVERRIDES = {
+  English: process.env.GEMINI_LIVE_VOICE_EN || process.env.GEMINI_LIVE_VOICE,
+  Deutsch: process.env.GEMINI_LIVE_VOICE_DE,
+  Chinese: process.env.GEMINI_LIVE_VOICE_ZH,
+}
+
+function liveVoiceFor(language, interviewerStyle) {
+  return LIVE_VOICE_OVERRIDES[language] || getInterviewerVoice(interviewerStyle, language)
+}
 
 function safeErrorMessage(error, fallback) {
   const message = typeof error?.message === 'string' ? error.message.trim() : ''
@@ -37,15 +51,21 @@ function buildSystemInstruction(config = {}) {
   const jobDescription = String(config.jobDescription || '').slice(0, 15_000)
   const resume = String(config.resumeSnapshot || '').slice(0, 25_000)
   const duration = Number(config.duration) || 10
+  const interviewerStyle = normalizeInterviewerStyle(config.interviewerStyle)
   const context = [
     `Target role: ${position}`,
     jobDescription ? `Job description:\n${jobDescription}` : '',
     resume ? `Candidate resume/context:\n${resume}` : '',
   ].filter(Boolean).join('\n\n').slice(0, MAX_CONTEXT_CHARS)
 
-  return `You are Anna Müller, a professional interviewer at a German company.
+  const speakingStyle = `${getInterviewerStylePrompt(interviewerStyle)}
+
+Voice delivery: sound like a natural face-to-face conversation, with semantic phrasing, subtle pauses, and varied intonation appropriate to the selected interviewer style. Avoid an announcer-like, customer-service, or robotic cadence.`
+
+  return `You are Anna Müller, an experienced interviewer at a German company.
 Conduct a realistic ${duration}-minute interview entirely in ${language}.
-Speak naturally, warmly, and concisely. Ask exactly one question at a time.
+Speak naturally and concisely. Ask exactly one question at a time.
+${speakingStyle}
 Start with a brief greeting and ask the candidate to introduce themselves.
 Then adapt follow-up questions to their previous answers, resume, target role, and job description.
 Cover experience, role-specific or technical depth, and behavioral competencies.
@@ -120,6 +140,8 @@ export function attachInterviewLiveSocket(server, { allowedOrigins = [] } = {}) 
           const apiKey = process.env.GEMINI_API_KEY
           if (!apiKey) throw new Error('GEMINI_API_KEY is not configured')
           const ai = new GoogleGenAI({ apiKey })
+          const interviewerStyle = normalizeInterviewerStyle(message.config?.interviewerStyle)
+          const liveVoice = liveVoiceFor(message.config?.language, interviewerStyle)
 
           liveSession = await ai.live.connect({
             model: LIVE_MODEL,
@@ -174,7 +196,7 @@ export function attachInterviewLiveSocket(server, { allowedOrigins = [] } = {}) 
             config: {
               responseModalities: [Modality.AUDIO],
               speechConfig: {
-                voiceConfig: { prebuiltVoiceConfig: { voiceName: LIVE_VOICE } },
+                voiceConfig: { prebuiltVoiceConfig: { voiceName: liveVoice } },
               },
               inputAudioTranscription: {},
               outputAudioTranscription: {},

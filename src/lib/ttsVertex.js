@@ -48,7 +48,7 @@ const VOICE_LANG_MAP = {
 /**
  * Standard TTS synthesis returning audio buffer
  */
-export async function synthesizeSpeechVertex(text, language = 'English', isStream = false) {
+export async function synthesizeSpeechVertex(text, language = 'English', isStream = false, interviewerStyle = 'balanced') {
   const ttsClient = getTtsClient()
   if (!ttsClient) throw new Error('Google Cloud TTS client not initialized. Check GCP_PROJECT_ID.')
 
@@ -75,7 +75,15 @@ export async function synthesizeSpeechVertex(text, language = 'English', isStrea
     sampleRateHertz: 24000,
   }
   if (!isJourney) {
-    audioConfig.speakingRate = 0.9
+    const styleTuning = {
+      balanced: { speakingRate: 0.95, pitch: 0 },
+      supportive: { speakingRate: 0.88, pitch: 0.5 },
+      demanding: { speakingRate: 1.02, pitch: -1 },
+      analytical: { speakingRate: 0.92, pitch: -0.5 },
+    }
+    const tuning = styleTuning[interviewerStyle] || styleTuning.balanced
+    audioConfig.speakingRate = tuning.speakingRate
+    audioConfig.pitch = tuning.pitch
   }
 
   const request = {
