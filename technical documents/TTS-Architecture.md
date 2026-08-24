@@ -23,6 +23,7 @@
 - **边收边播**：前端通过 Web Audio API 逐块播放 PCM 音频流，无需等待完整文件
 - **有序调度**：多句并行获取，但音频播放严格按文本顺序排列
 - **多级降级**：Gemini 流式 → Gemini 非流式 → 浏览器内置语音
+- **会话解耦**：TTS 端点无业务状态；文本/Live 面试使用 `interviewId` 在 Supabase 恢复和提交会话
 
 ### 技术栈
 
@@ -70,6 +71,14 @@
          ▼
       🔊 播放
 ```
+
+`POST /api/chat/message` 的业务请求必须携带 `interviewId` 和可重试复用的
+`idempotencyKey`。LangGraph 使用该 `interviewId` 作为 `thread_id`，完整回复生成后将消息、
+checkpoint 和兼容 transcript 原子提交。TTS 分句请求只接收待合成文本和语言，不读取或修改
+面试状态，因此 TTS 降级或配额耗尽不会破坏已保存的面试进度。
+
+Gemini Live 使用 WebSocket `/api/chat/live`；`start.config.interviewId` 必填。断线重连只加载
+当前问题和该面试最近有限条消息，每个完成的语音回合仍写回相同的持久化会话。
 
 ### 降级链路
 

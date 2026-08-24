@@ -1,7 +1,23 @@
 import { Router } from 'express'
 import { requireAuth } from '../middleware/auth.js'
 import { getGraph, RESPONSE_NODES, AGENT_LABELS } from '../agents/interviewGraph.js'
-import { sessionStore, getMaxQuestions } from '../agents/utils.js'
+import { getMaxQuestions } from '../agents/utils.js'
+import { supabase, supabaseForUser } from '../lib/supabase.js'
+import {
+  claimInterviewRequest,
+  checkpointFromGraphState,
+  commitInterviewTurn,
+  InterviewSessionConflictError,
+  loadInterviewSession,
+  releaseInterviewRequest,
+  sanitizeMessages,
+} from '../lib/interviewSessionStore.js'
+import { normalizeRequestId } from '../lib/observability.js'
+import {
+  applyInterviewAction,
+  adaptDifficulty,
+  expireFormalInterviewIfDue,
+} from '../lib/interviewLearning.js'
 import { synthesizeSpeechVertex, getGcpProjectId } from '../lib/ttsVertex.js'
 import {
   getInterviewerVoice,
@@ -10,6 +26,29 @@ import {
 } from '../config/interviewerStyles.js'
 
 const router = Router()
+
+function dbFor(req) {
+  return req.accessToken ? supabaseForUser(req.accessToken) : supabase
+}
+
+function publicSession(session, stateVersion) {
+  const maxQ = getMaxQuestions(session.config?.duration)
+  const planLen = Array.isArray(session.plan) && session.plan.length ? session.plan.length : maxQ
+  return {
+    phase: session.phase,
+    questionCount: session.questionCount,
+    technicalCount: session.technicalCount,
+    behavioralCount: session.behavioralCount,
+    exploreCount: session.exploreCount ?? 0,
+    planIndex: session.planIndex ?? 0,
+    planLength: planLen,
+    maxQuestions: maxQ,
+    progress: planLen ? Math.round(((session.planIndex ?? 0) / planLen) * 100) : 0,
+    interviewerName: session.interviewerName,
+    interviewerStyle: session.config?.interviewerStyle || 'balanced',
+    stateVersion,
+  }
+}
 
 // ── SSE helper ───────────────────────────────────────────────────
 
@@ -27,7 +66,8 @@ function sseWrite(res, payload) {
  *   language:      string,   "English" | "Deutsch"
  *   duration:        number,
  *   resumeSnapshot:  string, optional — resume/CV text for experience-phase questions
- *   sessionId:       string, optional — used to reset session
+ *   interviewId:     uuid — persistent interview/session identifier
+ *   idempotencyKey:  string — stable across network retries
  * }
  *
  * SSE events:
@@ -46,53 +86,122 @@ router.post('/message', requireAuth, async (req, res) => {
     resumeSnapshot = '',
     roleTrack = 'work',
     interviewerStyle = 'balanced',
-    sessionId,        // "new" resets the session
+    interviewId,
+    idempotencyKey,
   } = req.body
 
   const userId = req.user.id
+  if (!interviewId) return res.status(400).json({ error: 'interviewId is required' })
+  const requestKey = normalizeRequestId(idempotencyKey || req.requestId)
+  const db = dbFor(req)
+  let claimed = false
   console.log('[Chat /message] roleTrack received:', roleTrack)
 
-  // ── SSE headers ──────────────────────────────────────────────
-  res.setHeader('Content-Type', 'text/event-stream; charset=utf-8')
-  res.setHeader('Cache-Control', 'no-cache, no-transform')
-  res.setHeader('Connection', 'keep-alive')
-  res.setHeader('X-Accel-Buffering', 'no')
-  res.flushHeaders()
-
   try {
+    await expireFormalInterviewIfDue(db, interviewId, userId)
+    let loaded = await loadInterviewSession(db, interviewId, userId)
+    const requestMessages = sanitizeMessages(messages)
+    const latestRequestedUser = [...requestMessages].reverse().find(message => message.role === 'user')
+
+    // In formal mode, save the candidate's answer before invoking Gemini. This
+    // preserves accepted input even if generation fails, while the derived
+    // idempotency key prevents a network retry from creating a second attempt.
+    if (loaded.interview.mode === 'formal' && loaded.interview.current_question_id && latestRequestedUser) {
+      const answerKey = `${requestKey}:answer`
+      const answerClaim = await claimInterviewRequest(db, {
+        interviewId,
+        userId,
+        idempotencyKey: answerKey,
+      })
+      if (answerClaim?.claimed) {
+        await applyInterviewAction(db, {
+          interviewId,
+          userId,
+          expectedVersion: loaded.stateVersion,
+          idempotencyKey: answerKey,
+          action: 'attempt',
+          payload: {
+            questionId: loaded.interview.current_question_id,
+            answerText: latestRequestedUser.content,
+          },
+        })
+      }
+      loaded = await loadInterviewSession(db, interviewId, userId)
+    }
+    const claim = await claimInterviewRequest(db, { interviewId, userId, idempotencyKey: requestKey })
+    if (claim?.pending) {
+      return res.status(409).json({ error: 'This request is already being processed', requestId: requestKey })
+    }
+
+    // ── SSE headers ────────────────────────────────────────────
+    res.setHeader('Content-Type', 'text/event-stream; charset=utf-8')
+    res.setHeader('Cache-Control', 'no-cache, no-transform')
+    res.setHeader('Connection', 'keep-alive')
+    res.setHeader('X-Accel-Buffering', 'no')
+    res.flushHeaders()
+
+    if (claim?.replay) {
+      let replayVersion = claim.stateVersion
+      if (claim.agent && claim.agent !== 'give_feedback' && claim.assistantText) {
+        const current = await loadInterviewSession(db, interviewId, userId)
+        const questionResult = await applyInterviewAction(db, {
+          interviewId,
+          userId,
+          expectedVersion: current.stateVersion,
+          idempotencyKey: `${requestKey}:question`,
+          action: 'question',
+          payload: {
+            questionText: claim.assistantText,
+            questionType: claim.agent === 'ask_behavioral' ? 'behavioral' : claim.agent === 'ask_explore' ? 'experience' : 'technical',
+            competency: claim.agent,
+            source: 'langgraph',
+            difficulty: current.interview.current_difficulty,
+          },
+        })
+        replayVersion = questionResult.stateVersion
+      }
+      if (claim.agent) {
+        const agentInfo = AGENT_LABELS[claim.agent] || { name: claim.agent, label: claim.agent, emoji: '🤖' }
+        sseWrite(res, { type: 'agent', ...agentInfo })
+      }
+      if (claim.assistantText) sseWrite(res, { type: 'text', content: claim.assistantText })
+      sseWrite(res, { type: 'done', replay: true, stateVersion: replayVersion })
+      res.end()
+      return
+    }
+    claimed = true
+
     const graph = await getGraph()
 
-    // ── Session state management ─────────────────────────────
-    const resumeTrim = typeof resumeSnapshot === 'string'
-      ? resumeSnapshot.trim().slice(0, 50_000)
-      : ''
-    const config = {
-      position,
-      jobDescription,
-      language,
-      duration,
-      resumeSnapshot: resumeTrim,
-      roleTrack,
-      interviewerStyle: normalizeInterviewerStyle(interviewerStyle),
+    const session = loaded.checkpoint
+    const config = session.config
+    if (session.phase === 'closed') {
+      await commitInterviewTurn(db, {
+        interviewId,
+        userId,
+        expectedVersion: loaded.stateVersion,
+        idempotencyKey: requestKey,
+        checkpoint: session,
+      })
+      sseWrite(res, { type: 'done' })
+      res.end()
+      return
     }
-    const isNewSession = sessionId === 'new' || !sessionStore.get(userId)
 
-    let session
-    if (isNewSession) {
-      session = sessionStore.init(userId, config)
-    } else {
-      session = sessionStore.get(userId)
-      if (session?.phase === 'closed') {
-        sseWrite(res, { type: 'done' })
-        res.end()
-        return
-      }
-      session = sessionStore.update(userId, { config })
-    }
+    // A restored server may have more history than a freshly mounted client.
+    // Prefer the longer history while still accepting the client's newest turn.
+    const persistedLast = loaded.transcript.at(-1)
+    const hasNewUserTurn = latestRequestedUser
+      && (persistedLast?.role !== 'user' || persistedLast.content !== latestRequestedUser.content)
+    const rawMessages = requestMessages.length >= loaded.transcript.length
+      ? requestMessages
+      : hasNewUserTurn
+        ? [...loaded.transcript, latestRequestedUser]
+        : loaded.transcript
 
     // ── Build initial graph state ────────────────────────────
     const initialState = {
-      rawMessages: messages,
+      rawMessages,
       messages: [],          // LangChain message objects (built by nodes)
       config,
       phase: session.phase,
@@ -109,13 +218,22 @@ router.post('/message', requireAuth, async (req, res) => {
 
     // ── Stream graph execution ────────────────────────────────
     const stream = await graph.stream(initialState, {
-      streamMode: 'messages',
+      streamMode: ['messages', 'values'],
+      configurable: { thread_id: interviewId },
     })
 
     let currentNode = null
     let lastResponseNode = null
+    let assistantText = ''
+    let finalGraphState = null
 
-    for await (const [chunk, metadata] of stream) {
+    for await (const [streamMode, payload] of stream) {
+      if (streamMode === 'values') {
+        finalGraphState = payload
+        continue
+      }
+      if (streamMode !== 'messages') continue
+      const [chunk, metadata] = payload
       const node = metadata?.langgraph_node
 
       if (node && RESPONSE_NODES.has(node) && node !== currentNode) {
@@ -127,63 +245,74 @@ router.post('/message', requireAuth, async (req, res) => {
 
       if (node && RESPONSE_NODES.has(node) && chunk?.content) {
         sseWrite(res, { type: 'text', content: chunk.content })
+        if (typeof chunk.content === 'string') assistantText += chunk.content
       }
     }
 
-    // ── Persist session counters (mirror graph node outputs) ──
-    const sess = sessionStore.get(userId)
-    if (sess && lastResponseNode) {
-      switch (lastResponseNode) {
-        case 'generate_opening':
-          sessionStore.update(userId, {
-            phase: 'questioning',
-            questionCount: 0,
-            technicalCount: 0,
-            behavioralCount: 0,
-            exploreCount: 0,
-            planIndex: 0,
-          })
-          break
-        case 'ask_explore':
-          sessionStore.update(userId, {
-            planIndex: (sess.planIndex ?? 0) + 1,
-            questionCount: (sess.questionCount ?? 0) + 1,
-            exploreCount: (sess.exploreCount ?? 0) + 1,
-            phase: 'questioning',
-          })
-          break
-        case 'ask_technical':
-          sessionStore.update(userId, {
-            planIndex: (sess.planIndex ?? 0) + 1,
-            questionCount: (sess.questionCount ?? 0) + 1,
-            technicalCount: (sess.technicalCount ?? 0) + 1,
-            phase: 'questioning',
-          })
-          break
-        case 'ask_behavioral':
-          sessionStore.update(userId, {
-            planIndex: (sess.planIndex ?? 0) + 1,
-            questionCount: (sess.questionCount ?? 0) + 1,
-            behavioralCount: (sess.behavioralCount ?? 0) + 1,
-            phase: 'questioning',
-          })
-          break
-        case 'give_feedback':
-          sessionStore.update(userId, { phase: 'closed' })
-          break
-        default:
-          break
-      }
+    const checkpoint = checkpointFromGraphState(session, finalGraphState, lastResponseNode)
+    const lastUser = [...requestMessages].reverse().find(message => message.role === 'user')
+    const appended = [lastUser, { role: 'assistant', content: assistantText }].filter(Boolean)
+    const transcript = sanitizeMessages([...rawMessages, { role: 'assistant', content: assistantText }])
+    const committed = await commitInterviewTurn(db, {
+      interviewId,
+      userId,
+      expectedVersion: loaded.stateVersion,
+      idempotencyKey: requestKey,
+      checkpoint,
+      messages: appended,
+      transcript,
+      response: { assistantText, agent: lastResponseNode },
+    })
+
+    let finalStateVersion = committed.stateVersion
+    if (lastResponseNode && lastResponseNode !== 'give_feedback' && assistantText.trim()) {
+      const adaptiveScore = checkpoint.lastAnswerQuality === 'strong'
+        ? 90
+        : checkpoint.lastAnswerQuality === 'weak' ? 50 : 70
+      const nextQuestionDifficulty = loaded.interview.difficulty === 'adaptive'
+        ? adaptDifficulty(loaded.interview.current_difficulty, adaptiveScore)
+        : loaded.interview.current_difficulty
+      const questionResult = await applyInterviewAction(db, {
+        interviewId,
+        userId,
+        expectedVersion: committed.stateVersion,
+        idempotencyKey: `${requestKey}:question`,
+        action: 'question',
+        payload: {
+          questionText: assistantText,
+          questionType: lastResponseNode === 'ask_behavioral'
+            ? 'behavioral'
+            : lastResponseNode === 'ask_explore' ? 'experience' : 'technical',
+          competency: lastResponseNode,
+          source: 'langgraph',
+          difficulty: nextQuestionDifficulty,
+        },
+      })
+      finalStateVersion = questionResult.stateVersion
     }
 
-    sseWrite(res, { type: 'done' })
+    sseWrite(res, { type: 'done', stateVersion: finalStateVersion })
     res.end()
 
   } catch (err) {
     console.error('[InterviewGraph] Error:', err)
+    if (claimed) {
+      await releaseInterviewRequest(db, { interviewId, userId, idempotencyKey: requestKey }).catch(() => {})
+    }
     if (!res.writableEnded) {
-      sseWrite(res, { type: 'error', message: err.message || 'Internal server error' })
-      res.end()
+      if (!res.headersSent) {
+        res.status(err.statusCode || 500).json({
+          error: err.message || 'Internal server error',
+          currentVersion: err instanceof InterviewSessionConflictError ? err.currentVersion : undefined,
+        })
+      } else {
+        sseWrite(res, {
+          type: 'error',
+          message: err.message || 'Internal server error',
+          code: err instanceof InterviewSessionConflictError ? 'SESSION_CONFLICT' : undefined,
+        })
+        res.end()
+      }
     }
   }
 })
@@ -546,56 +675,32 @@ router.post('/tts-stream', requireAuth, async (req, res) => {
 /**
  * Reset the user's interview session (call at interview start).
  */
-router.post('/reset', requireAuth, (req, res) => {
-  const userId = req.user.id
-  const {
-    position,
-    jobDescription,
-    language,
-    duration,
-    resumeSnapshot = '',
-    roleTrack = 'work',
-    interviewerStyle = 'balanced',
-  } = req.body ?? {}
-  const resumeTrim = typeof resumeSnapshot === 'string'
-    ? resumeSnapshot.trim().slice(0, 50_000)
-    : ''
-
-  sessionStore.init(userId, {
-    position,
-    jobDescription,
-    language,
-    duration,
-    resumeSnapshot: resumeTrim,
-    roleTrack,
-    interviewerStyle: normalizeInterviewerStyle(interviewerStyle),
-  })
-  res.json({ ok: true, message: 'Session reset' })
+router.post('/reset', requireAuth, async (req, res) => {
+  const { interviewId } = req.body ?? {}
+  if (!interviewId) return res.status(400).json({ error: 'interviewId is required' })
+  try {
+    await expireFormalInterviewIfDue(dbFor(req), interviewId, req.user.id)
+    const loaded = await loadInterviewSession(dbFor(req), interviewId, req.user.id)
+    return res.json({ ok: true, session: publicSession(loaded.checkpoint, loaded.stateVersion) })
+  } catch (error) {
+    return res.status(error.statusCode || 500).json({ error: error.message })
+  }
 })
 
 // ── GET /api/chat/session ────────────────────────────────────────
 /**
  * Get current session state (for debugging / frontend status display).
  */
-router.get('/session', requireAuth, (req, res) => {
-  const session = sessionStore.get(req.user.id)
-  if (!session) return res.json({ phase: 'none' })
-
-  const maxQ = getMaxQuestions(session.config?.duration)
-  const planLen = Array.isArray(session.plan) && session.plan.length > 0 ? session.plan.length : maxQ
-  res.json({
-    phase: session.phase,
-    questionCount: session.questionCount,
-    technicalCount: session.technicalCount,
-    behavioralCount: session.behavioralCount,
-    exploreCount: session.exploreCount ?? 0,
-    planIndex: session.planIndex ?? 0,
-    planLength: planLen,
-    maxQuestions: maxQ,
-    progress: planLen ? Math.round(((session.planIndex ?? 0) / planLen) * 100) : 0,
-    interviewerName: session.interviewerName,
-    interviewerStyle: session.config?.interviewerStyle || 'balanced',
-  })
+router.get('/session', requireAuth, async (req, res) => {
+  const interviewId = req.query.interviewId
+  if (!interviewId) return res.status(400).json({ error: 'interviewId is required' })
+  try {
+    await expireFormalInterviewIfDue(dbFor(req), interviewId, req.user.id)
+    const loaded = await loadInterviewSession(dbFor(req), interviewId, req.user.id)
+    return res.json(publicSession(loaded.checkpoint, loaded.stateVersion))
+  } catch (error) {
+    return res.status(error.statusCode || 500).json({ error: error.message })
+  }
 })
 
 export default router

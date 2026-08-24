@@ -1,0 +1,459 @@
+# 面试官类型选择功能设计与实施计划
+
+## 文档状态
+
+- 状态：第一版已实现并完成本地自动化验收，等待浏览器人工验收与上线确认
+- 编写日期：2026-08-24
+- 依赖方案：`Persistent-Interview-Sessions-Plan.md`
+- 实施限制：先完成本地迁移、自动化测试和人工验收；确认前不执行云端数据库迁移、部署或合并到 `main`
+
+已落地范围：选择 UI、原子创建与恢复、统一类型策略、LangGraph 文本链路、练习链路、Gemini Live、RAG 偏好、最终报告、本地迁移与自动化测试。仍需人工检查浏览器语音权限和三种类型的实际出题质量。
+
+## 1. 背景
+
+当前系统已经支持：
+
+- 练习面试和正式模拟面试；
+- Easy、Medium、Hard 和 Adaptive 难度；
+- supportive、balanced 和 demanding 面试官表达风格；
+- 练习模式暂停、恢复、提示、笔记、多次作答、掌握和跳过；
+- 正式模式服务端连续计时、禁止暂停和中间反馈；
+- 以 `interviewId` 隔离的 checkpoint、消息、题目、尝试和语音重连上下文。
+
+当前缺口是“面试官类型”。现有面试计划默认混合经历、技术和行为问题，用户无法明确选择 HR 面、技术面或综合面。
+
+## 2. 目标
+
+新增独立配置 `interviewerType`，允许用户选择：
+
+- `hr`：HR / Recruiter 面试；
+- `technical`：技术面试；
+- `mixed`：综合面试，兼容当前默认行为。
+
+该配置必须真实控制：
+
+- 面试问题类型和比例；
+- Agent 身份和系统提示词；
+- 追问策略；
+- 企业面经 RAG 的检索和筛选；
+- 练习即时反馈的 rubric；
+- 正式面试最终报告的评价重点；
+- 文本、练习和 Gemini Live 三条面试链路。
+
+## 3. 非目标
+
+第一版不实现：
+
+- 选择具体真人姓名、头像或自定义人物；
+- 多位面试官在同一场面试中进行 Panel Interview；
+- 用户任意编写面试官 Prompt；
+- Hiring Manager、Case Interview、Professor 等更多独立类型；
+- 修改已经开始的面试的面试官类型。
+
+这些能力可以在 HR、Technical、Mixed 稳定后继续扩展。
+
+## 4. 配置维度定义
+
+不同配置必须保持正交，不能复用同一个字段表达多个概念。
+
+| 配置 | 可选值 | 控制内容 |
+|------|--------|----------|
+| `roleTrack` | `work` / `school` | 求职或学校申请场景 |
+| `interviewerType` | `hr` / `technical` / `mixed` | 面试主要考察领域和题型比例 |
+| `interviewerStyle` | `supportive` / `balanced` / `demanding` | 语气、节奏和压力程度 |
+| `mode` | `practice` / `formal` | 是否允许暂停、提示、重答和即时反馈 |
+| `difficulty` | `easy` / `medium` / `hard` / `adaptive` | 题目复杂度和追问深度 |
+
+示例：
+
+```text
+Technical + Formal + Adaptive + Demanding
+HR + Practice + Easy + Supportive
+Mixed + Formal + Hard + Balanced
+```
+
+## 5. 面试官类型策略
+
+### 5.1 HR 面试官
+
+主要考察：
+
+- 求职动机和岗位理解；
+- 简历经历与职业规划；
+- 沟通、协作、冲突、失败和领导力；
+- STAR 表达和事实一致性；
+- 文化匹配、工作方式及合理的岗位条件问题。
+
+不得生成与岗位无关的算法细节、编程题或系统设计题。对于技术岗位，可以询问候选人如何解释项目影响和跨团队合作，但不能冒充技术专家进行深度技术考核。
+
+建议题型比例：
+
+| 题型 | 比例 |
+|------|------|
+| Behavioral | 40% |
+| Experience | 30% |
+| Motivation / Culture / Career | 30% |
+
+### 5.2 技术面试官
+
+主要考察：
+
+- 与 JD 直接相关的专业知识；
+- 简历项目的技术细节和候选人的实际贡献；
+- 系统设计、调试、故障分析和边界情况；
+- 技术方案取舍、性能、安全性和可维护性；
+- 案例题或岗位情境题。
+
+可以进行简短开场和项目背景确认，但不得连续生成薪资、性格或文化匹配类纯 HR 问题。
+
+建议题型比例：
+
+| 题型 | 比例 |
+|------|------|
+| Technical | 55% |
+| System / Case | 25% |
+| Project Experience | 20% |
+
+### 5.3 综合面试官
+
+综合面试兼容当前行为，在一场面试中覆盖经历、技术和行为能力。
+
+建议题型比例：
+
+| 题型 | 比例 |
+|------|------|
+| Technical | 40% |
+| Behavioral | 30% |
+| Experience | 30% |
+
+## 6. 面试官类型与难度的组合
+
+难度不能只改变措辞长度，必须改变问题复杂度、信息完整度和追问要求。
+
+| 类型 | Easy | Medium | Hard |
+|------|------|--------|------|
+| HR | 常见动机和基础 STAR | 要求明确证据、角色与结果 | 连续追问、矛盾检验、利益冲突和失败复盘 |
+| Technical | 基础概念和项目职责 | 应用、调试、边界情况和方案比较 | 模糊约束、系统设计、故障场景和多目标取舍 |
+| Mixed | 各领域基础覆盖 | 平衡考察深度和广度 | 跨领域追问并检查答案一致性 |
+
+Adaptive 模式遵守以下规则：
+
+- 只在当前 `interviewerType` 允许的题型范围内升降难度；
+- 回答较弱不能把技术面自动切换成 HR 面；
+- 回答较强不能跳过当前类型的核心能力；
+- 每道题保存实际 `difficulty` 和调整原因事件；
+- HR 和技术面使用各自的评分 rubric 触发难度变化。
+
+## 7. 练习与正式模式
+
+现有状态机继续复用，但所有出题和反馈必须服从 `interviewerType`。
+
+### 7.1 练习模式
+
+- 一次只处理一道题；
+- 用户可以暂停和恢复；
+- 用户可以保存当前问题的私人笔记；
+- 用户可以依次获取 `nudge`、`structure`、`key_points`、`example` 四级提示；
+- 用户可以多次回答并获得当前题的即时反馈；
+- 用户确认掌握后进入下一题；
+- 用户可以跳过并填写可选原因；
+- 下一题继续遵守选定的面试官类型和难度策略。
+
+### 7.2 正式模式
+
+- 不允许暂停；
+- 不允许提示、重答和即时反馈；
+- `deadline_at` 由服务端持续判定，关闭页面不停止计时；
+- 中间评分只保存于服务端，面试完成前不返回客户端；
+- 结束后生成与面试官类型匹配的综合报告。
+
+报告重点：
+
+| 面试官类型 | 报告重点 |
+|------------|----------|
+| HR | 沟通、动机、STAR、事实一致性、文化和岗位匹配 |
+| Technical | 技术正确性、深度、取舍、风险意识和岗位能力 |
+| Mixed | HR、行为、经历和技术能力的综合评估 |
+
+## 8. 数据模型
+
+新增一份 Supabase 迁移，为 `interviews` 添加字段：
+
+```sql
+alter table public.interviews
+  add column interviewer_type text not null default 'mixed';
+
+alter table public.interviews
+  add constraint interviews_interviewer_type_check
+  check (interviewer_type in ('hr', 'technical', 'mixed'));
+```
+
+要求：
+
+- 旧面试默认迁移为 `mixed`；
+- 创建面试时写入 `interviewer_type`；
+- checkpoint 的 config snapshot 同时保存 `interviewerType`；
+- 面试开始后不可修改；
+- GET 面试详情、会话恢复、重连上下文和报告生成都返回或读取该字段；
+- 面试事件记录创建时的面试官类型，便于审计；
+- 不使用 `role_track` 或 `interviewer_style` 代替该字段。
+
+第一版不需要新增 PostgreSQL enum，使用带 check constraint 的 text 字段，便于以后扩展类型。
+
+## 9. 后端设计
+
+### 9.1 统一策略模块
+
+新增 `src/config/interviewerTypes.js`，集中定义：
+
+- 合法类型和默认值；
+- 各类型允许的问题类型；
+- 题型比例；
+- Prompt persona；
+- RAG 过滤规则；
+- 评分 rubric；
+- 报告重点。
+
+所有链路必须引用同一策略模块，不能分别硬编码。
+
+建议接口：
+
+```javascript
+normalizeInterviewerType(value)
+getInterviewerTypePolicy(type)
+buildInterviewPlan(maxQuestions, interviewerType)
+getAllowedQuestionTypes(interviewerType)
+getInterviewerTypePrompt(interviewerType, roleTrack, language)
+```
+
+### 9.2 创建和恢复
+
+`POST /api/interviews` 新增请求字段：
+
+```json
+{
+  "interviewerType": "technical",
+  "interviewer_style": "demanding",
+  "mode": "formal",
+  "difficulty": "adaptive",
+  "idempotencyKey": "uuid"
+}
+```
+
+数据库 RPC `create_interview_session` 必须原子保存该字段。相同 `idempotencyKey` 重试时返回第一次创建的面试，不允许产生配置不同的第二场面试。
+
+`interviewSessionStore` 恢复 checkpoint 时必须从持久化记录补全 `config.interviewerType`，不能信任客户端在后续请求中修改类型。
+
+### 9.3 LangGraph 文本面试
+
+- `buildInterviewPlan` 接收 `interviewerType`；
+- HR 计划不路由到深度技术节点；
+- Technical 计划不连续路由到纯 HR 问题；
+- Mixed 保留当前多 Agent 计划；
+- analyzer 只能从当前类型允许的下一题集合中选择；
+- opening、question、feedback Prompt 都注入类型策略；
+- `thread_id` 继续使用 `interviewId`。
+
+### 9.4 练习问题生成
+
+`generateInterviewQuestion` 必须接收并验证 `interviewerType`：
+
+- Prompt 明确允许和禁止的题型；
+- 返回的 `questionType` 必须属于允许集合；
+- 不合法的模型输出在提交前拒绝或规范化；
+- RAG 优先选择与岗位、公司和面试官类型相符的面经；
+- Gemini 失败时不写入问题或推进 checkpoint。
+
+### 9.5 Gemini Live
+
+- WebSocket `start.config.interviewId` 仍为必填；
+- 后端根据持久化面试记录读取 `interviewer_type`，不接受客户端在重连时覆盖；
+- Live 系统提示词注入对应 persona、允许题型和难度策略；
+- 重连仅恢复当前面试的当前题和有限最近消息。
+
+### 9.6 报告
+
+- 练习报告按题型和 rubric 比较首次与最后一次回答；
+- 正式报告根据面试官类型选择评价维度；
+- Mixed 报告分别展示 HR/Behavioral 与 Technical 证据；
+- 不得因为选择 HR 面而生成虚假的技术评分；
+- 不得因为选择技术面而生成无依据的文化匹配结论。
+
+## 10. 前端设计
+
+### 10.1 SetupPage
+
+新增“面试官类型”选择区：
+
+1. HR 面试官
+   - 动机、沟通、经历与行为问题
+2. 技术面试官
+   - 岗位知识、项目深挖、系统与案例问题
+3. 综合面试官
+   - HR、经历和技术的组合，默认选项
+
+推荐配置顺序：
+
+1. 岗位与 JD；
+2. 面试官类型；
+3. 练习 / 正式模式；
+4. 难度；
+5. 面试官风格；
+6. 语言与时长。
+
+提交时将 `interviewerType` 与其他快照字段一起发送。网络重试必须复用同一个 `idempotencyKey`。
+
+### 10.2 InterviewPage
+
+页面顶部显示当前配置，例如：
+
+```text
+Technical Interview · Adaptive · Formal · Demanding
+```
+
+练习面板同时显示当前问题类型、实际难度和面试官类型。面试开始后不提供修改入口。
+
+### 10.3 国际化
+
+为中、英、德三种语言增加：
+
+- 面试官类型标题和说明；
+- HR、Technical、Mixed 名称；
+- 每种类型的简短描述；
+- 配置摘要；
+- 不兼容操作和恢复错误信息。
+
+## 11. 上下文隔离与隐私边界
+
+每场面试只允许使用：
+
+- 该面试保存的 JD 和岗位快照；
+- 该面试保存的简历快照；
+- 该面试的模式、难度、面试官类型和风格；
+- 该 `interviewId` 的消息、问题、尝试、笔记和 checkpoint；
+- 可选的公开、匿名企业面经 RAG。
+
+禁止使用：
+
+- 同一用户其他面试的消息、问题、答案和笔记；
+- 其他用户的个人资料或回答；
+- 客户端在面试创建后临时传入的不同面试官类型；
+- 跨场进步报告中的原始回答作为新面试 Prompt 上下文。
+
+跨场进步功能只能输出聚合统计和能力趋势。公开面经 RAG 只作为出题参考，不能包含其他用户的私有面试内容。
+
+## 12. 实施顺序
+
+### 阶段一：Schema 与契约
+
+1. 新增 `interviewer_type` 迁移和约束；
+2. 更新原子创建 RPC；
+3. 更新加载、恢复和序列化字段；
+4. 保证旧面试默认使用 `mixed`；
+5. 增加数据库迁移和 RPC 测试。
+
+### 阶段二：统一策略与 Agent
+
+1. 新增统一 `interviewerTypes` 策略模块；
+2. 修改 `buildInterviewPlan`；
+3. 修改 LangGraph 节点和 analyzer 路由；
+4. 修改练习问题生成、RAG 和评分 rubric；
+5. 修改 Gemini Live persona 和恢复；
+6. 修改练习/正式报告 Prompt。
+
+### 阶段三：前端
+
+1. SetupPage 新增三类选择；
+2. 创建请求携带 `interviewerType`；
+3. InterviewPage 和 PracticeInterviewPanel 显示类型；
+4. 完成中、英、德文案；
+5. 更新 README 和前后端架构文档。
+
+### 阶段四：测试与验收
+
+1. 单元测试策略、题型比例和类型归一化；
+2. 数据库测试创建、恢复、默认值、幂等和隔离；
+3. API 测试 HR、Technical、Mixed 的题型限制；
+4. 前端生产构建；
+5. 人工完成三种类型的练习/正式流程和 Gemini Live 重连。
+
+## 13. 自动化测试计划
+
+### 13.1 策略单元测试
+
+- 未知类型归一化为 `mixed`；
+- HR 计划不包含深度技术槽位；
+- Technical 计划的技术/案例占比满足要求；
+- Mixed 计划覆盖技术、行为和经历；
+- 不同难度生成的策略文本具有实质差异；
+- Adaptive 调整后仍保持面试官类型边界。
+
+### 13.2 数据库测试
+
+- 旧数据和未传类型的创建请求默认 `mixed`；
+- 非法类型被数据库约束拒绝；
+- 相同幂等键只创建一场面试并只扣一次积分；
+- checkpoint 恢复后保留面试官类型；
+- 两场不同类型面试并发进行时互不覆盖；
+- 正式面试截止时间和练习暂停行为不受新增字段影响。
+
+### 13.3 Agent 与 API 测试
+
+- HR 面不会生成算法、编码或系统设计深挖；
+- Technical 面不会连续生成薪资、性格等纯 HR 问题；
+- Mixed 面符合预期题型组合；
+- Gemini 输出不合法题型时不会提交错误问题；
+- 报告维度与面试官类型一致；
+- Gemini 调用失败不会推进状态；
+- 重连只恢复当前 `interviewId` 和原面试官类型。
+
+### 13.4 组合测试矩阵
+
+完整配置空间为：
+
+```text
+3 interviewer types × 2 modes × 4 difficulties = 24 combinations
+```
+
+单元测试覆盖全部 24 种策略组合。端到端测试优先覆盖：
+
+- HR + Practice + Easy；
+- HR + Formal + Hard；
+- Technical + Practice + Adaptive；
+- Technical + Formal + Hard；
+- Mixed + Practice + Medium；
+- Mixed + Formal + Adaptive。
+
+## 14. 本地验收标准
+
+- 用户可以在创建面试前选择 HR、Technical 或 Mixed；
+- 面试创建后类型固定，刷新、重启和重连后不改变；
+- HR、Technical 和 Mixed 会产生可观察的题型差异；
+- 三种类型都支持 Easy、Medium、Hard 和 Adaptive；
+- 三种类型都兼容练习和正式模式；
+- 练习模式可以暂停、提示、记笔记、多次回答、掌握和跳过；
+- 正式模式不能暂停、提示或重答，结束后才展示反馈；
+- HR 面不会出现不合理的深度技术题；
+- 技术面不会退化为纯行为面；
+- 报告与所选面试官类型一致；
+- 两个标签页运行不同类型的面试不会共享上下文；
+- 后端重启后能恢复当前类型、当前题和流程状态；
+- 重复请求不会重复创建、扣分、出题、保存答案或生成报告；
+- Gemini Live 重连只恢复当前面试的有限上下文；
+- 旧面试继续以 `mixed` 正常工作。
+
+## 15. 上线顺序
+
+1. 本地 Supabase 应用迁移并运行 `db lint`；
+2. 运行后端单元测试和事务化 SQL 验收；
+3. 运行前端生产构建；
+4. 完成人工浏览器和语音验收；
+5. 人工确认数据库字段、默认值和回滚方案；
+6. 执行云端 Supabase migration；
+7. 部署后端；
+8. 部署前端；
+9. 用旧面试和新建三种面试各完成一次生产冒烟测试。
+
+## 16. 最终架构原则
+
+> `interviewerType` 决定考察什么，`interviewerStyle` 决定如何表达，`mode` 决定用户可以进行哪些操作，`difficulty` 决定问题有多复杂。所有配置在面试创建时持久化，并且只能作用于当前 `interviewId`。

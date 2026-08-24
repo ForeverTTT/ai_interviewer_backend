@@ -27,28 +27,34 @@
 - **有状态图执行**：每轮用户消息触发一次图遍历，产生一个面试官回复
 - **动态路由**：根据面试进度计划（plan）自动选择下一个提问类型
 - **流式输出**：通过 SSE 将 LLM token 实时推送到前端
+- **持久化隔离**：所有恢复和提交都以 `interviewId` 为边界，服务重启或扩容不会丢失业务状态
+- **模式与难度**：练习/正式模式使用不同状态机，Easy/Medium/Hard/Adaptive 会改变提问策略
 
 ### 技术栈
 
 | 层级 | 技术 | 作用 |
 |------|------|------|
 | 图引擎 | `@langchain/langgraph` (StateGraph) | 有状态多节点图 |
-| LLM | `@langchain/google-genai` (Gemini 2.5 Flash) | 文本生成 |
+| LLM | `@langchain/google-genai` (Gemini，模型可配置) | 文本生成和答案分析 |
 | 提示词 | Markdown 模板 + `{{变量}}` 渲染 | 角色指令 |
-| 知识库 | JSON 文件 | 技术领域、行为胜任力 |
-| 会话存储 | 内存 Map（按 userId） | 面试进度持久化 |
+| 知识库 | JSON + Supabase `interview_experiences` | 技术领域、行为胜任力、企业面经 RAG |
+| 会话存储 | Supabase PostgreSQL（按 `interviewId`） | checkpoint、消息、题目、尝试和证据 |
 | 通信 | Server-Sent Events (SSE) | 实时流式推送 |
 
 ### 文件清单
 
-| 文件路径 | 行数 | 作用 |
-|----------|------|------|
-| `backend/src/agents/interviewGraph.js` | 446 | 图定义、全部节点实现、LLM 实例化 |
-| `backend/src/agents/utils.js` | 227 | 工具函数：prompt 加载、知识库、会话管理、面试计划 |
-| `backend/src/routes/chat.js` | 525 | HTTP 路由：SSE 消息流、TTS、会话 API |
-| `backend/src/routes/aiAssistant.js` | 58 | 动机信生成（独立于面试图） |
-| `backend/data/prompts/*.md` | 7 文件 | 各角色的 Prompt 模板 |
-| `backend/data/knowledge_base/*.json` | 2 文件 | 技术领域和行为胜任力库 |
+| 文件路径 | 作用 |
+|----------|------|
+| `src/agents/interviewGraph.js` | 图定义、节点、答案质量分析和难度指令 |
+| `src/agents/utils.js` | Prompt、知识库和面试计划工具；不保存 Session |
+| `src/config/interviewerTypes.js` | HR、Technical、Mixed 的题型、Persona 与报告策略唯一来源 |
+| `src/lib/interviewSessionStore.js` | 面试恢复、请求认领、乐观锁和原子提交 |
+| `src/lib/interviewLearning.js` | 难度策略、RAG、能力矩阵、评分证据和进步汇总 |
+| `src/routes/chat.js` | 持久化 SSE 文本面试及 TTS API |
+| `src/routes/interviewSessions.js` | 练习/正式动作状态机 API |
+| `src/live/interviewLiveSocket.js` | Gemini Live 语音连接和有限上下文恢复 |
+| `data/prompts/*.md` | 各角色的 Prompt 模板 |
+| `data/knowledge_base/*.json` | 技术领域和行为胜任力基础库 |
 
 ---
 
@@ -90,20 +96,22 @@
 ### 单轮请求的完整链路
 
 ```
-前端: POST /api/chat/message (含完整对话历史)
+前端: POST /api/chat/message
+      (interviewId + idempotencyKey + 当前输入)
          │
          ▼
 ┌─────────────────────────────┐
-│ chat.js: 会话恢复/初始化     │
-│ 构建 initialState            │
+│ 认领本轮请求并锁定面试版本    │
+│ 从 Supabase 恢复 checkpoint  │
 └────────┬────────────────────┘
          │
          ▼
 ┌─────────────────────────────┐
 │ graph.stream(initialState)  │ ← LangGraph 图执行
-│ streamMode: 'messages'      │
+│ thread_id: interviewId      │
+│ streamMode: messages+values │
 └────────┬────────────────────┘
-         │ for await (chunk, metadata)
+         │ for await (mode, payload)
          ▼
 ┌─────────────────────────────┐
 │ SSE 逐 token 推送到前端      │
@@ -114,8 +122,8 @@
          │
          ▼
 ┌─────────────────────────────┐
-│ 更新 sessionStore            │
-│ (planIndex++, 计数器, phase) │
+│ 原子提交消息 + checkpoint     │
+│ + transcript + state_version │
 └─────────────────────────────┘
 ```
 
@@ -140,6 +148,7 @@
 | `interviewerName` | `string` | 覆盖 | 面试官姓名（如 "Dr. Schmidt"） |
 | `nextQuestionType` | `string` | 覆盖 | 分析器输出的下一题类型 |
 | `analysisNotes` | `string[]` | 追加 | 每轮分析器的评估记录 |
+| `lastAnswerQuality` | `string` | 覆盖 | `strong/adequate/weak`，供 Adaptive 难度确定下一题 |
 
 ### 阶段流转
 
@@ -358,9 +367,11 @@ otherwise → plan[planIndex]  // 按计划执行
 
 ## 6. 面试计划生成
 
-### buildInterviewPlan(maxQ)
+### buildInterviewPlan(maxQ, interviewerType)
 
-根据面试总题数生成有序的题型槽位序列：
+根据面试总题数和面试官类型生成有序的题型槽位序列。`mixed` 使用综合分配算法；`hr`
+只生成经历/行为槽位；`technical` 只生成经历/技术/案例槽位。难度调整只能在当前类型允许的
+题型集合内进行。
 
 **题数计算规则**（`getMaxQuestions`）：
 
@@ -371,7 +382,7 @@ otherwise → plan[planIndex]  // 按计划执行
 | ≤ 15 分钟 | 7 |
 | > 15 分钟 | 9 |
 
-**槽位分配算法**：
+**Mixed 槽位分配算法**：
 
 ```
 总题数 N:
@@ -530,55 +541,53 @@ E = 3 - 1 = 2
 
 ## 9. 会话管理
 
-### sessionStore
+### 持久化存储
 
-**存储方式**：进程内 `Map<userId, SessionState>`
+`interviewSessionStore.js` 使用 Supabase PostgreSQL 保存事实状态，不再存在全局
+`Map<userId, SessionState>`。核心数据分为：
 
-**SessionState 结构**：
+| 数据 | 存储位置 | 用途 |
+|------|----------|------|
+| 面试配置与状态 | `interviews` | 面试官类型、模式、难度、状态、截止时间、版本和当前问题 |
+| LangGraph checkpoint | `interviews.graph_state_json` | phase、类型化计划、计数器、分析记录和最近答案质量 |
+| 消息 | `interview_messages` | 按轮次、角色和序号保存可恢复对话 |
+| 兼容 transcript | `interviews.transcript_json` | 旧报告和旧客户端兼容读取 |
+| 规范化学习数据 | `interview_questions/attempts/hints/notes` | 练习操作、正式答案和证据链 |
+| 幂等记录 | `interview_requests`、`interview_creation_requests` | 网络重试时重放已提交结果 |
 
-```javascript
-{
-  userId:          string,
-  phase:           'opening' | 'questioning' | 'closed',
-  questionCount:   number,
-  technicalCount:  number,
-  behavioralCount: number,
-  exploreCount:    number,
-  plan:            string[],    // ['explore', 'technical', 'explore', 'behavioral', ...]
-  planIndex:       number,
-  analysisNotes:   string[],
-  config:          { position, jobDescription, language, duration, resumeSnapshot },
-  interviewerName: string,
-  createdAt:       number,     // Date.now()
-}
-```
-
-**API**：
-
-| 方法 | 说明 |
-|------|------|
-| `init(userId, config)` | 初始化新会话，生成面试计划 |
-| `get(userId)` | 获取当前会话状态 |
-| `update(userId, patch)` | 部分更新会话字段 |
-| `delete(userId)` | 删除会话 |
+所有查询同时约束 `interviewId` 和当前认证用户，避免同一用户的多场面试串线。
 
 ### 会话生命周期
 
 ```
-POST /api/chat/message (sessionId='new')
-  → sessionStore.init() → phase='opening'
-  
-POST /api/chat/message (后续)
-  → sessionStore.get() → 恢复状态
-  → 图执行
-  → sessionStore.update() → 更新 planIndex、计数器、phase
+POST /api/interviews (idempotencyKey)
+  → 数据库事务检查积分并只扣除一次
+  → 创建 interview + 初始 checkpoint + deadline/matrix
 
-POST /api/chat/reset
-  → sessionStore.init() → 重置全部状态
+POST /api/chat/message (interviewId, idempotencyKey)
+  → expire_formal_interview_if_due()
+  → claim request + load interview/messages/checkpoint
+  → graph.stream(thread_id=interviewId)
+  → commit messages/checkpoint/transcript with expected state_version
 
-GET /api/chat/session
-  → 返回当前进度 JSON（调试/前端状态展示）
+POST /api/chat/reset (interviewId)
+  → 兼容旧客户端的初始化/恢复检查，不删除已保存状态
+
+GET /api/chat/session?interviewId=<uuid>
+  → 返回该面试的持久化进度
 ```
+
+同一幂等键重试返回原结果；两个实例使用相同旧版本提交时，后提交者收到版本冲突，
+不会覆盖新状态。Gemini 调用失败发生在提交之前，因此不会产生半轮 checkpoint。
+
+### 练习与正式状态机
+
+- 练习模式允许 `pause/resume/hint/note/retry/master/skip`，保留每次尝试并立即返回证据化反馈；提示最多四级，未作答不能标记掌握，达到时长或题数上限自动结束。
+- 正式模式禁止暂停、提示和重答；`deadline_at` 在服务器持续生效，关闭页面不停止计时。
+- Easy/Medium/Hard 使用不同提问约束；Adaptive 根据上一轮分数按确定性阈值升降级。
+- 题目可携带企业面经 RAG 来源，回答评分写入 rubric、原文证据和岗位能力矩阵。
+- `/api/interview-sessions/progress/practice` 汇总跨多场练习的首次与最新表现。
+- `interviewer_type` 在创建时固定。文本、练习、Gemini Live、RAG 与报告都从持久化配置读取同一策略，旧记录默认 `mixed`。
 
 ### 面试官姓名
 
@@ -591,10 +600,11 @@ const INTERVIEWER_NAMES = [
 // idx = userId.charCodeAt(0) % 5
 ```
 
-### 已知限制
+### 语音断线恢复
 
-- **内存存储**：服务重启后会话丢失
-- **`analysisNotes` 同步**：`sessionStore` 未显式更新 `analysisNotes`，跨请求的分析历史主要依赖客户端传入的 `rawMessages` 重建
+Gemini Live 的网络连接本身是临时资源。重新连接必须提供 `interviewId`，后端只加载该面试
+当前问题和最近有限条消息，不会恢复同一用户其他面试的内容。每个完成的用户/面试官语音
+回合仍通过同一套版本与幂等机制持久化。
 
 ---
 
@@ -627,9 +637,17 @@ const INTERVIEWER_NAMES = [
 ### 流式执行机制
 
 ```javascript
-const stream = await graph.stream(initialState, { streamMode: 'messages' })
+const stream = await graph.stream(initialState, {
+  configurable: { thread_id: interviewId },
+  streamMode: ['messages', 'values'],
+})
 
-for await (const [chunk, metadata] of stream) {
+for await (const [mode, payload] of stream) {
+  if (mode === 'values') {
+    finalGraphState = payload // 用于生成完整持久化 checkpoint
+    continue
+  }
+  const [chunk, metadata] = payload
   const node = metadata?.langgraph_node
   
   // 仅 RESPONSE_NODES 中的节点才向前端发送
@@ -799,7 +817,7 @@ safetySettings: [
 | 变量 | 必填 | 默认值 | 说明 |
 |------|------|--------|------|
 | `GEMINI_API_KEY` | 是 | — | Gemini API Key（LLM + TTS 回退） |
-| `GEMINI_MODEL` | 否 | `gemini-2.5-flash` | LLM 模型名 |
+| `GEMINI_MODEL` | 否 | `gemini-3.7-flash` | 文本 LLM 模型名；配额耗尽时由封装层尝试 Flash-Lite |
 
 ### npm 依赖
 
@@ -816,9 +834,15 @@ backend/
 ├── src/
 │   ├── agents/
 │   │   ├── interviewGraph.js   ← 图定义 + 全部节点
-│   │   └── utils.js            ← 工具函数 + 会话管理
+│   │   └── utils.js            ← Prompt、知识库和计划工具（无会话存储）
+│   ├── lib/
+│   │   ├── interviewSessionStore.js ← checkpoint、消息、锁与幂等提交
+│   │   └── interviewLearning.js     ← 难度、RAG、证据与进步汇总
+│   ├── live/
+│   │   └── interviewLiveSocket.js  ← Gemini Live 与断线恢复
 │   ├── routes/
 │   │   ├── chat.js             ← 面试 SSE + TTS 端点
+│   │   ├── interviewSessions.js← 练习/正式状态机 API
 │   │   └── aiAssistant.js      ← 动机信生成
 │   └── index.js                ← Express 入口
 ├── data/

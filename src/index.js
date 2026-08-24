@@ -9,6 +9,7 @@ import profileRouter from './routes/profile.js'
 import gallupRouter from './routes/gallup.js'
 import aiAssistantRouter from './routes/aiAssistant.js'
 import experiencesRouter from './routes/experiences.js'
+import interviewSessionsRouter from './routes/interviewSessions.js'
 import { attachInterviewLiveSocket } from './live/interviewLiveSocket.js'
 import { errorSummary, logStructured, requestContext, requestIdMiddleware } from './lib/observability.js'
 
@@ -83,6 +84,7 @@ app.get('/api/health', (req, res) => {
 
 // Routes
 app.use('/api/interviews', interviewsRouter)
+app.use('/api/interview-sessions', interviewSessionsRouter)
 app.use('/api/chat', chatRouter)
 app.use('/api/profile', profileRouter)
 app.use('/api/gallup', gallupRouter)

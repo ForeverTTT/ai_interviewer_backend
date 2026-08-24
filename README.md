@@ -37,14 +37,19 @@ backend/
 ├── src/
 │   ├── index.js              # 应用入口：CORS 配置、路由挂载、错误捕获
 │   ├── routes/
-│   │   ├── interviews.js     # /api/interviews — 面试记录 CRUD 与 报告定稿逻辑
+│   │   ├── interviews.js     # /api/interviews — 幂等创建、记录 CRUD 与报告定稿
+│   │   ├── interviewSessions.js # /api/interview-sessions — 练习/正式状态机与学习进度
 │   │   ├── profile.js        # /api/profile    — 个人资料、PDF 简历解析与 AI 简历诊断
-│   │   └── chat.js           # /api/chat       — （如有）实时 TTS 或流式对话适配
+│   │   └── chat.js           # /api/chat       — 持久化 SSE 对话与 TTS
 │   ├── middleware/
 │   │   └── auth.js           # requireAuth：校验 Bearer JWT，提取 Supabase 用户信息
 │   ├── lib/
 │   │   ├── supabase.js       # 初始化 Supabase Admin 客户端
-│   │   └── geminiText.js     # 封装 Gemini SDK 的标准化提问逻辑
+│   │   ├── geminiText.js     # 封装 Gemini SDK 的标准化提问逻辑
+│   │   ├── interviewSessionStore.js # checkpoint、消息和并发提交
+│   │   └── interviewLearning.js # 难度、RAG、反馈、能力矩阵与进步汇总
+│   ├── live/
+│   │   └── interviewLiveSocket.js # Gemini Live 连接及持久化断线恢复
 │   └── services/             # （可选）核心算法或复杂 AI Prompt 渲染处理
 ├── package.json
 ├── .env.example              # 环境变量模板
@@ -73,7 +78,9 @@ backend/
 
 ### 1. 面试管理 (`/api/interviews`)
 - **GET `/`**: 获取当前用户的面试历史（最近 50 条）。
-- **POST `/`**: 创建新面试条目（包含职位、JD、时长、语言及简历快照）。
+- **POST `/`**: 原子创建面试并扣除积分；请求包含 `idempotencyKey`、`interviewerType`
+  （`hr` / `technical` / `mixed`）、`mode`、`difficulty`、职位、JD、时长、语言及简历快照。
+  相同 `idempotencyKey` 重试不会重复创建、改变面试官类型或重复扣分。
 - **POST `/:id/finalize`**: 调用 Gemini 生成最终面试报告，并将结构化结果更新至数据库。
 - **POST `/:id/transcript`**: 面试过程中的自动保存（Autosave）。
 
@@ -83,6 +90,56 @@ backend/
 - **POST `/resume/parse-pdf`**: 将上传的 PDF 二进制流解析为纯文本，用于简历提取。
 - **POST `/extract-cv`**: 利用 AI 从纯文本简历中提取姓名、经验、技能等结构化字段。
 - **POST `/resume-coach`**: 生成深度的简历诊断建议。
+
+### 3. 持久化面试会话 (`/api/chat`)
+
+- **POST `/message`**: SSE 文本面试；请求必须包含 `interviewId` 和可重试复用的
+  `idempotencyKey`。服务端按该面试 ID 恢复 checkpoint，并以乐观锁提交本轮消息。
+- **GET `/session?interviewId=<uuid>`**: 获取指定面试的持久化流程状态。
+- **POST `/reset`**: 兼容旧客户端的初始化检查；必须传 `interviewId`，不会清空已有状态。
+- **WebSocket `/live`**: `start` 消息的 `config.interviewId` 必填。重连时只恢复该面试的
+  快照和有限对话历史，每个完整语音回合都会持久化。
+
+会话、学习状态和幂等创建由以下迁移依次建立，服务启动前必须全部应用：
+
+1. `20260823233000_persistent_interview_sessions.sql`
+2. `20260824090000_interview_modes_and_learning.sql`
+3. `20260824120000_idempotent_interview_creation.sql`
+4. `20260824130000_adaptive_question_trigger.sql`
+5. `20260824140000_interviewer_types_and_practice_guards.sql`
+
+### 4. 练习、正式模式与学习进度 (`/api/interview-sessions`)
+
+- **GET `/:id`**：恢复指定面试的 checkpoint、当前问题、全部尝试、提示、笔记和练习时长/题数限制。
+- **POST `/:id/questions/next`**：按 Easy/Medium/Hard 或 Adaptive 策略生成下一题；会检索相关公开面经作为来源。
+- **POST `/:id/questions/:questionId/answer`**：练习模式立即返回证据化反馈并保留多次尝试；正式模式不返回中间反馈且禁止重答。
+- **POST `/:id/questions/:questionId/hint`**：依次开放 `nudge`、`structure`、`key_points`、`example`；四级用尽后拒绝继续生成。
+- **POST `/:id/pause|resume`**：仅练习模式允许，累计用时由服务端保存。
+- **POST `/:id/questions/:questionId/retry|master|skip`** 与 **PUT `.../note`**：练习题控制和笔记。
+- **POST `/:id/reconnect`** 与 **GET `/:id/reconnect-context`**：登记重连并只返回当前面试的有限必要上下文。
+- **GET `/:id/competencies`**：岗位能力矩阵以及逐次回答的评分、原文证据和 rubric。
+- **GET `/progress/practice`**：跨多场练习的首次/最新得分变化、增长项和待加强项。
+
+所有产生副作用的接口都接受 `idempotencyKey`，并在数据库事务中校验
+`state_version`。未回答的练习题不能标记为掌握；练习达到时长或题数上限后停止继续作答。
+正式模式的 `deadline_at` 由服务端创建和判定，关闭页面不会停止计时。
+
+面试官类型由 `src/config/interviewerTypes.js` 统一约束题型、Prompt 与报告重点。HR 面禁止
+深度技术题，技术面禁止退化为纯 HR 问答，Mixed 保留综合覆盖；该配置从数据库恢复，不能由
+后续客户端请求覆盖。
+
+本地数据库状态机验收脚本位于
+`test/sql/interview_sessions_integration.sql`；脚本在事务中运行并最终回滚测试数据。
+
+### 状态与一致性规则
+
+- Supabase PostgreSQL 是面试事实状态的唯一来源；进程内不保存业务 Session Map。
+- `interviewId` 同时是业务隔离主键和 LangGraph `thread_id`。
+- 每轮消息、checkpoint、兼容用 `transcript_json` 和状态版本在一次数据库事务中提交。
+- 两个后端实例或浏览器标签页并发写入时，旧 `state_version` 会被拒绝；相同
+  `idempotencyKey` 返回已提交结果。
+- 练习模式允许暂停和即时反馈；正式模式按服务端 `deadline_at` 持续计时，禁止暂停、
+  提示和重答，中间评分在完成前不会暴露给客户端。
 
 ---
 
@@ -135,6 +192,7 @@ npm start
 ```bash
 npx supabase start
 npx supabase db reset
+npx supabase db lint --local --level warning
 ```
 
 本地服务默认地址：API `http://127.0.0.1:54321`，Studio
@@ -146,6 +204,22 @@ npx supabase db reset
 ```bash
 npx supabase stop
 ```
+
+### 本地测试
+
+```bash
+# 后端单元与行为测试
+node --test
+
+# 本地 Supabase 已启动后，运行事务化数据库验收（测试数据最终回滚）
+docker exec -i supabase_db_ai_interviewer_backend \
+  psql -U postgres -d postgres -v ON_ERROR_STOP=1 \
+  < test/sql/interview_sessions_integration.sql
+```
+
+数据库脚本覆盖同一用户多面试隔离、创建/扣分幂等、乐观锁冲突、练习模式完整动作、
+正式模式截止时间及限制、Adaptive 难度和评分证据。当前持久化方案的阶段状态与上线前
+人工验收项见 `technical documents/Persistent-Interview-Sessions-Plan.md`。
 
 ### Docker 部署
 

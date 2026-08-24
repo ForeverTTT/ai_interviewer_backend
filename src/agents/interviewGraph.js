@@ -14,6 +14,8 @@ import { ChatGoogleGenerativeAI } from '@langchain/google-genai'
 import { ChatVertexAI } from '@langchain/google-vertexai'
 import { createGeminiLiveTextModel } from '../lib/geminiLive.js'
 import { getInterviewerStylePrompt } from '../config/interviewerStyles.js'
+import { interviewerTypeInstruction } from '../config/interviewerTypes.js'
+import { difficultyInstruction } from '../lib/interviewLearning.js'
 import {
   invokeWithGeminiQuotaFallback,
   supportsSamplingTemperature,
@@ -54,6 +56,13 @@ function getInterviewerContext(roleTrack, language, interviewerStyle) {
     roleContext ||= 'a senior hiring manager at a German company'
   }
   return `${roleContext}.\n\n${getInterviewerStylePrompt(interviewerStyle)}`
+}
+
+function withDifficulty(prompt, config) {
+  const effective = config?.difficulty === 'adaptive'
+    ? config?.currentDifficulty || 'medium'
+    : config?.difficulty || 'medium'
+  return `${prompt}\n\n${interviewerTypeInstruction(config?.interviewerType)}\n\nDIFFICULTY POLICY (mandatory):\n${difficultyInstruction(effective)}`
 }
 
 function makeLLM(opts = {}) {
@@ -141,6 +150,7 @@ const InterviewStateAnnotation = Annotation.Root({
   interviewerName: Annotation({ value: (_, v) => v, default: () => 'Anna Müller' }),
 
   nextQuestionType: Annotation({ value: (_, v) => v, default: () => 'technical' }),
+  lastAnswerQuality: Annotation({ value: (_, v) => v, default: () => null }),
 
   analysisNotes: Annotation({
     reducer: (existing, incoming) => {
@@ -259,6 +269,7 @@ async function analyzeAnswerNode(state) {
 
   return {
     nextQuestionType: forceFeedback ? 'feedback' : 'continue',
+    lastAnswerQuality: ['strong', 'adequate', 'weak'].includes(analysis.quality) ? analysis.quality : 'adequate',
     analysisNotes: [
       `Q${planIndex + 1} Analysis: ${analysis.notes || ''} | Focus: ${analysis.suggested_focus || ''}`,
     ],
@@ -282,14 +293,14 @@ async function generateOpeningNode(state) {
   const { config, interviewerName } = state
   const snap = resumeSnapshotFromConfig(config)
 
-  const systemPrompt = renderPrompt(_prompts.opening, {
+  const systemPrompt = withDifficulty(renderPrompt(_prompts.opening, {
     INTERVIEWER_NAME: interviewerName,
     INTERVIEWER_CONTEXT: getInterviewerContext(config?.roleTrack, config?.language, config?.interviewerStyle),
     POSITION: config?.position || '',
     LANGUAGE: config?.language || 'English',
     JOB_DESCRIPTION: config?.jobDescription || '',
     RESUME_SNAPSHOT: snap,
-  })
+  }), config)
 
   const lang = config?.language || 'English'
   const trigger = lang === 'Deutsch'
@@ -322,7 +333,7 @@ async function askExploreNode(state) {
   const lastNotes = analysisNotes.slice(-2).join('\n') || 'No prior analysis.'
   const snap = resumeSnapshotFromConfig(config)
 
-  const systemPrompt = renderPrompt(_prompts.explore, {
+  const systemPrompt = withDifficulty(renderPrompt(_prompts.explore, {
     INTERVIEWER_NAME: interviewerName,
     INTERVIEWER_CONTEXT: getInterviewerContext(config?.roleTrack, config?.language, config?.interviewerStyle),
     POSITION: config?.position || '',
@@ -333,7 +344,7 @@ async function askExploreNode(state) {
     ANALYSIS_NOTES: lastNotes,
     QUESTION_NUMBER: String(planIndex + 1),
     CONVERSATION_HISTORY: formatConversationHistory(rawMessages, 6),
-  })
+  }), config)
 
   const response = await responseLLM.invoke([
     new SystemMessage(systemPrompt),
@@ -358,7 +369,7 @@ async function askTechnicalNode(state) {
     : getMaxQuestions(config?.duration)
   const lastNotes = analysisNotes.slice(-2).join('\n') || 'No prior analysis.'
 
-  const systemPrompt = renderPrompt(_prompts.technical, {
+  const systemPrompt = withDifficulty(renderPrompt(_prompts.technical, {
     INTERVIEWER_NAME: interviewerName,
     INTERVIEWER_CONTEXT: getInterviewerContext(config?.roleTrack, config?.language, config?.interviewerStyle),
     POSITION: config?.position || '',
@@ -370,7 +381,7 @@ async function askTechnicalNode(state) {
     ANALYSIS_NOTES: lastNotes,
     QUESTION_NUMBER: String(planIndex + 1),
     CONVERSATION_HISTORY: formatConversationHistory(rawMessages, 6),
-  })
+  }), config)
 
   const response = await responseLLM.invoke([
     new SystemMessage(systemPrompt),
@@ -396,7 +407,7 @@ async function askBehavioralNode(state) {
   const competency = findUnusedCompetency(_competencies, usedNotes)
   const lastNotes = analysisNotes.slice(-2).join('\n') || 'No prior analysis.'
 
-  const systemPrompt = renderPrompt(_prompts.behavioral, {
+  const systemPrompt = withDifficulty(renderPrompt(_prompts.behavioral, {
     INTERVIEWER_NAME: interviewerName,
     INTERVIEWER_CONTEXT: getInterviewerContext(config?.roleTrack, config?.language, config?.interviewerStyle),
     POSITION: config?.position || '',
@@ -411,7 +422,7 @@ async function askBehavioralNode(state) {
     ANALYSIS_NOTES: lastNotes,
     QUESTION_NUMBER: String(planIndex + 1),
     CONVERSATION_HISTORY: formatConversationHistory(rawMessages, 6),
-  })
+  }), config)
 
   const response = await responseLLM.invoke([
     new SystemMessage(systemPrompt),
@@ -431,7 +442,7 @@ async function askBehavioralNode(state) {
 async function giveFeedbackNode(state) {
   const { config, rawMessages, analysisNotes, questionCount, technicalCount, behavioralCount } = state
 
-  const systemPrompt = renderPrompt(_prompts.feedback, {
+  const systemPrompt = withDifficulty(renderPrompt(_prompts.feedback, {
     POSITION: config?.position || '',
     LANGUAGE: config?.language || 'English',
     INTERVIEWER_CONTEXT: getInterviewerContext(config?.roleTrack, config?.language, config?.interviewerStyle),
@@ -440,7 +451,7 @@ async function giveFeedbackNode(state) {
     BEHAVIORAL_COUNT: String(behavioralCount),
     ANALYSIS_NOTES: analysisNotes.join('\n\n') || 'No analysis notes available.',
     CONVERSATION_HISTORY: formatConversationHistory(rawMessages, 14),
-  })
+  }), config)
 
   const response = await feedbackLLM.invoke([
     new SystemMessage(systemPrompt),

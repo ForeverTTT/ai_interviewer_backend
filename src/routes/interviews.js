@@ -2,11 +2,19 @@ import { Router } from 'express'
 import { supabase, supabaseForUser } from '../lib/supabase.js'
 import { requireAuth } from '../middleware/auth.js'
 import { assertGeminiConfigured, invokeGemini, stripJsonFence } from '../lib/geminiText.js'
-import { checkTokens, deductTokens } from '../middleware/tokens.js'
 import { recordInterviewEvent } from '../lib/interviewEvents.js'
 import { errorSummary, logStructured, normalizeRequestId, requestContext } from '../lib/observability.js'
 import { selectFinalizeMessages, shouldReuseFinalizedInterview } from '../lib/interviewFinalize.js'
 import { normalizeInterviewerStyle } from '../config/interviewerStyles.js'
+import { normalizeInterviewerType, getInterviewerTypePolicy } from '../config/interviewerTypes.js'
+import {
+  claimInterviewRequest,
+  commitInterviewTurn,
+  InterviewSessionConflictError,
+  loadInterviewSession,
+  releaseInterviewRequest,
+} from '../lib/interviewSessionStore.js'
+import { buildCompetencyMatrix, expireFormalInterviewIfDue } from '../lib/interviewLearning.js'
 
 const router = Router()
 
@@ -29,6 +37,7 @@ async function backupInsert(originalId, row) {
       language: row.language,
       duration: row.duration,
       interviewer_style: row.interviewer_style ?? 'balanced',
+      interviewer_type: row.interviewer_type ?? 'mixed',
       resume_snapshot: row.resume_snapshot ?? null,
       status: row.status ?? 'in_progress',
       transcript_json: row.transcript_json ?? null,
@@ -53,6 +62,9 @@ async function backupUpdate(originalId, fields) {
       finalize_model,
       finalize_started_at,
       finalized_at,
+      completed_at,
+      accumulated_seconds,
+      active_since,
       ...safeFields
     } = fields
     await supabase
@@ -379,33 +391,53 @@ router.get('/', requireAuth, async (req, res) => {
 /**
  * POST /api/interviews
  */
-router.post('/', requireAuth, (req, _, next) => { req.tokenCost = 300; next(); }, checkTokens, async (req, res) => {
-  const { position, job_description, language, duration, resume_snapshot, interviewer_style } = req.body ?? {}
+router.post('/', requireAuth, async (req, res) => {
+  const {
+    position,
+    job_description,
+    language,
+    duration,
+    resume_snapshot,
+    interviewer_style,
+    interviewerType,
+    mode = 'formal',
+    difficulty = 'medium',
+    role_track = 'work',
+  } = req.body ?? {}
 
   if (!position || !language || !duration) {
     return res.status(400).json({ error: 'position, language, and duration are required' })
   }
 
-  const row = {
-    user_id: req.user.id,
-    position: String(position).trim(),
-    job_description: job_description != null ? String(job_description).trim() : '',
-    language,
-    duration: Number(duration),
-    interviewer_style: normalizeInterviewerStyle(interviewer_style),
-  }
+  const normalizedMode = ['practice', 'formal'].includes(mode) ? mode : 'formal'
+  const normalizedDifficulty = ['easy', 'medium', 'hard', 'adaptive'].includes(difficulty) ? difficulty : 'medium'
+  const normalizedJobDescription = job_description != null ? String(job_description).trim() : ''
+  const normalizedResume = resume_snapshot != null ? String(resume_snapshot).trim().slice(0, 50_000) : ''
+  const idempotencyKey = normalizeRequestId(req.body?.idempotencyKey || req.headers['idempotency-key'] || req.requestId)
 
-  if (resume_snapshot != null && String(resume_snapshot).trim()) {
-    row.resume_snapshot = String(resume_snapshot).trim().slice(0, 50_000)
-  }
-
-  row.status = 'in_progress'
-
-    try {
-    const { data, error } = await dbFor(req).from('interviews').insert(row).select().single()
+  try {
+    const { data, error } = await dbFor(req).rpc('create_interview_session', {
+      p_user_id: req.user.id,
+      p_idempotency_key: idempotencyKey,
+      p_position: String(position).trim(),
+      p_job_description: normalizedJobDescription,
+      p_language: language,
+      p_duration: Number(duration),
+      p_resume_snapshot: normalizedResume,
+      p_interviewer_style: normalizeInterviewerStyle(interviewer_style),
+      p_interviewer_type: normalizeInterviewerType(interviewerType),
+      p_role_track: ['school', 'work'].includes(role_track) ? role_track : 'work',
+      p_mode: normalizedMode,
+      p_difficulty: normalizedDifficulty,
+      p_competency_matrix: buildCompetencyMatrix(normalizedJobDescription, normalizedResume),
+      p_token_cost: 300,
+    })
 
     if (error) {
       console.error('[POST /interviews]', error)
+      if (error.code === 'P0001' && /insufficient tokens/i.test(error.message || '')) {
+        return res.status(403).json({ error: 'Insufficient tokens', code: 'INSUFFICIENT_TOKENS' })
+      }
       const noCol = /column|does not exist|schema cache/i.test(String(error.message || error))
       return res.status(500).json({
         error: 'Failed to create interview record',
@@ -416,11 +448,19 @@ router.post('/', requireAuth, (req, _, next) => { req.tokenCost = 300; next(); }
       })
     }
 
-    await deductTokens(req.user.id, 300)
+    const interview = data?.interview
+    if (!data?.replay) {
+      backupInsert(interview.id, interview)
+      await recordInterviewEvent({
+        interviewId: interview.id,
+        userId: req.user.id,
+        requestId: idempotencyKey,
+        eventType: 'session_created',
+        stage: 'created',
+      })
+    }
 
-    backupInsert(data.id, data)
-
-    return res.status(201).json({ interview: data, tokensDeducted: 300 })
+    return res.status(data?.replay ? 200 : 201).json(data)
   } catch (err) {
     console.error('[POST /interviews] Unexpected error:', err)
     return res.status(500).json({ error: 'Internal server error' })
@@ -469,16 +509,29 @@ router.post('/:id/events', requireAuth, async (req, res) => {
 /** GET /api/interviews/:id/events - latest diagnostic lifecycle for the owner. */
 router.get('/:id/events', requireAuth, async (req, res) => {
   const limit = Math.min(Math.max(Number(req.query.limit) || 100, 1), 500)
-  const { data, error } = await dbFor(req)
+  const db = dbFor(req)
+  const [{ data, error }, { data: interview }] = await Promise.all([
+    db
     .from('interview_events')
     .select('*')
     .eq('interview_id', req.params.id)
     .eq('user_id', req.user.id)
     .order('created_at', { ascending: true })
-    .limit(limit)
+    .limit(limit),
+    db.from('interviews').select('mode,status').eq('id', req.params.id).eq('user_id', req.user.id).maybeSingle(),
+  ])
 
   if (error) return res.status(500).json({ error: 'Failed to load interview events', requestId: req.requestId })
-  return res.json({ events: data || [], requestId: req.requestId })
+  const hideFormalScores = interview?.mode === 'formal' && interview?.status !== 'completed'
+  const events = hideFormalScores
+    ? (data || []).map(event => ({
+      ...event,
+      metadata: event.metadata && typeof event.metadata === 'object'
+        ? Object.fromEntries(Object.entries(event.metadata).filter(([key]) => key !== 'score'))
+        : {},
+    }))
+    : data || []
+  return res.json({ events, requestId: req.requestId })
 })
 
 /** POST /api/interviews/:id/finalize */
@@ -617,12 +670,27 @@ router.post('/:id/finalize', requireAuth, async (req, res) => {
 
     const transcriptText = formatMessagesForPrompt(messages)
     const numberedLines = formatNumberedTranscriptLines(messages)
+    let learningProgress = []
+    if (iv.mode === 'practice') {
+      const { data: attempts } = await dbFor(req)
+        .from('interview_attempts')
+        .select('question_id,attempt_number,answer_text,feedback_json,hint_level_used,created_at,interview_questions(question_text,competency,status,difficulty)')
+        .eq('interview_id', id)
+        .order('created_at')
+      learningProgress = attempts || []
+    }
     const userPayload = `LANGUAGE: Write every string value in the EXACT "Interview language" specified below. Do NOT translate any part of the report into another language.
  
  Job title: ${iv.position}
  Interview language: ${iv.language}
+Interview mode: ${iv.mode || 'formal'}
+Interviewer type: ${normalizeInterviewerType(iv.interviewer_type)}
 Duration (minutes): ${iv.duration}
 Job description (excerpt): ${String(iv.job_description || '').slice(0, 4000)}
+
+${iv.mode === 'practice'
+    ? `PRACTICE REPORT: Focus on the learning process, hint usage, first-versus-final attempt improvement, mastered/skipped questions, and concrete next practice steps. Normalized practice evidence:\n${JSON.stringify(learningProgress).slice(0, 20_000)}`
+    : 'FORMAL REPORT: Produce a holistic hiring-style evaluation. Do not imply that hidden intermediate scores or coaching were shown during the interview.'}
 
 Transcript:
 ${transcriptText || '(empty — candidate may not have spoken)'}
@@ -634,7 +702,11 @@ Return the JSON object now.`
 
     stage = 'gemini'
     const geminiStartedAt = Date.now()
-    const raw = await invokeGemini(REPORT_JSON_SYSTEM, userPayload, {
+    const interviewerEvaluation = getInterviewerTypePolicy(iv.interviewer_type).evaluation
+    const modeReportSystem = `${REPORT_JSON_SYSTEM}\n\nINTERVIEWER TYPE: ${normalizeInterviewerType(iv.interviewer_type)}. ${interviewerEvaluation}\n\n${iv.mode === 'practice'
+      ? 'This is a PRACTICE learning report. Explicitly compare early and later attempts where evidence exists.'
+      : 'This is a FORMAL simulation report. Evaluate the completed interview as a whole.'}`
+    const raw = await invokeGemini(modeReportSystem, userPayload, {
       temperature: 0.3,
       maxOutputTokens: 32768,
       onModelAttempt: async ({ model, attempt, fallback }) => {
@@ -710,6 +782,15 @@ Return the JSON object now.`
       finalize_request_id: req.requestId,
       finalize_model: modelUsed,
       finalized_at: new Date().toISOString(),
+      completed_at: new Date().toISOString(),
+    }
+    if (iv.mode === 'practice') {
+      const activeStartedMs = iv.active_since ? new Date(iv.active_since).getTime() : NaN
+      const activeSeconds = Number.isFinite(activeStartedMs)
+        ? Math.max(0, Math.floor((Date.now() - activeStartedMs) / 1000))
+        : 0
+      updateRow.accumulated_seconds = Number(iv.accumulated_seconds || 0) + activeSeconds
+      updateRow.active_since = null
     }
 
     let updated, upErr
@@ -785,6 +866,9 @@ Return the JSON object now.`
 router.post('/:id/transcript', requireAuth, async (req, res) => {
   const { id } = req.params
   const messages = req.body?.messages
+  const idempotencyKey = normalizeRequestId(req.body?.idempotencyKey || req.requestId)
+  const db = dbFor(req)
+  let claimed = false
 
   if (!Array.isArray(messages)) {
     return res.status(400).json({ error: 'messages array required' })
@@ -798,33 +882,45 @@ router.post('/:id/transcript', requireAuth, async (req, res) => {
     }))
 
   try {
-    const { data: updated, error } = await dbFor(req)
-      .from('interviews')
-      .update({ transcript_json: sanitized })
-      .eq('id', id)
-      .eq('user_id', req.user.id)
-      .select('id, transcript_json, created_at')
-      .maybeSingle()
-
-    if (error) {
-      console.error('[POST /transcript]', error)
-      const noCol = /column|does not exist|schema cache/i.test(String(error.message || error))
-      return res.status(500).json({
-        error: 'Failed to save transcript',
-        details: error.message,
-        hint: noCol
-          ? 'Run supabase/migration_interviews_complete.sql in Supabase SQL Editor, wait ~1 min for schema cache.'
-          : undefined,
-      })
+    await expireFormalInterviewIfDue(db, id, req.user.id)
+    const loaded = await loadInterviewSession(db, id, req.user.id)
+    if (['finalizing', 'completed', 'abandoned'].includes(loaded.interview.status)) {
+      return res.status(409).json({ error: `Interview is ${loaded.interview.status}` })
     }
-    if (!updated) return res.status(404).json({ error: 'Interview not found' })
+    const claim = await claimInterviewRequest(db, {
+      interviewId: id,
+      userId: req.user.id,
+      idempotencyKey,
+    })
+    if (claim?.pending) return res.status(409).json({ error: 'This request is already being processed' })
+    if (claim?.replay) return res.json({ ok: true, replay: true, stateVersion: claim.stateVersion })
+    claimed = true
+
+    const result = await commitInterviewTurn(db, {
+      interviewId: id,
+      userId: req.user.id,
+      expectedVersion: loaded.stateVersion,
+      idempotencyKey,
+      checkpoint: loaded.checkpoint,
+      transcript: sanitized,
+    })
 
     backupUpdate(id, { transcript_json: sanitized })
 
-    return res.json({ ok: true, interview: updated })
+    return res.json({ ok: true, stateVersion: result.stateVersion })
   } catch (err) {
     console.error('[POST /transcript]', err)
-    return res.status(500).json({ error: 'Internal server error' })
+    if (claimed) {
+      await releaseInterviewRequest(db, {
+        interviewId: id,
+        userId: req.user.id,
+        idempotencyKey,
+      }).catch(() => {})
+    }
+    return res.status(err.statusCode || 500).json({
+      error: err.message || 'Internal server error',
+      currentVersion: err instanceof InterviewSessionConflictError ? err.currentVersion : undefined,
+    })
   }
 })
 

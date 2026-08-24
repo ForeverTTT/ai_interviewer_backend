@@ -1,6 +1,7 @@
 import { readFile } from 'fs/promises'
 import { join, dirname } from 'path'
 import { fileURLToPath } from 'url'
+import { getInterviewerTypePolicy, normalizeInterviewerType } from '../config/interviewerTypes.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const DATA_DIR = join(__dirname, '..', '..', 'data')
@@ -40,8 +41,14 @@ export function getMaxQuestions(durationMinutes) {
  * @param {number} maxQ  from getMaxQuestions()
  * @returns {('explore'|'technical'|'behavioral')[]}
  */
-export function buildInterviewPlan(maxQ) {
+export function buildInterviewPlan(maxQ, interviewerType = 'mixed') {
   const n = Math.max(1, Math.min(12, Number(maxQ) || 5))
+  const type = normalizeInterviewerType(interviewerType)
+  if (type !== 'mixed') {
+    const mapSlot = slot => slot === 'experience' ? 'explore' : slot === 'case' ? 'technical' : slot === 'motivation' ? 'behavioral' : slot
+    const pattern = getInterviewerTypePolicy(type).planPattern.map(mapSlot)
+    return Array.from({ length: n }, (_, index) => pattern[index % pattern.length])
+  }
   if (n === 1) return ['explore']
   if (n === 2) return ['explore', 'behavioral']
 
@@ -176,50 +183,4 @@ const INTERVIEWER_NAMES = [
 export function getInterviewerName(sessionId = '') {
   const idx = sessionId.charCodeAt(0) % INTERVIEWER_NAMES.length
   return INTERVIEWER_NAMES[idx]
-}
-
-// ── Session store (in-memory) ───────────────────────────────────
-
-/**
- * Per-user interview session state.
- * Keyed by userId (one active session per user at a time).
- */
-const _sessions = new Map()
-
-export const sessionStore = {
-  get(userId) {
-    return _sessions.get(userId) || null
-  },
-
-  init(userId, config) {
-    const maxQ = getMaxQuestions(config?.duration)
-    const state = {
-      userId,
-      phase: 'opening',
-      questionCount: 0,
-      technicalCount: 0,
-      behavioralCount: 0,
-      exploreCount: 0,
-      plan: buildInterviewPlan(maxQ),
-      planIndex: 0,
-      analysisNotes: [],
-      config,
-      interviewerName: getInterviewerName(userId),
-      createdAt: Date.now(),
-    }
-    _sessions.set(userId, state)
-    return state
-  },
-
-  update(userId, patch) {
-    const existing = _sessions.get(userId)
-    if (!existing) return null
-    const updated = { ...existing, ...patch }
-    _sessions.set(userId, updated)
-    return updated
-  },
-
-  delete(userId) {
-    _sessions.delete(userId)
-  },
 }

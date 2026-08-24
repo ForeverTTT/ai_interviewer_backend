@@ -1,11 +1,22 @@
 import { WebSocket, WebSocketServer } from 'ws'
 import { createClient } from '@supabase/supabase-js'
+import { randomUUID } from 'node:crypto'
 import { GoogleGenAI, Modality } from '@google/genai'
 import {
   getInterviewerStylePrompt,
   getInterviewerVoice,
   normalizeInterviewerStyle,
 } from '../config/interviewerStyles.js'
+import { interviewerTypeInstruction, normalizeInterviewerType } from '../config/interviewerTypes.js'
+import { supabaseForUser } from '../lib/supabase.js'
+import {
+  claimInterviewRequest,
+  commitInterviewTurn,
+  loadInterviewSession,
+  releaseInterviewRequest,
+  sanitizeMessages,
+} from '../lib/interviewSessionStore.js'
+import { applyInterviewAction, expireFormalInterviewIfDue } from '../lib/interviewLearning.js'
 
 const LIVE_PATH = '/api/chat/live'
 const LIVE_MODEL = process.env.GEMINI_LIVE_MODEL || 'gemini-3.1-flash-live-preview'
@@ -41,7 +52,7 @@ function appendTranscript(current, delta) {
   return current + next
 }
 
-function buildSystemInstruction(config = {}) {
+function buildSystemInstruction(config = {}, transcript = []) {
   const language = config.language === 'Deutsch'
     ? 'German'
     : config.language === 'Chinese'
@@ -52,11 +63,17 @@ function buildSystemInstruction(config = {}) {
   const resume = String(config.resumeSnapshot || '').slice(0, 25_000)
   const duration = Number(config.duration) || 10
   const interviewerStyle = normalizeInterviewerStyle(config.interviewerStyle)
+  const interviewerType = normalizeInterviewerType(config.interviewerType)
   const context = [
     `Target role: ${position}`,
     jobDescription ? `Job description:\n${jobDescription}` : '',
     resume ? `Candidate resume/context:\n${resume}` : '',
   ].filter(Boolean).join('\n\n').slice(0, MAX_CONTEXT_CHARS)
+  const history = sanitizeMessages(transcript)
+    .slice(-12)
+    .map(message => `${message.role === 'assistant' ? 'Interviewer' : 'Candidate'}: ${message.content}`)
+    .join('\n')
+    .slice(0, 12_000)
 
   const speakingStyle = `${getInterviewerStylePrompt(interviewerStyle)}
 
@@ -66,14 +83,17 @@ Voice delivery: sound like a natural face-to-face conversation, with semantic ph
 Conduct a realistic ${duration}-minute interview entirely in ${language}.
 Speak naturally and concisely. Ask exactly one question at a time.
 ${speakingStyle}
-Start with a brief greeting and ask the candidate to introduce themselves.
+${interviewerTypeInstruction(interviewerType)}
+${history
+    ? 'This is a reconnected interview. Continue from the saved conversation and do not repeat the greeting or earlier questions.'
+    : 'Start with a brief greeting and ask the candidate to introduce themselves.'}
 Then adapt follow-up questions to their previous answers, resume, target role, and job description.
-Cover experience, role-specific or technical depth, and behavioral competencies.
+Stay strictly within the selected interviewer type while adapting follow-up questions.
 Do not explain your internal plan. Do not give feedback during the interview.
 If the candidate asks to repeat or clarify, respond naturally in ${language}.
 Keep most turns below 60 words so the conversation remains interactive.
 
-${context}`
+${context}${history ? `\n\nSaved conversation:\n${history}` : ''}`
 }
 
 async function verifyAccessToken(token) {
@@ -103,6 +123,16 @@ export function attachInterviewLiveSocket(server, { allowedOrigins = [] } = {}) 
     let connecting = false
     let inputTranscript = ''
     let outputTranscript = ''
+    let interviewId = null
+    let interviewUserId = null
+    let sessionDb = null
+    let checkpoint = null
+    let stateVersion = 0
+    let persistedTranscript = []
+    let currentQuestionId = null
+    let currentDifficulty = 'medium'
+    let persistChain = Promise.resolve()
+    let persistRequestKey = null
 
     const authTimer = setTimeout(() => {
       if (!authenticated) socket.close(1008, 'Authentication timeout')
@@ -137,11 +167,31 @@ export function attachInterviewLiveSocket(server, { allowedOrigins = [] } = {}) 
             return
           }
 
+          interviewId = String(message.config?.interviewId || '').trim()
+          if (!interviewId) {
+            socket.close(1008, 'interviewId is required')
+            return
+          }
+          interviewUserId = user.id
+          sessionDb = supabaseForUser(message.token)
+          await expireFormalInterviewIfDue(sessionDb, interviewId, interviewUserId)
+          const loaded = await loadInterviewSession(sessionDb, interviewId, interviewUserId)
+          checkpoint = loaded.checkpoint
+          stateVersion = loaded.stateVersion
+          persistedTranscript = loaded.transcript
+          currentQuestionId = loaded.interview.current_question_id
+          currentDifficulty = loaded.interview.current_difficulty
+          if (!['active', 'draft'].includes(loaded.interview.status)) {
+            socket.close(1008, `Interview is ${loaded.interview.status}`)
+            return
+          }
+
           const apiKey = process.env.GEMINI_API_KEY
           if (!apiKey) throw new Error('GEMINI_API_KEY is not configured')
           const ai = new GoogleGenAI({ apiKey })
-          const interviewerStyle = normalizeInterviewerStyle(message.config?.interviewerStyle)
-          const liveVoice = liveVoiceFor(message.config?.language, interviewerStyle)
+          const persistedConfig = checkpoint.config
+          const interviewerStyle = normalizeInterviewerStyle(persistedConfig.interviewerStyle)
+          const liveVoice = liveVoiceFor(persistedConfig.language, interviewerStyle)
 
           liveSession = await ai.live.connect({
             model: LIVE_MODEL,
@@ -175,13 +225,118 @@ export function attachInterviewLiveSocket(server, { allowedOrigins = [] } = {}) 
 
                 if (content.interrupted) sendJson(socket, { type: 'interrupted' })
                 if (content.turnComplete) {
+                  const completedInput = inputTranscript.trim()
+                  const completedOutput = outputTranscript.trim()
                   sendJson(socket, {
                     type: 'turn_complete',
-                    inputText: inputTranscript.trim(),
-                    outputText: outputTranscript.trim(),
+                    inputText: completedInput,
+                    outputText: completedOutput,
                   })
                   inputTranscript = ''
                   outputTranscript = ''
+
+                  const turnMessages = sanitizeMessages([
+                    { role: 'user', content: completedInput },
+                    { role: 'assistant', content: completedOutput },
+                  ])
+                  if (turnMessages.length) {
+                    persistChain = persistChain.then(async () => {
+                      const requestKey = `live-${randomUUID()}`
+                      persistRequestKey = requestKey
+                      if (currentQuestionId && completedInput) {
+                        const answerKey = `${requestKey}:answer`
+                        const answerClaim = await claimInterviewRequest(sessionDb, {
+                          interviewId,
+                          userId: interviewUserId,
+                          idempotencyKey: answerKey,
+                        })
+                        if (answerClaim?.claimed) {
+                          const answerResult = await applyInterviewAction(sessionDb, {
+                            interviewId,
+                            userId: interviewUserId,
+                            expectedVersion: stateVersion,
+                            idempotencyKey: answerKey,
+                            action: 'attempt',
+                            payload: { questionId: currentQuestionId, answerText: completedInput },
+                          })
+                          stateVersion = Number(answerResult.stateVersion)
+                          currentQuestionId = null
+                        }
+                      }
+                      const claim = await claimInterviewRequest(sessionDb, {
+                        interviewId,
+                        userId: interviewUserId,
+                        idempotencyKey: requestKey,
+                      })
+                      if (!claim?.claimed) return
+                      try {
+                        const nextCheckpoint = {
+                          ...checkpoint,
+                          phase: 'questioning',
+                          liveTurnCount: (checkpoint.liveTurnCount ?? 0) + 1,
+                        }
+                        const nextTranscript = [...persistedTranscript, ...turnMessages]
+                        const result = await commitInterviewTurn(sessionDb, {
+                          interviewId,
+                          userId: interviewUserId,
+                          expectedVersion: stateVersion,
+                          idempotencyKey: requestKey,
+                          checkpoint: nextCheckpoint,
+                          messages: turnMessages,
+                          transcript: nextTranscript,
+                        })
+                        checkpoint = nextCheckpoint
+                        persistedTranscript = nextTranscript
+                        stateVersion = Number(result.stateVersion)
+                        if (completedOutput) {
+                          const questionResult = await applyInterviewAction(sessionDb, {
+                            interviewId,
+                            userId: interviewUserId,
+                            expectedVersion: stateVersion,
+                            idempotencyKey: `${requestKey}:question`,
+                            action: 'question',
+                            payload: {
+                              questionText: completedOutput,
+                              questionType: normalizeInterviewerType(checkpoint.config?.interviewerType) === 'hr'
+                                ? 'behavioral'
+                                : normalizeInterviewerType(checkpoint.config?.interviewerType) === 'technical'
+                                  ? 'technical'
+                                  : 'experience',
+                              competency: 'live_interview',
+                              source: 'gemini_live',
+                              difficulty: currentDifficulty,
+                            },
+                          })
+                          stateVersion = Number(questionResult.stateVersion)
+                          currentQuestionId = questionResult.question?.id || currentQuestionId
+                        }
+                      } catch (error) {
+                        await releaseInterviewRequest(sessionDb, {
+                          interviewId,
+                          userId: interviewUserId,
+                          idempotencyKey: requestKey,
+                        }).catch(() => {})
+                        throw error
+                      }
+                    }).catch(async error => {
+                      // Release any action claim left pending by a failed model,
+                      // database, or connection operation so a reconnect can retry.
+                      const failedBase = persistRequestKey
+                      if (failedBase) {
+                        await Promise.all([
+                          failedBase,
+                          `${failedBase}:answer`,
+                          `${failedBase}:question`,
+                        ].map(idempotencyKey => releaseInterviewRequest(sessionDb, {
+                          interviewId,
+                          userId: interviewUserId,
+                          idempotencyKey,
+                        }).catch(() => {})))
+                      }
+                      console.error('[Live WS] Persist turn failed:', safeErrorMessage(error, 'Persistence failed'))
+                      sendJson(socket, { type: 'error', message: 'Interview state could not be saved' })
+                    })
+                  }
                 }
               },
               onerror(event) {
@@ -200,7 +355,7 @@ export function attachInterviewLiveSocket(server, { allowedOrigins = [] } = {}) 
               },
               inputAudioTranscription: {},
               outputAudioTranscription: {},
-              systemInstruction: buildSystemInstruction(message.config),
+              systemInstruction: buildSystemInstruction(persistedConfig, persistedTranscript),
               thinkingConfig: { thinkingLevel: 'minimal' },
             },
           })
@@ -208,13 +363,15 @@ export function attachInterviewLiveSocket(server, { allowedOrigins = [] } = {}) 
           authenticated = true
           connecting = false
           clearTimeout(authTimer)
-          sendJson(socket, { type: 'ready', model: LIVE_MODEL, userId: user.id })
+          sendJson(socket, { type: 'ready', model: LIVE_MODEL, interviewId, stateVersion })
           liveSession.sendRealtimeInput({
-            text: message.config?.language === 'Deutsch'
-              ? 'Beginne jetzt das Vorstellungsgespräch.'
-              : message.config?.language === 'Chinese'
-                ? '现在开始面试。请全程使用普通话和简体中文。'
-                : 'Begin the interview now.',
+            text: persistedTranscript.length
+              ? 'Resume the saved interview naturally with the next appropriate question.'
+              : persistedConfig.language === 'Deutsch'
+                ? 'Beginne jetzt das Vorstellungsgespräch.'
+                : persistedConfig.language === 'Chinese'
+                  ? '现在开始面试。请全程使用普通话和简体中文。'
+                  : 'Begin the interview now.',
           })
           return
         }
