@@ -13,7 +13,7 @@ import {
   rankExperienceDocuments,
   summarizePracticeProgress,
 } from '../src/lib/interviewLearning.js'
-import { buildInterviewPlan } from '../src/agents/utils.js'
+import { buildInterviewPlan, getPracticeCoreQuestions } from '../src/agents/utils.js'
 import {
   isQuestionTypeAllowed,
   normalizeInterviewerType,
@@ -51,6 +51,11 @@ test('question generation includes effective difficulty, RAG provenance, and com
     },
     checkpoint: { currentDifficulty: 'hard' },
     priorQuestions: ['Tell me about yourself'],
+    recentAnswerContext: [{
+      question: 'Tell me about yourself',
+      answer: 'I built a Node API and improved its reliability.',
+      feedback: { gaps: ['Explain the measured impact'] },
+    }],
     ragDocuments: [{ id: 'rag-1', company: 'Example GmbH' }],
     invoke: async (_system, prompt) => {
       capturedPrompt = prompt
@@ -68,6 +73,8 @@ test('question generation includes effective difficulty, RAG provenance, and com
   assert.deepEqual(result.rubric.criteria, ['failure isolation'])
   assert.match(capturedPrompt, /HARD/)
   assert.match(capturedPrompt, /Example GmbH/)
+  assert.match(capturedPrompt, /improved its reliability/)
+  assert.match(capturedPrompt, /measured impact/)
 })
 
 test('progressive hints advance through all four levels', async () => {
@@ -114,8 +121,9 @@ test('interviewer type policies constrain plans and generated question types', a
   }), /disallowed type/i)
 })
 
-test('practice limits stop active elapsed time but remain frozen while paused', () => {
+test('practice is untimed and ends after the complete opening plus interview plan', () => {
   const active = practiceLimitState({
+    difficulty: 'easy',
     duration: 10,
     question_index: 2,
     accumulated_seconds: 120,
@@ -123,18 +131,29 @@ test('practice limits stop active elapsed time but remain frozen while paused', 
     status: 'active',
   }, Date.parse('2026-08-24T10:03:00.000Z'))
   assert.equal(active.elapsedSeconds, 300)
-  assert.equal(active.remainingSeconds, 300)
+  assert.equal(active.remainingSeconds, null)
   assert.equal(active.timeLimitReached, false)
+  assert.equal(active.questionLimit, 6)
 
   const paused = practiceLimitState({
+    difficulty: 'easy',
     duration: 10,
-    question_index: 5,
+    question_index: 6,
     accumulated_seconds: 120,
     active_since: '2026-08-24T10:00:00.000Z',
     status: 'paused',
   }, Date.parse('2026-08-24T10:30:00.000Z'))
   assert.equal(paused.elapsedSeconds, 120)
   assert.equal(paused.questionLimitReached, true)
+
+  assert.equal(practiceLimitState({ difficulty: 'easy', question_index: 5 }).questionLimit, 6)
+  assert.equal(practiceLimitState({ difficulty: 'medium', question_index: 9 }).questionLimit, 10)
+  assert.equal(practiceLimitState({ difficulty: 'hard', question_index: 18 }).questionLimit, 19)
+  assert.equal(practiceLimitState({ difficulty: 'adaptive', question_index: 9 }).questionLimit, 10)
+  assert.equal(getPracticeCoreQuestions('easy'), 5)
+  assert.equal(getPracticeCoreQuestions('medium'), 9)
+  assert.equal(getPracticeCoreQuestions('hard'), 18)
+  assert.equal(buildInterviewPlan(getPracticeCoreQuestions('hard'), 'mixed').length, 18)
 })
 
 test('practice feedback remains evidence-grounded and score-normalized', async () => {

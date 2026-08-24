@@ -408,6 +408,10 @@ router.post('/', requireAuth, async (req, res) => {
   if (!position || !language || !duration) {
     return res.status(400).json({ error: 'position, language, and duration are required' })
   }
+  const normalizedDuration = Number(duration)
+  if (!Number.isInteger(normalizedDuration) || normalizedDuration < 5 || normalizedDuration > 60) {
+    return res.status(400).json({ error: 'duration must be an integer between 5 and 60 minutes' })
+  }
 
   const normalizedMode = ['practice', 'formal'].includes(mode) ? mode : 'formal'
   const normalizedDifficulty = ['easy', 'medium', 'hard', 'adaptive'].includes(difficulty) ? difficulty : 'medium'
@@ -422,7 +426,7 @@ router.post('/', requireAuth, async (req, res) => {
       p_position: String(position).trim(),
       p_job_description: normalizedJobDescription,
       p_language: language,
-      p_duration: Number(duration),
+      p_duration: normalizedDuration,
       p_resume_snapshot: normalizedResume,
       p_interviewer_style: normalizeInterviewerStyle(interviewer_style),
       p_interviewer_type: normalizeInterviewerType(interviewerType),

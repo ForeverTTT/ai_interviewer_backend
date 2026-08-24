@@ -110,7 +110,8 @@ thread_id = interviewId
 - 可以随时暂停并在以后恢复。
 - 同一道题允许保存多次回答，不能用新回答覆盖旧回答。
 - 每次回答后可以获得针对当前回答的即时反馈。
-- 用户决定何时进入下一题。
+- 提交回答只保存和分析当前答案，不生成下一题；用户点击“已掌握 → 下一题”或“跳过 → 下一题”后才允许推进。
+- 下一题规划器读取最近几道题的最新已提交答案与反馈，在既定正式面试阶段内做适应性出题。
 - 可以跳过问题，但必须记录跳过事件和原因（如果用户填写）。
 - 最终报告侧重学习过程、首次回答与最终回答的差异及掌握进度。
 
@@ -127,7 +128,8 @@ thread_id = interviewId
 创建面试
   → 服务端开始计时
   → 连续提问与追问
-  → 时间到或题目完成
+  → 时间到或题目路线完成
+  → 如果时间到时用户正在回答，等待当前答案提交
   → 锁定面试
   → 生成最终报告
 ```
@@ -137,10 +139,30 @@ thread_id = interviewId
 - 用户不能主动暂停计时。
 - 面试过程中不显示提示、评分、解析和参考答案。
 - 同一道题不能反复重答。
+- 正式模拟时长为 5–60 分钟，由用户在创建前选择。
 - 服务端保存 `deadline_at`，关闭页面后计时继续。
+- `deadline_at` 是权威截止时间，浏览器倒计时只负责展示和触发结束交互。
+- 截止时没有待回答问题，`expire_formal_interview_if_due` 立即将状态切换为 `finalizing`。
+- 截止时存在 `current_question_id`，允许用户完成这一题；`complete_formal_answer_after_deadline`
+  原子保存最后答案并切换为 `finalizing`，不得生成下一题。
+- 最后一题宽限只适用于截止前已经展示的问题，不允许重答，也不延长整场面试路线。
 - 可以短暂断线重连，但断线不停止正式面试计时。
 - 可设置 60–120 秒重连宽限；超出宽限后根据状态继续或结束。
 - 只在结束后生成完整反馈。
+
+练习模式与正式模式共享 Gemini Live 传输层和面试房间 UI，但不共享推进权限。练习模式下 Live
+只负责问题朗读、实时音频和转写；`current_question_id`、attempt、提示层级、暂停、重答、掌握、
+跳过和下一题仍由 PostgreSQL 状态机决定。Live turn 完成不会直接创建练习 attempt 或下一题。
+WebSocket 默认屏蔽练习模式的模型输出，因此候选人说话或停顿时 Gemini 即使产生内部回应，也不会
+把文本或音频传给浏览器；只有应用发送 `[PRACTICE_CONTROL]` 朗读当前题时临时允许一次模型输出。
+
+正式截止状态转换：
+
+```text
+active + deadline reached + no current question -> finalizing
+active + deadline reached + current question    -> wait for current answer
+wait + final answer submitted                    -> persist answer -> finalizing
+```
 
 ## 4. 推荐的数据结构
 
@@ -353,6 +375,7 @@ WebSocket 和 Gemini Live 连接只能存在于当前 Cloud Run 实例内，这�
 - 建立新的 Gemini Live 连接，并重新注入当前面试的系统配置和有限上下文。
 - 只加载当前 `interviewId` 的岗位快照、简历快照、当前问题和相关历史。
 - 不把其他面试或同一用户其他 Session 的内容带入新连接。
+- 练习模式输入转写与模型语音输出解耦：录音只更新可编辑答案，题目语音仅由显式的下一题动作触发。
 
 原则：
 

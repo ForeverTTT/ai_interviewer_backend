@@ -2,7 +2,7 @@ import express from 'express'
 import cors from 'cors'
 import helmet from 'helmet'
 import rateLimit from 'express-rate-limit'
-import 'dotenv/config'
+import './config/env.js'
 import interviewsRouter from './routes/interviews.js'
 import chatRouter from './routes/chat.js'
 import profileRouter from './routes/profile.js'
@@ -67,6 +67,9 @@ app.use(cors({
   exposedHeaders: ['X-Request-Id'],
 }))
 app.use(requestIdMiddleware)
+// Base64 adds roughly 33% overhead. Allow the resume parser to receive the
+// route's documented 12 MB PDF limit without raising the limit globally.
+app.use('/api/profile/resume/parse-pdf', express.json({ limit: '17mb' }))
 app.use(express.json({ limit: '10mb' }))
 app.use(express.urlencoded({ extended: true }))
 app.use('/api/', globalLimiter) // Apply to all API routes
@@ -101,7 +104,10 @@ app.use((err, req, res, next) => {
   logStructured('error', 'express_error', requestContext(req, {
     errorMessage: errorSummary(err).message,
   }))
-  res.status(500).json({ error: 'Internal server error', requestId: req.requestId })
+  if (err?.type === 'entity.too.large') {
+    return res.status(413).json({ error: 'Request payload too large', code: 'REQUEST_TOO_LARGE', requestId: req.requestId })
+  }
+  res.status(err?.status || 500).json({ error: 'Internal server error', requestId: req.requestId })
 })
 
 const server = app.listen(PORT, () => {

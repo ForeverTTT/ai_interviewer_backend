@@ -495,22 +495,31 @@ function getNextLevelQuest(level) {
 router.post('/resume/parse-pdf', requireAuth, async (req, res) => {
   const { pdfBase64 } = req.body ?? {}
   if (!pdfBase64 || typeof pdfBase64 !== 'string') {
-    return res.status(400).json({ error: 'pdfBase64 is required' })
+    return res.status(400).json({ error: 'pdfBase64 is required', code: 'PDF_MISSING' })
   }
 
   let buf
   try {
     buf = Buffer.from(pdfBase64, 'base64')
   } catch {
-    return res.status(400).json({ error: 'Invalid base64' })
+    return res.status(400).json({ error: 'Invalid base64', code: 'PDF_INVALID' })
   }
 
   if (buf.length > 12 * 1024 * 1024) {
-    return res.status(413).json({ error: 'PDF too large' })
+    return res.status(413).json({ error: 'PDF too large', code: 'PDF_TOO_LARGE', maxBytes: 12 * 1024 * 1024 })
+  }
+  if (buf.length < 5 || buf.subarray(0, 5).toString('ascii') !== '%PDF-') {
+    return res.status(400).json({ error: 'Invalid PDF file', code: 'PDF_INVALID' })
   }
 
   try {
     const text = await extractPdfText(buf)
+    if (!text.trim()) {
+      return res.status(422).json({
+        error: 'No selectable text found in PDF',
+        code: 'PDF_NO_TEXT',
+      })
+    }
     return res.json({
       text,
       charCount: text.length,
@@ -518,7 +527,11 @@ router.post('/resume/parse-pdf', requireAuth, async (req, res) => {
     })
   } catch (e) {
     console.error('[parse-pdf]', e)
-    return res.status(400).json({ error: 'Could not parse PDF' })
+    const message = String(e?.message || '')
+    if (/password|encrypted/i.test(message)) {
+      return res.status(422).json({ error: 'Password-protected PDF', code: 'PDF_PASSWORD_PROTECTED' })
+    }
+    return res.status(422).json({ error: 'Could not parse PDF', code: 'PDF_UNREADABLE' })
   }
 })
 

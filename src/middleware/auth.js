@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
-import 'dotenv/config'
+import '../config/env.js'
 import { errorSummary, logStructured, requestContext } from '../lib/observability.js'
 
 /**
@@ -24,8 +24,15 @@ export async function requireAuth(req, res, next) {
     const { data: { user }, error } = await supabase.auth.getUser(token)
 
     if (error || !user) {
-      logStructured('warn', 'auth_rejected', requestContext(req, { reason: 'invalid_or_expired_token' }))
-      return res.status(401).json({ error: 'Invalid or expired token' })
+      logStructured('warn', 'auth_rejected', requestContext(req, {
+        reason: 'invalid_or_expired_token',
+        authStatus: error?.status,
+        authCode: error?.code,
+      }))
+      return res.status(401).json({
+        error: 'Invalid or expired token',
+        code: 'AUTH_TOKEN_INVALID',
+      })
     }
 
     req.user = user

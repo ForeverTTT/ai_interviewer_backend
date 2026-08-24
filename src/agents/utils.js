@@ -25,14 +25,26 @@ export async function loadKnowledge(name) {
 
 /**
  * How many questions to ask based on duration.
- * Rule: ~1 question per 2.5 minutes, capped at 3-10.
+ * Rule: ~1 question per 2.5 minutes plus an initial route slot, capped at 3-20.
  */
 export function getMaxQuestions(durationMinutes) {
   const d = Number(durationMinutes) || 10
-  if (d <= 5) return 3
-  if (d <= 10) return 5
-  if (d <= 15) return 7
-  return 9
+  return Math.max(3, Math.min(20, Math.floor(d / 2.5) + 1))
+}
+
+/**
+ * Practice is untimed, but its route length mirrors a realistic interview
+ * duration selected by difficulty: easy 10m, medium/adaptive 20m, hard 45m.
+ */
+export function getPracticeCoreQuestions(difficulty) {
+  const equivalentMinutes = String(difficulty || 'medium').toLowerCase() === 'easy'
+    ? 10
+    : String(difficulty || 'medium').toLowerCase() === 'hard'
+      ? 45
+      : 20
+  if (equivalentMinutes === 10) return 5
+  if (equivalentMinutes === 20) return 9
+  return Math.ceil(equivalentMinutes / 2.5)
 }
 
 /**
@@ -42,7 +54,7 @@ export function getMaxQuestions(durationMinutes) {
  * @returns {('explore'|'technical'|'behavioral')[]}
  */
 export function buildInterviewPlan(maxQ, interviewerType = 'mixed') {
-  const n = Math.max(1, Math.min(12, Number(maxQ) || 5))
+  const n = Math.max(1, Math.min(20, Number(maxQ) || 5))
   const type = normalizeInterviewerType(interviewerType)
   if (type !== 'mixed') {
     const mapSlot = slot => slot === 'experience' ? 'explore' : slot === 'case' ? 'technical' : slot === 'motivation' ? 'behavioral' : slot

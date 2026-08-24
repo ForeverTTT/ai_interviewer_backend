@@ -189,11 +189,35 @@ router.post('/:id/questions/next', requireAuth, async (req, res) => {
     claimed = true
 
     const ragDocuments = await retrieveExperienceContext(db, workspace.checkpoint.config)
+    const completedQuestions = Number(workspace.interview.question_index || 0)
+    const plan = Array.isArray(workspace.checkpoint.plan) ? workspace.checkpoint.plan : []
+    const routeStage = completedQuestions === 0 ? 'opening' : (plan[completedQuestions - 1] || 'behavioral')
+    const recentAnswerContext = workspace.questions
+      .map(question => {
+        const latestAttempt = workspace.attempts
+          .filter(attempt => attempt.question_id === question.id)
+          .at(-1)
+        if (!latestAttempt) return null
+        const feedback = latestAttempt.feedback_json || {}
+        return {
+          question: String(question.question_text || '').slice(0, 2_000),
+          answer: String(latestAttempt.answer_text || '').slice(0, 4_000),
+          feedback: {
+            score: Number(feedback.score) || null,
+            gaps: Array.isArray(feedback.gaps) ? feedback.gaps.slice(0, 5) : [],
+            nextSteps: Array.isArray(feedback.nextSteps) ? feedback.nextSteps.slice(0, 5) : [],
+          },
+        }
+      })
+      .filter(Boolean)
+      .slice(-3)
     const generated = await generateInterviewQuestion({
       config: workspace.checkpoint.config,
       checkpoint: workspace.checkpoint,
       priorQuestions: workspace.questions.map(question => question.question_text),
+      recentAnswerContext,
       ragDocuments,
+      routeStage,
     })
     const result = await applyInterviewAction(db, {
       interviewId,

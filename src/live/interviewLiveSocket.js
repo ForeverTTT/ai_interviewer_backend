@@ -8,6 +8,7 @@ import {
   normalizeInterviewerStyle,
 } from '../config/interviewerStyles.js'
 import { interviewerTypeInstruction, normalizeInterviewerType } from '../config/interviewerTypes.js'
+import { getMaxQuestions } from '../agents/utils.js'
 import { supabaseForUser } from '../lib/supabase.js'
 import {
   claimInterviewRequest,
@@ -16,7 +17,7 @@ import {
   releaseInterviewRequest,
   sanitizeMessages,
 } from '../lib/interviewSessionStore.js'
-import { applyInterviewAction, expireFormalInterviewIfDue } from '../lib/interviewLearning.js'
+import { applyInterviewAction, completeFormalAnswerAfterDeadline, expireFormalInterviewIfDue } from '../lib/interviewLearning.js'
 
 const LIVE_PATH = '/api/chat/live'
 const LIVE_MODEL = process.env.GEMINI_LIVE_MODEL || 'gemini-3.1-flash-live-preview'
@@ -62,8 +63,14 @@ function buildSystemInstruction(config = {}, transcript = []) {
   const jobDescription = String(config.jobDescription || '').slice(0, 15_000)
   const resume = String(config.resumeSnapshot || '').slice(0, 25_000)
   const duration = Number(config.duration) || 10
+  const plannedQuestions = getMaxQuestions(duration)
+  const deadlineMs = config.deadlineAt ? new Date(config.deadlineAt).getTime() : NaN
+  const remainingMinutes = Number.isFinite(deadlineMs)
+    ? Math.max(0, Math.ceil((deadlineMs - Date.now()) / 60_000))
+    : duration
   const interviewerStyle = normalizeInterviewerStyle(config.interviewerStyle)
   const interviewerType = normalizeInterviewerType(config.interviewerType)
+  const practiceMode = config.mode === 'practice'
   const context = [
     `Target role: ${position}`,
     jobDescription ? `Job description:\n${jobDescription}` : '',
@@ -80,7 +87,10 @@ function buildSystemInstruction(config = {}, transcript = []) {
 Voice delivery: sound like a natural face-to-face conversation, with semantic phrasing, subtle pauses, and varied intonation appropriate to the selected interviewer style. Avoid an announcer-like, customer-service, or robotic cadence.`
 
   return `You are Anna Müller, an experienced interviewer at a German company.
-Conduct a realistic ${duration}-minute interview entirely in ${language}.
+${practiceMode
+    ? `PRACTICE CONTROL MODE: This session is untimed and the application controls the question route. When a control message asks you to read a practice question, read only that question naturally and exactly once. After the candidate answers, remain completely silent and wait for the application's next control message. Never acknowledge the answer, ask a follow-up, or advance to another question on your own.`
+    : `Conduct a realistic ${duration}-minute interview entirely in ${language}.
+The server-enforced deadline is in approximately ${remainingMinutes} minutes. Plan about ${plannedQuestions} core questions, pace the full interview to finish before that deadline, and shorten or skip optional follow-ups when time is running short.`}
 Speak naturally and concisely. Ask exactly one question at a time.
 ${speakingStyle}
 ${interviewerTypeInstruction(interviewerType)}
@@ -133,6 +143,7 @@ export function attachInterviewLiveSocket(server, { allowedOrigins = [] } = {}) 
     let currentDifficulty = 'medium'
     let persistChain = Promise.resolve()
     let persistRequestKey = null
+    let practiceSpeechAllowed = false
 
     const authTimer = setTimeout(() => {
       if (!authenticated) socket.close(1008, 'Authentication timeout')
@@ -199,6 +210,8 @@ export function attachInterviewLiveSocket(server, { allowedOrigins = [] } = {}) 
               onmessage(serverMessage) {
                 const content = serverMessage?.serverContent
                 if (!content) return
+                const practiceMode = checkpoint?.config?.mode === 'practice'
+                const relayModelOutput = !practiceMode || practiceSpeechAllowed
 
                 const inputDelta = content.inputTranscription?.text || ''
                 if (inputDelta) {
@@ -207,19 +220,21 @@ export function attachInterviewLiveSocket(server, { allowedOrigins = [] } = {}) 
                 }
 
                 const outputDelta = content.outputTranscription?.text || ''
-                if (outputDelta) {
+                if (outputDelta && relayModelOutput) {
                   outputTranscript = appendTranscript(outputTranscript, outputDelta)
                   sendJson(socket, { type: 'output_transcript', text: outputTranscript })
                 }
 
-                for (const part of content.modelTurn?.parts || []) {
-                  const inline = part.inlineData || part.inline_data
-                  if (inline?.data) {
-                    sendJson(socket, {
-                      type: 'audio',
-                      data: inline.data,
-                      mimeType: inline.mimeType || inline.mime_type || 'audio/pcm;rate=24000',
-                    })
+                if (relayModelOutput) {
+                  for (const part of content.modelTurn?.parts || []) {
+                    const inline = part.inlineData || part.inline_data
+                    if (inline?.data) {
+                      sendJson(socket, {
+                        type: 'audio',
+                        data: inline.data,
+                        mimeType: inline.mimeType || inline.mime_type || 'audio/pcm;rate=24000',
+                      })
+                    }
                   }
                 }
 
@@ -235,6 +250,11 @@ export function attachInterviewLiveSocket(server, { allowedOrigins = [] } = {}) 
                   inputTranscript = ''
                   outputTranscript = ''
 
+                  if (practiceMode) {
+                    practiceSpeechAllowed = false
+                    return
+                  }
+
                   const turnMessages = sanitizeMessages([
                     { role: 'user', content: completedInput },
                     { role: 'assistant', content: completedOutput },
@@ -245,6 +265,23 @@ export function attachInterviewLiveSocket(server, { allowedOrigins = [] } = {}) 
                       persistRequestKey = requestKey
                       if (currentQuestionId && completedInput) {
                         const answerKey = `${requestKey}:answer`
+                        const deadlineReached = checkpoint.config?.mode === 'formal'
+                          && checkpoint.config?.deadlineAt
+                          && new Date(checkpoint.config.deadlineAt).getTime() <= Date.now()
+                        if (deadlineReached) {
+                          const answerResult = await completeFormalAnswerAfterDeadline(sessionDb, {
+                            interviewId,
+                            userId: interviewUserId,
+                            idempotencyKey: `${requestKey}:deadline-answer`,
+                            answerText: completedInput,
+                          })
+                          stateVersion = Number(answerResult.stateVersion)
+                          currentQuestionId = null
+                          checkpoint = { ...checkpoint, phase: 'closed', closeReason: 'formal_deadline_answer_completed' }
+                          persistedTranscript = [...persistedTranscript, { role: 'user', content: completedInput }]
+                          sendJson(socket, { type: 'deadline_complete' })
+                          return
+                        }
                         const answerClaim = await claimInterviewRequest(sessionDb, {
                           interviewId,
                           userId: interviewUserId,
@@ -364,7 +401,7 @@ export function attachInterviewLiveSocket(server, { allowedOrigins = [] } = {}) 
           connecting = false
           clearTimeout(authTimer)
           sendJson(socket, { type: 'ready', model: LIVE_MODEL, interviewId, stateVersion })
-          liveSession.sendRealtimeInput({
+          if (persistedConfig.mode !== 'practice') liveSession.sendRealtimeInput({
             text: persistedTranscript.length
               ? 'Resume the saved interview naturally with the next appropriate question.'
               : persistedConfig.language === 'Deutsch'
@@ -378,6 +415,10 @@ export function attachInterviewLiveSocket(server, { allowedOrigins = [] } = {}) 
 
         if (!liveSession) return
         if (isBinary) {
+          // In practice mode, microphone audio is transcription-only. Gemini may
+          // internally detect a pause as a completed turn, but no resulting model
+          // speech is allowed through until the application sends a control prompt.
+          if (checkpoint?.config?.mode === 'practice') practiceSpeechAllowed = false
           const pcm = Buffer.isBuffer(raw) ? raw : Buffer.from(raw)
           liveSession.sendRealtimeInput({
             audio: { data: pcm.toString('base64'), mimeType: 'audio/pcm;rate=16000' },
@@ -387,8 +428,13 @@ export function attachInterviewLiveSocket(server, { allowedOrigins = [] } = {}) 
 
         const message = JSON.parse(raw.toString())
         if (message.type === 'text' && String(message.text || '').trim()) {
-          liveSession.sendRealtimeInput({ text: String(message.text).trim() })
+          const text = String(message.text).trim()
+          if (checkpoint?.config?.mode === 'practice') {
+            practiceSpeechAllowed = text.startsWith('[PRACTICE_CONTROL]')
+          }
+          liveSession.sendRealtimeInput({ text })
         } else if (message.type === 'audio_end') {
+          if (checkpoint?.config?.mode === 'practice') practiceSpeechAllowed = false
           liveSession.sendRealtimeInput({ audioStreamEnd: true })
         } else if (message.type === 'interrupt') {
           liveSession.sendRealtimeInput({ activityStart: {} })

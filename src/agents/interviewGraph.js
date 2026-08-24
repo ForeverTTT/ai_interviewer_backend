@@ -58,11 +58,23 @@ function getInterviewerContext(roleTrack, language, interviewerStyle) {
   return `${roleContext}.\n\n${getInterviewerStylePrompt(interviewerStyle)}`
 }
 
-function withDifficulty(prompt, config) {
+function timeBudgetInstruction(config, planIndex = 0, planLength = null) {
+  if (config?.mode === 'practice') return ''
+  const duration = Math.max(5, Math.min(60, Number(config?.duration) || 10))
+  const totalQuestions = Number(planLength) || getMaxQuestions(duration)
+  const remainingQuestions = Math.max(0, totalQuestions - Number(planIndex || 0))
+  const deadlineMs = config?.deadlineAt ? new Date(config.deadlineAt).getTime() : NaN
+  const remainingMinutes = Number.isFinite(deadlineMs)
+    ? Math.max(0, Math.ceil((deadlineMs - Date.now()) / 60_000))
+    : duration
+  return `TIME BUDGET (mandatory): This formal interview lasts ${duration} minutes. Approximately ${remainingMinutes} minutes and ${remainingQuestions} planned question slots remain. Pace the complete route to finish before the deadline. Keep questions concise, skip optional follow-ups when time is short, and never start another question when no planned slots remain.`
+}
+
+function withDifficulty(prompt, config, pacing = {}) {
   const effective = config?.difficulty === 'adaptive'
     ? config?.currentDifficulty || 'medium'
     : config?.difficulty || 'medium'
-  return `${prompt}\n\n${interviewerTypeInstruction(config?.interviewerType)}\n\nDIFFICULTY POLICY (mandatory):\n${difficultyInstruction(effective)}`
+  return `${prompt}\n\n${interviewerTypeInstruction(config?.interviewerType)}\n\nDIFFICULTY POLICY (mandatory):\n${difficultyInstruction(effective)}\n\n${timeBudgetInstruction(config, pacing.planIndex, pacing.planLength)}`
 }
 
 function makeLLM(opts = {}) {
@@ -300,7 +312,7 @@ async function generateOpeningNode(state) {
     LANGUAGE: config?.language || 'English',
     JOB_DESCRIPTION: config?.jobDescription || '',
     RESUME_SNAPSHOT: snap,
-  }), config)
+  }), config, { planIndex: 0, planLength: state.plan?.length })
 
   const lang = config?.language || 'English'
   const trigger = lang === 'Deutsch'
@@ -344,7 +356,7 @@ async function askExploreNode(state) {
     ANALYSIS_NOTES: lastNotes,
     QUESTION_NUMBER: String(planIndex + 1),
     CONVERSATION_HISTORY: formatConversationHistory(rawMessages, 6),
-  }), config)
+  }), config, { planIndex, planLength: maxQ })
 
   const response = await responseLLM.invoke([
     new SystemMessage(systemPrompt),
@@ -381,7 +393,7 @@ async function askTechnicalNode(state) {
     ANALYSIS_NOTES: lastNotes,
     QUESTION_NUMBER: String(planIndex + 1),
     CONVERSATION_HISTORY: formatConversationHistory(rawMessages, 6),
-  }), config)
+  }), config, { planIndex, planLength: maxQ })
 
   const response = await responseLLM.invoke([
     new SystemMessage(systemPrompt),
@@ -422,7 +434,7 @@ async function askBehavioralNode(state) {
     ANALYSIS_NOTES: lastNotes,
     QUESTION_NUMBER: String(planIndex + 1),
     CONVERSATION_HISTORY: formatConversationHistory(rawMessages, 6),
-  }), config)
+  }), config, { planIndex, planLength: maxQ })
 
   const response = await responseLLM.invoke([
     new SystemMessage(systemPrompt),

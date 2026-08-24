@@ -16,6 +16,7 @@ import { normalizeRequestId } from '../lib/observability.js'
 import {
   applyInterviewAction,
   adaptDifficulty,
+  completeFormalAnswerAfterDeadline,
   expireFormalInterviewIfDue,
 } from '../lib/interviewLearning.js'
 import { synthesizeSpeechVertex, getGcpProjectId } from '../lib/ttsVertex.js'
@@ -98,10 +99,32 @@ router.post('/message', requireAuth, async (req, res) => {
   console.log('[Chat /message] roleTrack received:', roleTrack)
 
   try {
-    await expireFormalInterviewIfDue(db, interviewId, userId)
     let loaded = await loadInterviewSession(db, interviewId, userId)
     const requestMessages = sanitizeMessages(messages)
     const latestRequestedUser = [...requestMessages].reverse().find(message => message.role === 'user')
+    const deadlineReached = loaded.interview.mode === 'formal'
+      && loaded.interview.deadline_at
+      && new Date(loaded.interview.deadline_at).getTime() <= Date.now()
+
+    if (deadlineReached && loaded.interview.current_question_id && latestRequestedUser) {
+      const result = await completeFormalAnswerAfterDeadline(db, {
+        interviewId,
+        userId,
+        idempotencyKey: `${requestKey}:deadline-answer`,
+        answerText: latestRequestedUser.content,
+      })
+      res.setHeader('Content-Type', 'text/event-stream; charset=utf-8')
+      res.setHeader('Cache-Control', 'no-cache, no-transform')
+      res.setHeader('Connection', 'keep-alive')
+      res.flushHeaders()
+      sseWrite(res, { type: 'done', deadlineReached: true, stateVersion: result?.stateVersion })
+      res.end()
+      return
+    }
+    if (deadlineReached) {
+      await expireFormalInterviewIfDue(db, interviewId, userId)
+      loaded = await loadInterviewSession(db, interviewId, userId)
+    }
 
     // In formal mode, save the candidate's answer before invoking Gemini. This
     // preserves accepted input even if generation fails, while the derived

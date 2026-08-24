@@ -1,4 +1,4 @@
-import { buildInterviewPlan, getInterviewerName, getMaxQuestions } from '../agents/utils.js'
+import { buildInterviewPlan, getInterviewerName, getMaxQuestions, getPracticeCoreQuestions } from '../agents/utils.js'
 import { normalizeInterviewerStyle } from '../config/interviewerStyles.js'
 import { normalizeInterviewerType } from '../config/interviewerTypes.js'
 
@@ -38,6 +38,7 @@ export function configFromInterview(interview) {
     jobDescription: interview.job_description_snapshot ?? interview.job_description ?? '',
     language: interview.language || 'English',
     duration: Number(interview.duration) || 10,
+    deadlineAt: interview.deadline_at || null,
     resumeSnapshot: interview.resume_snapshot || '',
     roleTrack: interview.role_track || 'work',
     interviewerStyle: normalizeInterviewerStyle(interview.interviewer_style),
@@ -50,13 +51,16 @@ export function configFromInterview(interview) {
 
 export function createInitialCheckpoint(interview) {
   const config = configFromInterview(interview)
+  const plannedQuestions = config.mode === 'practice'
+    ? getPracticeCoreQuestions(config.difficulty)
+    : getMaxQuestions(config.duration)
   return {
     phase: 'opening',
     questionCount: 0,
     technicalCount: 0,
     behavioralCount: 0,
     exploreCount: 0,
-    plan: buildInterviewPlan(getMaxQuestions(config.duration), config.interviewerType),
+    plan: buildInterviewPlan(plannedQuestions, config.interviewerType),
     planIndex: 0,
     analysisNotes: [],
     interviewerName: getInterviewerName(interview.id),
@@ -138,7 +142,12 @@ export async function loadInterviewSession(db, interviewId, userId) {
   // and over stale checkpoint config.
   checkpoint.config = configFromInterview(data)
   checkpoint.interviewerName ||= getInterviewerName(data.id)
-  checkpoint.plan ||= buildInterviewPlan(getMaxQuestions(checkpoint.config.duration), checkpoint.config.interviewerType)
+  checkpoint.plan ||= buildInterviewPlan(
+    checkpoint.config.mode === 'practice'
+      ? getPracticeCoreQuestions(checkpoint.config.difficulty)
+      : getMaxQuestions(checkpoint.config.duration),
+    checkpoint.config.interviewerType,
+  )
 
   return {
     interview: data,
