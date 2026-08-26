@@ -56,25 +56,44 @@ jobs:
           exit "$missing"
 
       - name: Authenticate to Google Cloud
+        id: auth
         uses: google-github-actions/auth@v3
         with:
           project_id: ${{ vars.GCP_PROJECT_ID }}
           workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+          token_format: access_token
 
       - name: Prepare deployment metadata
         id: metadata
         shell: bash
-        run: echo "deployed_at=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> "$GITHUB_OUTPUT"
+        run: |
+          echo "deployed_at=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> "$GITHUB_OUTPUT"
+          echo "image=${{ vars.GCP_REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/cloud-run-source-deploy/${{ vars.CLOUD_RUN_SERVICE }}:${{ github.sha }}" >> "$GITHUB_OUTPUT"
 
-      - name: Deploy source to Cloud Run
+      - name: Log in to Artifact Registry
+        shell: bash
+        env:
+          ACCESS_TOKEN: ${{ steps.auth.outputs.access_token }}
+          REGISTRY: ${{ vars.GCP_REGION }}-docker.pkg.dev
+        run: echo "$ACCESS_TOKEN" | docker login --username oauth2accesstoken --password-stdin "$REGISTRY"
+
+      - name: Build and push backend image
+        shell: bash
+        env:
+          IMAGE: ${{ steps.metadata.outputs.image }}
+        run: |
+          docker build --tag "$IMAGE" .
+          docker push "$IMAGE"
+
+      - name: Deploy image to Cloud Run
         id: deploy
         uses: google-github-actions/deploy-cloudrun@v3
         with:
           project_id: ${{ vars.GCP_PROJECT_ID }}
           region: ${{ vars.GCP_REGION }}
           service: ${{ vars.CLOUD_RUN_SERVICE }}
-          source: .
+          image: ${{ steps.metadata.outputs.image }}
           env_vars_update_strategy: merge
           env_vars: |-
             APP_COMMIT_SHA=${{ github.sha }}

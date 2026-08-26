@@ -256,8 +256,9 @@ GitHub 仓库的 `production` Environment 需要一次性配置：
 | Secret | `GCP_SERVICE_ACCOUNT` | GitHub 部署专用 Service Account 邮箱 |
 
 WIF 必须把 GitHub OIDC `attribute.repository` 限定为
-`ForeverTTT/ai_interviewer_backend`。部署账号需要 Cloud Run 源码部署、Cloud Build、Artifact
-Registry 及目标运行时 Service Account 的必要权限。不要创建或上传长期 Service Account JSON key。
+`ForeverTTT/ai_interviewer_backend`。GitHub Runner 直接构建 Docker 镜像；部署账号只需要目标
+Cloud Run 服务更新、指定 Artifact Registry 仓库写入及目标运行时 Service Account 的必要权限。
+不要创建或上传长期 Service Account JSON key。
 
 自动部署使用 `env_vars_update_strategy: merge`，只写入 `APP_COMMIT_SHA` 和 `APP_DEPLOYED_AT`，
 不会覆盖 Cloud Run 中已有的 Supabase、Gemini 和 CORS 环境变量。
