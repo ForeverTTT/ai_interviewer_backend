@@ -221,8 +221,13 @@ docker exec -i supabase_db_ai_interviewer_backend \
 ```
 
 数据库脚本覆盖同一用户多面试隔离、创建/扣分幂等、乐观锁冲突、练习模式完整动作、
-正式模式截止时间及限制、Adaptive 难度和评分证据。当前持久化方案的阶段状态与上线前
-人工验收项见 `technical documents/Persistent-Interview-Sessions-Plan.md`。
+正式模式截止时间及限制、Adaptive 难度和评分证据。持久化方案的设计依据、迁移细节和持续
+回归项见 `technical documents/Persistent-Interview-Sessions-Plan.md`。
+
+面试后端的端到端技术架构见
+[`technical documents/面试流程技术架构.md`](<technical documents/面试流程技术架构.md>)；
+LangGraph 节点、路由、Prompt 和 LLM 内部实现见
+[`technical documents/Agent-Architecture.md`](technical%20documents/Agent-Architecture.md)。
 
 ### Docker 部署
 
