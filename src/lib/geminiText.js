@@ -53,7 +53,7 @@ export async function invokeGemini(system, user, opts = {}) {
     { role: 'system', content: system },
     { role: 'user', content: user },
   ]
-  const res = await invokeWithGeminiQuotaFallback(
+  const invocation = invokeWithGeminiQuotaFallback(
     primaryModel,
     (model) => createLlm(model).invoke(messages),
     {
@@ -61,6 +61,16 @@ export async function invokeGemini(system, user, opts = {}) {
       onFallback: opts.onFallback,
     },
   )
+  const timeoutMs = Math.max(1_000, Number(opts.timeoutMs) || 45_000)
+  let timeoutId
+  const timeout = new Promise((_, reject) => {
+    timeoutId = setTimeout(() => {
+      const error = new Error(`Gemini request timed out after ${timeoutMs}ms`)
+      error.code = 'GEMINI_TIMEOUT'
+      reject(error)
+    }, timeoutMs)
+  })
+  const res = await Promise.race([invocation, timeout]).finally(() => clearTimeout(timeoutId))
 
   const c = res.content
   if (typeof c === 'string') return c

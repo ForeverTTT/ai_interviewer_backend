@@ -11,6 +11,7 @@ import {
   adaptDifficulty,
   analyzePracticeAnswer,
   applyInterviewAction,
+  buildFallbackInterviewQuestion,
   buildCompetencyMatrix,
   generateInterviewQuestion,
   generatePracticeHint,
@@ -211,14 +212,24 @@ router.post('/:id/questions/next', requireAuth, async (req, res) => {
       })
       .filter(Boolean)
       .slice(-3)
-    const generated = await generateInterviewQuestion({
-      config: workspace.checkpoint.config,
-      checkpoint: workspace.checkpoint,
-      priorQuestions: workspace.questions.map(question => question.question_text),
-      recentAnswerContext,
-      ragDocuments,
-      routeStage,
-    })
+    let generated
+    try {
+      generated = await generateInterviewQuestion({
+        config: workspace.checkpoint.config,
+        checkpoint: workspace.checkpoint,
+        priorQuestions: workspace.questions.map(question => question.question_text),
+        recentAnswerContext,
+        ragDocuments,
+        routeStage,
+      })
+    } catch (questionError) {
+      console.warn('[practice questions/next] Model unavailable; using stage fallback:', questionError.message)
+      generated = buildFallbackInterviewQuestion({
+        config: workspace.checkpoint.config,
+        checkpoint: workspace.checkpoint,
+        routeStage,
+      })
+    }
     const result = await applyInterviewAction(db, {
       interviewId,
       userId: req.user.id,

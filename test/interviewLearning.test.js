@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import {
   adaptDifficulty,
   analyzePracticeAnswer,
+  buildFallbackInterviewQuestion,
   buildCompetencyMatrix,
   difficultyInstruction,
   generateInterviewQuestion,
@@ -216,6 +217,18 @@ test('Gemini failure does not produce a question payload that could be committed
     ragDocuments: [],
     invoke: async () => { throw new Error('quota exhausted') },
   }), /quota exhausted/)
+})
+
+test('practice question fallback preserves the mandatory route stage and language', () => {
+  const question = buildFallbackInterviewQuestion({
+    config: { position: 'Backend Engineer', language: 'Chinese', difficulty: 'medium' },
+    checkpoint: {},
+    routeStage: 'technical',
+  })
+  assert.equal(question.questionType, 'technical')
+  assert.equal(question.difficulty, 'medium')
+  assert.equal(question.sourceMetadata.fallback, true)
+  assert.match(question.questionText, /Backend Engineer/)
 })
 
 test('reconnect context contains only the requested interview and bounded recent messages', () => {
