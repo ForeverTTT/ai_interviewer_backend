@@ -6,10 +6,13 @@
 
 ## 🌐 线上环境
 
-- Cloud Run API：<https://interview-backend-557559701677.europe-west1.run.app>
-- 健康检查：<https://interview-backend-557559701677.europe-west1.run.app/api/health>
+- Cloud Run API：由 GitHub Production Variables 中的 `GCP_PROJECT_ID`、`GCP_REGION` 和
+  `CLOUD_RUN_SERVICE` 决定；当前生产前端默认调用
+  <https://interview-backend-530979174916.us-central1.run.app>
+- 健康检查：<https://interview-backend-530979174916.us-central1.run.app/api/health>，响应包含当前
+  `commit`、Cloud Run `revision` 和 `deployedAt`，用于确认代码与部署是否同步
 - 生产前端：<https://aiinterviewer-491711-7b1cf.web.app>
-- Google Cloud 项目：`aiinterviewer-491711-7b1cf`（区域 `europe-west1`）
+- Google Cloud 项目、区域和服务名不再硬编码在仓库中，以 GitHub Production Environment 配置为准
 - 数据库与认证：Supabase Cloud；用户通过 Supabase Google OAuth 登录
 
 当前 Cloud Run 配置为 1 vCPU、512 MiB、最少 0 / 最多 2 个实例、每实例并发 20。
@@ -237,28 +240,34 @@ Dockerfile 或代码仓库中写入密钥。
 
 ### Cloud Run 部署
 
-生产环境通过 Google Cloud Buildpacks 构建并部署，避免把本地 `.env` 上传到构建环境。
-先完成 `gcloud auth login`，并确认项目已关联账单账户、Cloud Run、Cloud Build 和
-Artifact Registry API 已启用。随后执行：
+后端通过 `.github/workflows/deploy-cloud-run.yml` 自动部署：每次 push 到 `main`，GitHub Actions
+先执行 `npm ci` 和 `npm test`，通过后使用 Google Cloud Workload Identity Federation 构建并部署
+Cloud Run，最后检查 `/api/health` 返回的 commit 是否等于本次 GitHub SHA。也可以在 Actions 页面
+通过 `workflow_dispatch` 手动重跑。
 
-```bash
-gcloud builds submit \
-  --pack image=europe-west1-docker.pkg.dev/aiinterviewer-491711-7b1cf/cloud-run-source-deploy/interview-backend:buildpack \
-  --project=aiinterviewer-491711-7b1cf \
-  --region=europe-west1
+GitHub 仓库的 `production` Environment 需要一次性配置：
 
-gcloud run deploy interview-backend \
-  --image=europe-west1-docker.pkg.dev/aiinterviewer-491711-7b1cf/cloud-run-source-deploy/interview-backend:buildpack \
-  --project=aiinterviewer-491711-7b1cf \
-  --region=europe-west1 \
-  --allow-unauthenticated \
-  --execution-environment=gen2 \
-  --cpu=1 --memory=512Mi --min=0 --max=2 --concurrency=20 --port=8080
-```
+| 类型 | 名称 | 示例/说明 |
+|---|---|---|
+| Variable | `GCP_PROJECT_ID` | 实际承载 `interview-backend` 的 Google Cloud 项目 ID |
+| Variable | `GCP_REGION` | 当前生产服务使用 `us-central1` |
+| Variable | `CLOUD_RUN_SERVICE` | `interview-backend` |
+| Secret | `GCP_WORKLOAD_IDENTITY_PROVIDER` | 完整 WIF Provider 资源名 |
+| Secret | `GCP_SERVICE_ACCOUNT` | GitHub 部署专用 Service Account 邮箱 |
+
+WIF 必须把 GitHub OIDC `attribute.repository` 限定为
+`ForeverTTT/ai_interviewer_backend`。部署账号需要 Cloud Run 源码部署、Cloud Build、Artifact
+Registry 及目标运行时 Service Account 的必要权限。不要创建或上传长期 Service Account JSON key。
+
+自动部署使用 `env_vars_update_strategy: merge`，只写入 `APP_COMMIT_SHA` 和 `APP_DEPLOYED_AT`，
+不会覆盖 Cloud Run 中已有的 Supabase、Gemini 和 CORS 环境变量。
 
 部署前须在 Cloud Run 中配置 `SUPABASE_URL`、`SUPABASE_SERVICE_ROLE_KEY`、
 `GEMINI_API_KEY`、Gemini 模型变量和生产 `FRONTEND_URL`。推荐用 Secret Manager
 保存私钥。部署后用 `/api/health` 检查服务，并确认 CORS 允许生产前端域名。
+
+Supabase migration 不属于 Cloud Run 自动部署步骤，仍需在发布前单独审核和执行，避免应用代码发布时
+未经确认修改生产数据库 Schema。
 
 ---
 

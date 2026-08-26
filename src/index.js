@@ -82,6 +82,9 @@ app.get('/api/health', (req, res) => {
     status: 'ok',
     timestamp: new Date().toISOString(),
     service: 'InterviewDE API',
+    commit: process.env.APP_COMMIT_SHA || null,
+    revision: process.env.K_REVISION || null,
+    deployedAt: process.env.APP_DEPLOYED_AT || null,
   })
 })
 
