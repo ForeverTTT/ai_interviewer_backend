@@ -27,7 +27,7 @@ export async function invokeGemini(system, user, opts = {}) {
 
   const createLlm = (model) => {
     if (!apiKey) {
-      const projectId = process.env.GCP_PROJECT_ID || process.env.GOOGLE_CLOUD_PROJECT || '530979174916'
+      const projectId = process.env.GCP_PROJECT_ID || process.env.GOOGLE_CLOUD_PROJECT || 'aiinterviewer-491711-7b1cf'
       const location = process.env.GCP_LOCATION || 'us-central1'
       const fields = {
         model,

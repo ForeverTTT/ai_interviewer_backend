@@ -80,7 +80,6 @@ jobs:
             APP_COMMIT_SHA=${{ github.sha }}
             APP_DEPLOYED_AT=${{ steps.metadata.outputs.deployed_at }}
           flags: >-
-            --allow-unauthenticated
             --execution-environment=gen2
             --port=8080
             --cpu=1

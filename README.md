@@ -8,8 +8,8 @@
 
 - Cloud Run API：由 GitHub Production Variables 中的 `GCP_PROJECT_ID`、`GCP_REGION` 和
   `CLOUD_RUN_SERVICE` 决定；当前生产前端默认调用
-  <https://interview-backend-530979174916.us-central1.run.app>
-- 健康检查：<https://interview-backend-530979174916.us-central1.run.app/api/health>，响应包含当前
+  <https://interview-backend-557559701677.europe-west1.run.app>
+- 健康检查：<https://interview-backend-557559701677.europe-west1.run.app/api/health>，响应包含当前
   `commit`、Cloud Run `revision` 和 `deployedAt`，用于确认代码与部署是否同步
 - 生产前端：<https://aiinterviewer-491711-7b1cf.web.app>
 - Google Cloud 项目、区域和服务名不再硬编码在仓库中，以 GitHub Production Environment 配置为准
@@ -250,7 +250,7 @@ GitHub 仓库的 `production` Environment 需要一次性配置：
 | 类型 | 名称 | 示例/说明 |
 |---|---|---|
 | Variable | `GCP_PROJECT_ID` | 实际承载 `interview-backend` 的 Google Cloud 项目 ID |
-| Variable | `GCP_REGION` | 当前生产服务使用 `us-central1` |
+| Variable | `GCP_REGION` | 当前生产服务使用 `europe-west1` |
 | Variable | `CLOUD_RUN_SERVICE` | `interview-backend` |
 | Secret | `GCP_WORKLOAD_IDENTITY_PROVIDER` | 完整 WIF Provider 资源名 |
 | Secret | `GCP_SERVICE_ACCOUNT` | GitHub 部署专用 Service Account 邮箱 |
