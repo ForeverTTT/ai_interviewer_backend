@@ -24,7 +24,7 @@
 
 | 模块 | 技术 | 说明 |
 | :--- | :--- | :--- |
-| **运行时** | Node.js 22+ | 本地建议使用当前 LTS；Cloud Run 使用 Google Buildpacks 构建 |
+| **运行时** | Node.js 22+ | 本地建议使用当前 LTS；生产镜像由 GitHub Runner 根据 Dockerfile 构建 |
 | **HTTP 框架**| Express 4 | 业务接口转发与中间件支持 |
 | **数据库/认证** | Supabase SDK | 使用 **Service Role**（管理权限）与 **Auth API**（用户校验） |
 | **Agent 编排** | LangGraph | 根据面试状态选择提问、追问、流程节点和反馈生成 |
@@ -240,7 +240,11 @@ Dockerfile 或代码仓库中写入密钥。
 
 ### Cloud Run 部署
 
-后端通过 `.github/workflows/deploy-cloud-run.yml` 自动部署：每次 push 到 `main`，GitHub Actions
+完整的生产架构、GitHub OIDC、最小 IAM 权限、失败排查与回滚步骤见
+[`technical documents/Backend-Deployment-and-CI-CD.md`](technical%20documents/Backend-Deployment-and-CI-CD.md)。
+
+后端通过 `.github/workflows/deploy-cloud-run.yml` 自动部署：每次影响运行内容的提交 push 到 `main`（仅
+README/技术文档变更会跳过），GitHub Actions
 先执行 `npm ci` 和 `npm test`，通过后使用 Google Cloud Workload Identity Federation 构建并部署
 Cloud Run，最后检查 `/api/health` 返回的 commit 是否等于本次 GitHub SHA。也可以在 Actions 页面
 通过 `workflow_dispatch` 手动重跑。
