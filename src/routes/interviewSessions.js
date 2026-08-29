@@ -55,6 +55,30 @@ function assertPracticeTimeAvailable(workspace) {
   }
 }
 
+async function syncPracticeCollection(db, workspace, question, answerText, feedback, personalNote) {
+  if (workspace.interview.mode !== 'practice' || !question) return
+  const originKey = `practice:${workspace.interview.id}:${question.id}`
+  const existingNote = personalNote ?? workspace.notes.find(item => item.question_id === question.id)?.content ?? ''
+  const { data: existing } = await db.from('interview_question_collections')
+    .select('id').eq('user_id', workspace.interview.user_id).eq('origin_key', originKey).maybeSingle()
+  if (!existing && !String(existingNote || '').trim()) return
+  await db.from('interview_question_collections').upsert({
+    user_id: workspace.interview.user_id,
+    interview_id: workspace.interview.id,
+    question_id: question.id,
+    question_index: Number(question.sequence) || null,
+    origin_key: originKey,
+    question_text: question.question_text,
+    answer_text: String(answerText || ''),
+    feedback_snapshot: feedback || {},
+    position: workspace.interview.position || '',
+    language: workspace.interview.language || 'English',
+    interviewer_type: workspace.interview.interviewer_type || 'mixed',
+    source: 'practice',
+    personal_note: String(existingNote || '').trim() || null,
+  }, { onConflict: 'user_id,origin_key' })
+}
+
 async function claimAction(db, req, interviewId) {
   const idempotencyKey = requestKey(req)
   const result = await claimInterviewRequest(db, {
@@ -72,6 +96,9 @@ async function simpleAction(req, res, action, payload = req.body ?? {}, onSucces
   let claimed = false
   try {
     const workspace = await loadInterviewWorkspace(db, interviewId, req.user.id)
+    if (['resume', 'reconnect'].includes(action) && workspace.interview.mode !== 'practice') {
+      return res.status(409).json({ error: 'Formal interviews cannot be resumed or reconnected', code: 'FORMAL_RESUME_FORBIDDEN' })
+    }
     if (['resume', 'retry'].includes(action)) assertPracticeTimeAvailable(workspace)
     const claim = await claimAction(db, req, interviewId)
     idempotencyKey = claim.idempotencyKey
@@ -86,7 +113,7 @@ async function simpleAction(req, res, action, payload = req.body ?? {}, onSucces
       action,
       payload,
     })
-    await onSuccess?.({ result, idempotencyKey })
+    await onSuccess?.({ result, idempotencyKey, db, workspace })
     return res.json(result)
   } catch (error) {
     if (claimed) {
@@ -308,6 +335,7 @@ router.post('/:id/questions/:questionId/answer', requireAuth, async (req, res) =
         nextDifficulty,
       },
     })
+    await syncPracticeCollection(db, workspace, question, answerText, internalFeedback)
     // Formal mode deliberately returns no intermediate feedback.
     if (workspace.interview.mode === 'formal' && result.attempt) result.attempt.feedback_json = null
     return res.status(201).json(result)
@@ -399,14 +427,31 @@ router.post('/:id/questions/:questionId/skip', requireAuth, (req, res) => simple
     metadata: { reason: String(req.body.reason).slice(0, 200) },
   }) : undefined,
 ))
-router.put('/:id/questions/:questionId/note', requireAuth, (req, res) => simpleAction(req, res, 'note', {
-  questionId: req.params.questionId,
-  content: String(req.body?.content || '').slice(0, 20_000),
-}))
+router.put('/:id/questions/:questionId/note', requireAuth, (req, res) => {
+  const content = String(req.body?.content || '').slice(0, 20_000)
+  return simpleAction(req, res, 'note', {
+    questionId: req.params.questionId,
+    content,
+  }, async ({ db, workspace }) => {
+    const question = workspace.questions.find(item => item.id === req.params.questionId)
+    const latestAttempt = workspace.attempts.filter(item => item.question_id === req.params.questionId).at(-1)
+    await syncPracticeCollection(
+      db,
+      workspace,
+      question,
+      latestAttempt?.answer_text || '',
+      latestAttempt?.feedback_json || {},
+      content,
+    )
+  })
+})
 
 router.get('/:id/reconnect-context', requireAuth, async (req, res) => {
   try {
     const workspace = await loadInterviewWorkspace(dbFor(req), req.params.id, req.user.id)
+    if (workspace.interview.mode !== 'practice') {
+      return res.status(409).json({ error: 'Formal interviews cannot be resumed or reconnected', code: 'FORMAL_RESUME_FORBIDDEN' })
+    }
     return res.json(limitedReconnectContext(workspace))
   } catch (error) {
     return sendError(res, error)

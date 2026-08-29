@@ -15,6 +15,7 @@ import {
   releaseInterviewRequest,
 } from '../lib/interviewSessionStore.js'
 import { buildCompetencyMatrix, expireFormalInterviewIfDue } from '../lib/interviewLearning.js'
+import { enrichReportForGrowth } from '../lib/growthCenter.js'
 
 const router = Router()
 
@@ -110,7 +111,25 @@ JSON schema (types only):
       "improvements": ["string", "..."],
       "modelAnswer": "string — for USER lines: concise model / standard answer; for ASSISTANT lines: use empty string \"\""
     }
-  ]
+  ],
+  "careerReadiness": {
+    "dimensions": [
+      {
+        "key": "technical | experience | structure | communication | strategy",
+        "score": 0,
+        "evidence": { "excerpt": "string", "questionIndex": 0, "source": "report" },
+        "action": { "title": "string", "reason": "string", "estimatedMinutes": 8, "questionText": "string" }
+      }
+    ]
+  },
+  "nextPracticeTask": {
+    "title": "string",
+    "reason": "string",
+    "estimatedMinutes": 8,
+    "questionText": "string copied from one qaReview questionText",
+    "questionIndex": 0,
+    "dimension": "technical | experience | structure | communication | strategy"
+  }
 }
 
 Content rules:
@@ -129,6 +148,8 @@ Content rules:
   - parse and improvements: Analytical recap and tips.
   - modelAnswer: For USER lines, provide a polished standard answer (not claiming they said it). For ASSISTANT lines, use "".
   - Keep fields concise (parse < 200 chars, modelAnswer < 600 chars).
+- careerReadiness: REQUIRED. Emit all five keys exactly once. Scores are interview readiness scores from 0 to 100, not probabilities of receiving an offer. Every score must cite a short report/transcript evidence excerpt and one immediately actionable practice task.
+- nextPracticeTask: REQUIRED. Choose the single highest-value weak question from qaReview. Include why it matters, a realistic duration from 3 to 15 minutes, the exact question text, its questionIndex, and its readiness dimension.
 
 ALL string values MUST be written in the "Interview language" specified in the user message. Do NOT translate analysis to any other language.`
 
@@ -219,6 +240,27 @@ async function translateInterviewReportToUi(payload, uiCode) {
         modelAnswer: String(x?.modelAnswer || ''),
       })))
       : [],
+    careerReadiness: payload?.careerReadiness && typeof payload.careerReadiness === 'object'
+      ? {
+        ...payload.careerReadiness,
+        dimensions: await Promise.all((Array.isArray(payload.careerReadiness.dimensions) ? payload.careerReadiness.dimensions : []).map(async dimension => ({
+          ...dimension,
+          evidence: dimension?.evidence ? { ...dimension.evidence, excerpt: await tr(dimension.evidence.excerpt) } : null,
+          action: dimension?.action ? {
+            ...dimension.action,
+            title: await tr(dimension.action.title),
+            reason: await tr(dimension.action.reason),
+            questionText: String(dimension.action.questionText || ''),
+          } : null,
+        }))),
+      }
+      : payload?.careerReadiness,
+    nextPracticeTask: payload?.nextPracticeTask ? {
+      ...payload.nextPracticeTask,
+      title: await tr(payload.nextPracticeTask.title),
+      reason: await tr(payload.nextPracticeTask.reason),
+      questionText: String(payload.nextPracticeTask.questionText || ''),
+    } : null,
   }
 }
 
@@ -266,7 +308,7 @@ function normalizeReportJson(raw, messages = []) {
   const qaReview = Array.isArray(raw?.qaReview)
     ? raw.qaReview
       .map((x, reviewIndex) => {
-        const requestedIndex = Number(x?.questionIndex)
+        const requestedIndex = x?.questionIndex === null || x?.questionIndex === undefined ? NaN : Number(x.questionIndex)
         const indexedTurn = Number.isInteger(requestedIndex)
           ? interviewerTurns.find((turn) => turn.index === requestedIndex)
           : null
@@ -303,7 +345,15 @@ function normalizeReportJson(raw, messages = []) {
   }
   const transcriptLineReview = [...byIdx.values()].sort((a, b) => a.index - b.index).slice(0, 200)
 
-  return { summary, strengths, toImprove, qaReview, transcriptLineReview }
+  return {
+    summary,
+    strengths,
+    toImprove,
+    qaReview,
+    transcriptLineReview,
+    careerReadiness: raw?.careerReadiness,
+    nextPracticeTask: raw?.nextPracticeTask,
+  }
 }
 
 function formatMessagesForPrompt(messages) {
@@ -771,7 +821,7 @@ Return the JSON object now.`
       throw new Error('Gemini returned an invalid structured report', { cause: e })
     }
 
-    const reportJson = normalizeReportJson(parsed, messages)
+    const reportJson = enrichReportForGrowth(normalizeReportJson(parsed, messages), iv)
     stage = 'database_save'
 
     const updateRow = {
@@ -946,7 +996,12 @@ router.get('/:id', requireAuth, async (req, res) => {
       return res.status(500).json({ error: 'Failed to load interview' })
     }
     if (!data) return res.status(404).json({ error: 'Not found' })
-    return res.json({ interview: data })
+    const parsedReport = parseJsonObjectOrNull(data.report_json)
+    return res.json({
+      interview: parsedReport
+        ? { ...data, report_json: enrichReportForGrowth(parsedReport, data) }
+        : data,
+    })
   } catch (err) {
     console.error('[GET /interviews/:id]', err)
     return res.status(500).json({ error: 'Internal server error' })
