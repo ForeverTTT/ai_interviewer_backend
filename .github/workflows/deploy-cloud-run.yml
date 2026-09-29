@@ -7,6 +7,8 @@ on:
     paths-ignore:
       - README.md
       - 'technical documents/**'
+      - 'frontend/**'
+      - '.github/workflows/firebase-hosting-*.yml'
   workflow_dispatch:
 
 permissions:
