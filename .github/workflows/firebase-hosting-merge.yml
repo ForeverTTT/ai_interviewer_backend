@@ -1,6 +1,5 @@
-# This repository's frontend is not the source of the current live Hosting
-# release. Verify changes here, but do not overwrite Firebase Hosting live.
-name: Verify frontend build on merge
+# This monorepo is the sole GitHub Actions source for Firebase Hosting live.
+name: Deploy frontend to Firebase Hosting on merge
 
 on:
   push:
@@ -10,8 +9,12 @@ on:
       - 'frontend/**'
       - '.github/workflows/firebase-hosting-merge.yml'
 
+concurrency:
+  group: firebase-hosting-live
+  cancel-in-progress: false
+
 jobs:
-  build:
+  build_and_deploy:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -26,3 +29,29 @@ jobs:
       - name: Verify frontend production build
         working-directory: frontend
         run: npm run build
+      - name: Deploy frontend to Firebase Hosting live
+        uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: ${{ secrets.GITHUB_TOKEN }}
+          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_AIINTERVIEWER_491711_7B1CF }}
+          channelId: live
+          projectId: aiinterviewer-491711-7b1cf
+          entryPoint: frontend
+      - name: Verify live frontend matches this build
+        shell: bash
+        run: |
+          expected="$(grep -oE '/assets/index-[^" ]+\.js' frontend/dist/index.html | head -n 1)"
+          if [ -z "$expected" ]; then
+            echo "::error::Cannot find the built frontend entry asset"
+            exit 1
+          fi
+          for attempt in $(seq 1 12); do
+            actual="$(curl --fail --silent --show-error --header 'Cache-Control: no-cache' 'https://aiinterviewer-491711-7b1cf.web.app/' | grep -oE '/assets/index-[^" ]+\.js' | head -n 1)" || true
+            if [ "$actual" = "$expected" ]; then
+              echo "Firebase Hosting live serves $expected"
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "::error::Firebase Hosting live does not serve the built frontend entry asset"
+          exit 1
