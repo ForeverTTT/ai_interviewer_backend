@@ -1,5 +1,6 @@
-# The frontend lives in frontend/ inside this monorepo.
-name: Deploy frontend to Firebase Hosting on merge
+# This repository's frontend is not the source of the current live Hosting
+# release. Verify changes here, but do not overwrite Firebase Hosting live.
+name: Verify frontend build on merge
 
 on:
   push:
@@ -10,7 +11,7 @@ on:
       - '.github/workflows/firebase-hosting-merge.yml'
 
 jobs:
-  build_and_deploy:
+  build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -19,13 +20,9 @@ jobs:
           node-version: '22'
           cache: npm
           cache-dependency-path: frontend/package-lock.json
-      - name: Build frontend
+      - name: Install frontend dependencies
         working-directory: frontend
-        run: npm ci && npm run build
-      - uses: FirebaseExtended/action-hosting-deploy@v0
-        with:
-          repoToken: ${{ secrets.GITHUB_TOKEN }}
-          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_AIINTERVIEWER_491711_7B1CF }}
-          channelId: live
-          projectId: aiinterviewer-491711-7b1cf
-          entryPoint: frontend
+        run: npm ci
+      - name: Verify frontend production build
+        working-directory: frontend
+        run: npm run build

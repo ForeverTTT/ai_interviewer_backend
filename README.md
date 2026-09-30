@@ -28,7 +28,7 @@ ai_interviewer_backend/
 │   ├── 后端/                 开发指南、技术文档、设计方案、部署运维
 │   ├── 前端/                 开发指南、技术文档、产品与规划
 │   └── 文档索引.md           全部说明文档入口
-└── .github/workflows/       前后端自动部署工作流
+└── .github/workflows/       后端自动部署、前端构建检查与 PR 预览
 ```
 
 `backend/data/prompts/*.md` 是程序按固定文件名读取的运行时模板，不是说明文档，因而保留原文件名和位置。
@@ -81,6 +81,6 @@ cd frontend
 npm run build
 ```
 
-后端 Docker 构建从仓库根目录执行：`docker build -t interviewde-backend backend`。推送到 `main` 时，后端运行文件变更会触发 Cloud Run 工作流，前端文件变更会触发 Firebase Hosting 工作流；文档改动不会单独触发后端部署。数据库迁移需单独审核执行，不随 Cloud Run 自动部署。
+后端 Docker 构建从仓库根目录执行：`docker build -t interviewde-backend backend`。推送到 `main` 时，后端运行文件变更会触发 Cloud Run 部署；前端文件变更只会执行构建检查，**不会从本仓库覆盖 Firebase Hosting 正式站点**。前端 PR 仍可创建独立预览频道。当前正式站点的前端源码与本仓库 `frontend/` 尚未同步；发布新前端版本前，必须先确认目标源码和发布仓库。文档改动不会单独触发后端部署。数据库迁移需单独审核执行，不随 Cloud Run 自动部署。
 
 详细设置、测试及部署方法见[后端开发指南](docs/后端/开发指南/后端开发指南.md)、[前端开发指南](docs/前端/开发指南/前端开发指南.md)和[文档索引](docs/文档索引.md)。
