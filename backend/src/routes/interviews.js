@@ -497,7 +497,7 @@ router.post('/', requireAuth, async (req, res) => {
         error: 'Failed to create interview record',
         details: error.message,
         hint: noCol
-          ? 'Run supabase/migration_interviews_complete.sql in Supabase SQL Editor, wait ~1 min for schema cache.'
+          ? 'Apply the migrations in backend/supabase/migrations, then wait ~1 min for the Supabase schema cache.'
           : undefined,
       })
     }

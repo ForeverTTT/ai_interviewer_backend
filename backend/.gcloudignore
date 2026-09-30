@@ -11,4 +11,3 @@ client_secret_*.json
 .runtime
 .tools
 logs
-frontend

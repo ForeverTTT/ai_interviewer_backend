@@ -6,7 +6,7 @@ on:
       - main
     paths-ignore:
       - README.md
-      - 'technical documents/**'
+      - 'docs/**'
       - 'frontend/**'
       - '.github/workflows/firebase-hosting-*.yml'
   workflow_dispatch:
@@ -35,11 +35,14 @@ jobs:
         with:
           node-version: '22'
           cache: npm
+          cache-dependency-path: backend/package-lock.json
 
       - name: Install dependencies
+        working-directory: backend
         run: npm ci
 
       - name: Run backend tests
+        working-directory: backend
         run: npm test
 
       - name: Validate deployment configuration
@@ -88,7 +91,7 @@ jobs:
         env:
           IMAGE: ${{ steps.metadata.outputs.image }}
         run: |
-          docker build --tag "$IMAGE" .
+          docker build --tag "$IMAGE" backend
           docker push "$IMAGE"
 
       - name: Deploy image to Cloud Run

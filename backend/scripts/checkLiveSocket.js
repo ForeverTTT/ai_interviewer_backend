@@ -5,7 +5,7 @@ import dotenv from 'dotenv'
 import { createClient } from '@supabase/supabase-js'
 import WebSocket from 'ws'
 
-const frontendEnvPath = fileURLToPath(new URL('../../ai_interviewer_frontend/.env', import.meta.url))
+const frontendEnvPath = fileURLToPath(new URL('../../frontend/.env', import.meta.url))
 const frontendEnv = dotenv.parse(await readFile(frontendEnvPath))
 const supabase = createClient(frontendEnv.VITE_SUPABASE_URL, frontendEnv.VITE_SUPABASE_ANON_KEY, {
   auth: { persistSession: false, autoRefreshToken: false },
