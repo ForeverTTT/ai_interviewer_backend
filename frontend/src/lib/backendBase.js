@@ -1,5 +1,6 @@
 /**
- * Backend API origin for fetch calls. Set VITE_BACKEND_URL in .env (see .env.example).
+ * Backend API origin for fetch calls. VITE_API_URL takes precedence over
+ * VITE_BACKEND_URL (see .env.example).
  */
 export function getBackendBaseUrl() {
   const raw = import.meta.env.VITE_API_URL || import.meta.env.VITE_BACKEND_URL

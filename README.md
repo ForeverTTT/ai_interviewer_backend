@@ -24,7 +24,7 @@
 
 | 模块 | 技术 | 说明 |
 | :--- | :--- | :--- |
-| **运行时** | Node.js 22+ | 本地建议使用当前 LTS；生产镜像由 GitHub Runner 根据 Dockerfile 构建 |
+| **运行时** | Node.js 22.12+ (22.x) | 与 `package.json` 和生产 Docker 镜像保持一致 |
 | **HTTP 框架**| Express 4 | 业务接口转发与中间件支持 |
 | **数据库/认证** | Supabase SDK | 使用 **Service Role**（管理权限）与 **Auth API**（用户校验） |
 | **Agent 编排** | LangGraph | 根据面试状态选择提问、追问、流程节点和反馈生成 |
@@ -72,6 +72,14 @@ backend/
 | `SUPABASE_SERVICE_ROLE_KEY`| 服务角色密钥 | **核心私钥**，请勿在前端暴露 |
 | `GEMINI_API_KEY` | Google AI Studio 密钥 | 用于驱动面试逻辑、简历对比与报告翻译 |
 | `FRONTEND_URL` | 允许跨域的前端主地址 | 开发阶段通常为 `http://localhost:3000` |
+| `GEMINI_TTS_KEYS` | 可选 TTS Key 池 | 多个 Key 用英文逗号分隔，用于配额轮换 |
+| `GCP_PROJECT_ID` / `GOOGLE_CLOUD_PROJECT` | 可选 Vertex AI 项目 | 未配置 `GEMINI_API_KEY` 或使用 Vertex TTS 时需要 |
+| `GCP_LOCATION` | 可选 Vertex AI 区域 | 默认 `us-central1` |
+| `GCP_MODEL` | 可选 Vertex AI 文本模型 | 仅 Vertex AI 路径使用 |
+| `GCP_TTS_VOICE_TIER` | 可选 Google Cloud TTS 音色层级 | 默认 `Studio` |
+
+`APP_COMMIT_SHA`、`APP_DEPLOYED_AT` 和 `K_REVISION` 由部署平台注入；
+`SUPABASE_AUTH_EXTERNAL_GOOGLE_SECRET` 仅供 Supabase CLI 读取，不是普通后端运行变量。
 
 ---
 
@@ -153,7 +161,7 @@ backend/
 本项目是 Node.js 后端，不使用 Python `venv`。每个项目的依赖安装在本目录的
 `node_modules` 中，并由 `package-lock.json` 锁定版本，相当于项目级的隔离环境。
 
-前置要求：安装 Node.js 22 或更高版本（推荐使用当前 LTS 版本）。在仓库根目录执行：
+前置要求：安装 Node.js 22.12 或更新的 22.x 版本。在仓库根目录执行：
 
 ```bash
 cd ai_interviewer_backend

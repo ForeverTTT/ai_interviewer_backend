@@ -220,7 +220,7 @@
 本项目是 Node.js/Vite 前端，不使用 Python `venv`。依赖安装在当前目录的
 `node_modules` 中，并由 `package-lock.json` 锁定版本，形成项目级隔离环境。
 
-前置要求：Node.js 20.19+ 或 22.12+（推荐当前 LTS 版本，Vite 8 的最低要求）。从仓库根目录执行：
+前置要求：Node.js 22.12 或更新的 22.x 版本（与 `package.json` 和 CI 保持一致）。从仓库根目录执行：
 
 ```bash
 cd ai_interviewer_frontend

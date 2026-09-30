@@ -84,8 +84,10 @@
 frontend/
 ├── public/
 │   ├── avatars/               # 用户头像图片
-│   ├── crab_logo.png          # OfferClaw Logo
-│   └── index.html             # 入口 HTML（含首屏防闪烁脚本）
+│   ├── images/                # 静态图片
+│   ├── logos/                 # 院校标识
+│   └── landit-icon-*.svg     # Landit 品牌图标
+├── index.html                 # 入口 HTML（含首屏防闪烁脚本）
 ├── src/
 │   ├── main.jsx               # React 入口，加载 i18n → 渲染 App
 │   ├── App.jsx                # 路由定义 + Layout 壳

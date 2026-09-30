@@ -47,6 +47,7 @@ build/Release
 # Dependency directories
 node_modules/
 .tools/
+dist/
 
 # Optional npm cache directory
 .npm
@@ -65,6 +66,8 @@ node_modules/
 
 # dotenv environment variables file
 .env
+.env.local
+.env.*.local
 client_secret_*.json
 
 # dataconnect generated files
