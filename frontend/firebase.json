@@ -28,7 +28,7 @@
     ],
     "rewrites": [
       {
-        "source": "**",
+        "source": "!/@(assets|avatars|images|logos)/**",
         "destination": "/index.html"
       }
     ]
