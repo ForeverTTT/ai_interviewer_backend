@@ -1,115 +1,126 @@
 import { useTranslation } from 'react-i18next'
-import { motion } from 'framer-motion'
-import { 
-  ShieldCheck, 
-  Workflow, 
-  UserPlus, 
+import {
+  ShieldCheck,
+  Workflow,
+  UserPlus,
   FileCheck2,
-  Trophy,
-  Activity,
-  MonitorPlay
+  MonitorPlay,
+  FileText,
+  Mic,
+  BarChart3,
+  TrendingUp,
 } from 'lucide-react'
+import { SectionHead, WordMark, Reveal, TiltCard } from './brand/BrandKit'
+import harborScene from '../assets/background.jpg'
+
+/**
+ * 「为什么选择 LandIt」——便当格布局：
+ * 第一格最大，右半边露出插画里那几扇拱门（机会之门）；第二格用一条小流程图讲「闭环」；
+ * 其余三格等宽。颜色轮流取插画墙面的港湾蓝 / 鼠尾草 / 赭黄 / 红砖。
+ */
+const TONES = {
+  harbor: 'bg-brand-harbor/[0.12] text-brand-harbor',
+  sage: 'bg-brand-sage/[0.18] text-brand-success',
+  ochre: 'bg-brand-ochre/[0.2] text-[#8A5F10] dark:text-brand-ochre',
+  brick: 'bg-brand-brick/[0.13] text-brand-brick',
+}
+
+function IconChip({ icon: Icon, tone }) {
+  return (
+    <span className={`grid h-12 w-12 shrink-0 place-items-center rounded-2xl ${TONES[tone]}`}>
+      <Icon className="h-[22px] w-[22px]" />
+    </span>
+  )
+}
+
+/** 简历 → 面试 → 报告 → 提升 的小流程示意（纯图标，不引入新文案） */
+function LoopGraphic() {
+  const nodes = [FileText, Mic, BarChart3, TrendingUp]
+  return (
+    <div className="mt-7 flex items-center gap-2" aria-hidden="true">
+      {nodes.map((Icon, i) => (
+        <div key={i} className="flex flex-1 items-center gap-2 last:flex-none">
+          <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-full border ${i === nodes.length - 1 ? 'border-brand-ochre bg-brand-ochre text-[#22303D]' : 'border-brand-line bg-brand-card text-brand-muted'}`}>
+            <Icon className="h-4 w-4" />
+          </span>
+          {i < nodes.length - 1 && <span className="h-px flex-1 border-t border-dashed border-brand-muted/40" />}
+        </div>
+      ))}
+    </div>
+  )
+}
 
 export default function AdvantagesShowcase() {
   const { t } = useTranslation()
 
   const ads = [
-    {
-      icon: <ShieldCheck className="w-8 h-8 text-indigo-500" />,
-      title: t('landing.advantages.v1t'),
-      desc: t('landing.advantages.v1d'),
-      color: 'from-indigo-500/10 to-transparent'
-    },
-    {
-      icon: <Workflow className="w-8 h-8 text-violet-500" />,
-      title: t('landing.advantages.v2t'),
-      desc: t('landing.advantages.v2d'),
-      color: 'from-violet-500/10 to-transparent'
-    },
-    {
-      icon: <UserPlus className="w-8 h-8 text-emerald-500" />,
-      title: t('landing.advantages.v3t'),
-      desc: t('landing.advantages.v3d'),
-      color: 'from-emerald-500/10 to-transparent'
-    },
-    {
-      icon: <FileCheck2 className="w-8 h-8 text-blue-500" />,
-      title: t('landing.advantages.v4t'),
-      desc: t('landing.advantages.v4d'),
-      color: 'from-blue-500/10 to-transparent'
-    },
-    {
-      icon: <MonitorPlay className="w-8 h-8 text-orange-500" />,
-      title: t('landing.advantages.v5t'),
-      desc: t('landing.advantages.v5d'),
-      color: 'from-orange-500/10 to-transparent'
-    }
+    { icon: ShieldCheck, tone: 'harbor', title: t('landing.advantages.v1t'), desc: t('landing.advantages.v1d') },
+    { icon: Workflow, tone: 'ochre', title: t('landing.advantages.v2t'), desc: t('landing.advantages.v2d') },
+    { icon: UserPlus, tone: 'sage', title: t('landing.advantages.v3t'), desc: t('landing.advantages.v3d') },
+    { icon: FileCheck2, tone: 'brick', title: t('landing.advantages.v4t'), desc: t('landing.advantages.v4d') },
+    { icon: MonitorPlay, tone: 'harbor', title: t('landing.advantages.v5t'), desc: t('landing.advantages.v5d') },
   ]
 
-  return (
-    <section className="pt-24 pb-16 px-4 sm:px-6 lg:px-8 bg-white dark:bg-slate-950 overflow-hidden">
-      <div className="max-w-7xl mx-auto">
-        <div className="flex flex-col items-center text-center mb-20 space-y-6">
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="section-badge"
-          >
-            <Activity className="w-3.5 h-3.5" />
-            {t('landing.advantages.badge')}
-          </motion.div>
-          <motion.h2
-            initial={{ opacity: 0, y: 10 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ delay: 0.1 }}
-            className="text-4xl sm:text-6xl font-black text-slate-900 dark:text-white font-serif tracking-tight"
-          >
-            {t('landing.advantages.titlePre')}<span className="inline whitespace-nowrap font-sans tracking-tighter">Land<span className="text-[#E8A832] italic">It</span></span>{t('landing.advantages.titlePost')}
-          </motion.h2>
-          <motion.p
-            initial={{ opacity: 0, y: 10 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ delay: 0.2 }}
-            className="text-xl text-slate-500 dark:text-slate-400 max-w-3xl"
-          >
-            {t('landing.advantages.sub')}
-          </motion.p>
-        </div>
+  const [hero, loop, ...rest] = ads
 
-        <div className="grid md:grid-cols-2 lg:grid-cols-5 gap-6">
-          {ads.map((ad, i) => (
-            <motion.div
-              key={i}
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: i * 0.1 }}
-              className="relative group p-6 bg-slate-50 dark:bg-slate-900/50 rounded-[2.5rem] border border-slate-200 dark:border-white/5 overflow-hidden transition-all hover:bg-white dark:hover:bg-slate-900 shadow-sm hover:shadow-2xl hover:-translate-y-2 h-full"
-            >
-              <div className={`absolute inset-0 bg-gradient-to-br ${ad.color} opacity-0 group-hover:opacity-100 transition-opacity duration-700`} />
-              
-              <div className="relative z-10 space-y-6">
-                <div className="w-14 h-14 rounded-2xl bg-white dark:bg-slate-800 shadow-xl flex items-center justify-center group-hover:scale-110 group-hover:rotate-3 transition-transform duration-500">
-                  {ad.icon}
-                </div>
-                <div className="space-y-3">
-                  <h3 className="text-xl font-black text-slate-900 dark:text-white leading-tight">
-                    {ad.title}
-                  </h3>
-                  <p className="text-sm text-slate-500 dark:text-slate-400 leading-relaxed font-medium">
-                    {ad.desc}
-                  </p>
-                </div>
+  return (
+    <section className="relative py-24 sm:py-28">
+      <div className="ui-container">
+        <Reveal className="mx-auto max-w-3xl">
+          <SectionHead
+            align="center"
+            badge={t('landing.advantages.badge')}
+            title={<>{t('landing.advantages.titlePre')}<WordMark />{t('landing.advantages.titlePost')}</>}
+            sub={t('landing.advantages.sub')}
+          />
+        </Reveal>
+
+        <div className="mt-16 grid gap-4 lg:grid-cols-6">
+          {/* 大格：文案 + 插画里的拱门 */}
+          <Reveal className="lg:col-span-4">
+            <TiltCard max={3} className="brand-float group relative flex h-full min-h-[320px] overflow-hidden transition-shadow duration-300 hover:shadow-lift">
+              <div className="relative z-10 flex w-full flex-col p-7 sm:w-[58%] sm:p-9">
+                <IconChip icon={hero.icon} tone={hero.tone} />
+                <h3 className="lk-display mt-8 text-[24px] leading-tight sm:text-[28px]">{hero.title}</h3>
+                <p className="mt-4 text-[14px] leading-relaxed text-brand-muted">{hero.desc}</p>
               </div>
-              
-              {/* Subtle tech patterns */}
-              <div className="absolute top-0 right-0 p-8 opacity-0 group-hover:opacity-10 transition-opacity duration-700">
-                <Trophy className="w-24 h-24 text-slate-900 dark:text-white" />
+              <div
+                aria-hidden="true"
+                className="absolute inset-y-0 right-0 hidden w-[52%] bg-cover transition-transform duration-[1.2s] ease-out-soft group-hover:scale-[1.04] sm:block"
+                style={{
+                  backgroundImage: `url(${harborScene})`,
+                  backgroundPosition: '4% 60%',
+                  backgroundSize: '260% auto',
+                  maskImage: 'linear-gradient(to right, transparent 0%, black 38%)',
+                  WebkitMaskImage: 'linear-gradient(to right, transparent 0%, black 38%)',
+                }}
+              />
+            </TiltCard>
+          </Reveal>
+
+          {/* 闭环：流程示意 */}
+          <Reveal delay={0.06} className="lg:col-span-2">
+            <TiltCard className="brand-float flex h-full flex-col p-7 transition-shadow duration-300 hover:shadow-lift">
+              <IconChip icon={loop.icon} tone={loop.tone} />
+              <h3 className="mt-7 text-[17px] font-semibold leading-tight text-brand-ink">{loop.title}</h3>
+              <p className="mt-3 text-[13.5px] leading-relaxed text-brand-muted">{loop.desc}</p>
+              <div className="mt-auto">
+                <LoopGraphic />
               </div>
-            </motion.div>
+            </TiltCard>
+          </Reveal>
+
+          {rest.map((ad, i) => (
+            <Reveal key={ad.title} delay={0.1 + i * 0.06} className="lg:col-span-2">
+              <TiltCard className="brand-float group flex h-full flex-col p-7 transition-shadow duration-300 hover:shadow-lift">
+                <IconChip icon={ad.icon} tone={ad.tone} />
+                <h3 className="mt-7 text-[17px] font-semibold leading-tight text-brand-ink">{ad.title}</h3>
+                <p className="mt-3 text-[13.5px] leading-relaxed text-brand-muted">{ad.desc}</p>
+                <div className="mt-auto pt-8">
+                  <span className="block h-[2px] w-8 rounded-full bg-brand-line transition-all duration-500 group-hover:w-16 group-hover:bg-brand-ochre" />
+                </div>
+              </TiltCard>
+            </Reveal>
           ))}
         </div>
       </div>

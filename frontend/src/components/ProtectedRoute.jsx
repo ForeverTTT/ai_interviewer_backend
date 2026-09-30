@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react'
 import { Navigate, useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { supabase } from '../lib/supabase'
-import { BrainCircuit } from 'lucide-react'
 
 export default function ProtectedRoute({ children }) {
   const { t } = useTranslation()
@@ -32,14 +31,15 @@ export default function ProtectedRoute({ children }) {
 
   if (state.loading) {
     return (
-      <div className="min-h-screen relative flex items-center justify-center bg-gradient-to-b from-slate-50 to-white overflow-hidden dark:from-slate-950 dark:to-slate-950">
-        <div className="pointer-events-none absolute inset-0 bg-mesh-subtle opacity-60 dark:opacity-40" aria-hidden />
+      <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-brand-paper">
+        {/* bg-mesh-subtle / shadow-glow-primary 在项目里都没有定义，是失效类，一并移除 */}
         <div className="relative z-[1] flex flex-col items-center gap-5">
-          <div className="w-14 h-14 bg-gradient-to-br from-primary-600 to-violet-600 rounded-2xl flex items-center justify-center shadow-glow-primary ring-1 ring-white/20">
-            <BrainCircuit className="w-7 h-7 text-white" />
+          <img src="/landit-icon-light.svg" alt="" className="h-12 w-12 animate-pulse-soft rounded-2xl dark:hidden" />
+          <img src="/landit-icon-dark.svg" alt="" className="hidden h-12 w-12 animate-pulse-soft rounded-2xl dark:block" />
+          <div className="h-1 w-24 overflow-hidden rounded-full bg-brand-line">
+            <div className="h-full w-1/2 animate-[lk-marquee_1.1s_linear_infinite] rounded-full bg-brand-ochre" />
           </div>
-          <div className="w-9 h-9 border-[3px] border-primary-100 border-t-primary-600 dark:border-primary-900 dark:border-t-primary-400 rounded-full animate-spin" />
-          <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">{t('protected.loading')}</p>
+          <p className="text-[13px] text-brand-muted">{t('protected.loading')}</p>
         </div>
       </div>
     )

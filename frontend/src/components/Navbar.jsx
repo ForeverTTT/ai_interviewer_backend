@@ -1,123 +1,102 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
+import { AnimatePresence, motion } from 'framer-motion'
 import { useAuth } from '../hooks/useAuth'
 import LanguageSwitcher from './LanguageSwitcher'
 import { AppThemeToggle } from './ThemeToggle'
-import { supabase } from '../lib/supabase'
-import { getBackendBaseUrl } from '../lib/backendBase'
-import { authenticatedFetch } from '../lib/authenticatedFetch'
-import { Menu, X, BrainCircuit, ChevronDown, LogOut, LayoutDashboard, UserCircle, Briefcase, BookOpen, FilePenLine, StickyNote } from 'lucide-react'
+import { useTheme } from '../context/ThemeContext'
+import { useAccountStatus } from '../hooks/useAccountStatus'
+import { Menu, X, Zap, ChevronDown, LogOut, LayoutDashboard, UserCircle, Briefcase, BookOpen, FilePenLine, StickyNote, ArrowRight } from 'lucide-react'
+
+/** 品牌标志 + 字标，顶栏和页脚共用 */
+export function BrandLockup({ size = 'md' }) {
+  const { isDark } = useTheme()
+  const box = size === 'sm' ? 'h-8 w-8' : 'h-9 w-9'
+  const text = size === 'sm' ? 'text-[17px]' : 'text-[19px]'
+  return (
+    <span className="group flex items-center gap-2.5">
+      <span className={`${box} grid shrink-0 place-items-center overflow-hidden rounded-[10px]`}>
+        <img
+          src={isDark ? '/landit-icon-dark.svg' : '/landit-icon-light.svg'}
+          alt="LandIt Logo"
+          className="h-full w-full object-contain transition-transform duration-500 ease-out-soft group-hover:-rotate-6 group-hover:scale-105"
+        />
+      </span>
+      <span className={`font-brand ${text} font-bold leading-none tracking-[-0.02em] text-brand-ink`}>
+        Land<span className="italic text-brand-ochre">It</span>
+      </span>
+    </span>
+  )
+}
 
 export default function Navbar() {
   const { t } = useTranslation()
   const { user, signOut } = useAuth()
-  const [jobStatus, setJobStatus] = useState('seeking')
-  const [avatarId, setAvatarId] = useState(null)
-  const [tokens, setTokens] = useState(0)
+  const { jobStatus, avatarSrc, tokens, toggleJobStatus } = useAccountStatus(user)
   const navigate = useNavigate()
   const location = useLocation()
   const [mobileOpen, setMobileOpen] = useState(false)
   const [dropdownOpen, setDropdownOpen] = useState(false)
+  const [scrolled, setScrolled] = useState(false)
+  const dropdownRef = useRef(null)
 
+  /* 滚动后顶栏收紧一点、玻璃更实，首页插画上方则保持通透 */
   useEffect(() => {
-    if (!user) return
+    const onScroll = () => setScrolled(window.scrollY > 12)
+    onScroll()
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [])
 
-    const fetchStatus = async () => {
-      let session = null
-      const fetchOwnTokensDirectly = async () => {
-        const userId = session?.user?.id || user.id
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('tokens')
-          .eq('id', userId)
-          .maybeSingle()
-        if (!error && data?.tokens !== undefined) setTokens(data.tokens)
-      }
-      try {
-        const sessionResult = await supabase.auth.getSession()
-        session = sessionResult.data.session
-        if (!session?.access_token) return
+  /* 路由切换时收起菜单 */
+  useEffect(() => {
+    setMobileOpen(false)
+    setDropdownOpen(false)
+  }, [location.pathname])
 
-        const backendUrl = getBackendBaseUrl()
-        const res = await authenticatedFetch(`${backendUrl}/api/profile`)
-        if (res.ok) {
-          const j = await res.json()
-          if (j.jobSearchStatus !== undefined && j.jobSearchStatus !== null) {
-            setJobStatus(j.jobSearchStatus)
-          }
-          if (j.avatarId) {
-            setAvatarId(j.avatarId)
-          }
-          if (j.tokens !== undefined) {
-            setTokens(j.tokens)
-          }
-          return
-        }
-        await fetchOwnTokensDirectly()
-      } catch (err) {
-        console.error('Failed to fetch job status', err)
-        await fetchOwnTokensDirectly()
-      }
+  /* 点外面 / Esc 关闭账号菜单 */
+  useEffect(() => {
+    if (!dropdownOpen) return undefined
+    const onDoc = (e) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) setDropdownOpen(false)
     }
-
-    const onTokensChanged = () => { void fetchStatus() }
-
-    fetchStatus()
-    window.addEventListener('tokensChanged', onTokensChanged)
-
-    // Supabase Realtime: instantly reflect token changes from DB (cross-tab, cross-device)
-    const channel = supabase
-      .channel(`navbar-tokens-${user.id}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'profiles',
-          filter: `id=eq.${user.id}`,
-        },
-        (payload) => {
-          if (payload.new?.tokens !== undefined) {
-            setTokens(payload.new.tokens)
-          }
-        }
-      )
-      .subscribe()
-
+    const onKey = (e) => { if (e.key === 'Escape') setDropdownOpen(false) }
+    document.addEventListener('mousedown', onDoc)
+    document.addEventListener('keydown', onKey)
     return () => {
-      window.removeEventListener('tokensChanged', onTokensChanged)
-      supabase.removeChannel(channel)
+      document.removeEventListener('mousedown', onDoc)
+      document.removeEventListener('keydown', onKey)
     }
-  }, [user])
-
-  const toggleJobStatus = async () => {
-    const newStatus = jobStatus === 'seeking' ? 'hired' : 'seeking'
-    setJobStatus(newStatus)
-    try {
-      const { data: { session } } = await supabase.auth.getSession()
-      const token = session?.access_token
-      if (!token) return
-
-      const backendUrl = getBackendBaseUrl()
-      await authenticatedFetch(`${backendUrl}/api/profile`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ jobSearchStatus: newStatus }),
-      })
-    } catch (err) {
-      console.error('Failed to update job status', err)
-    }
-  }
+  }, [dropdownOpen])
 
   const handleSignOut = async () => {
     await signOut()
     navigate('/')
     setDropdownOpen(false)
   }
+
+  /**
+   * 顶部菜单。顺序由这张表决定，桌面端和移动端抽屉共用同一份，
+   * 改顺序只动这里。auth: true 的项仅登录后出现。
+   */
+  const navItems = [
+    { to: '/', label: t('nav.home') },
+    { to: '/setup', label: t('nav.startInterview'), auth: true },
+    { to: '/resume-tailor', label: t('nav.resumeTailor'), auth: true },
+    { to: '/experiences', label: t('nav.experiences') },
+    { to: '/gallup', label: t('nav.gallup'), auth: true },
+    { to: '/dashboard', label: t('nav.history'), auth: true },
+  ].filter(item => !item.auth || user)
+
+  /** 账号菜单：桌面下拉与移动抽屉共用 */
+  const accountLinks = [
+    { to: '/dashboard', label: t('nav.history'), icon: LayoutDashboard },
+    { to: '/notes', label: t('nav.notes'), icon: StickyNote },
+    { to: '/resume-tailor', label: t('nav.resumeTailor'), icon: FilePenLine },
+    { to: '/profile', label: t('nav.profile'), icon: UserCircle },
+    { to: '/experiences?mine=true', label: t('nav.myExperiences'), icon: BookOpen },
+  ]
 
   const isActive = (path) => {
     if (path === '/profile') {
@@ -126,270 +105,251 @@ export default function Navbar() {
     return location.pathname === path
   }
 
+  const displayName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || ''
+  const initial = user?.user_metadata?.full_name?.[0] || user?.email?.[0]?.toUpperCase() || 'U'
+
+  const Avatar = ({ size = 'h-8 w-8' }) => (
+    <span className="relative shrink-0">
+      <span className={`${size} grid place-items-center overflow-hidden rounded-full bg-brand-ink text-xs font-bold text-brand-on-ink ring-2 ring-brand-card`}>
+        {avatarSrc ? <img src={avatarSrc} alt="Avatar" className="h-full w-full object-cover" /> : initial}
+      </span>
+      <span className={`absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-brand-card ${jobStatus === 'seeking' ? 'bg-brand-success' : 'bg-brand-line'}`} />
+    </span>
+  )
+
   return (
-    <nav className="fixed top-0 left-0 right-0 z-50 flex justify-center pointer-events-none transition-all duration-500">
-      <div className="pointer-events-auto w-full max-w-[80rem] bg-white/70 dark:bg-slate-950/70 backdrop-blur-2xl rounded-b-2xl border-x border-b border-slate-200/50 dark:border-slate-800/50 shadow-lg shadow-slate-900/[0.04] px-6 lg:px-8 overflow-visible">
-        <div className="flex items-center justify-between h-20">
-          <Link to="/" className="flex items-center gap-3 group">
-            <div className="w-10 h-10 overflow-hidden flex items-center justify-center">
-              <picture>
-                <source srcSet="/landit-icon-dark.svg" media="(prefers-color-scheme: dark)" />
-                <img
-                  src="/landit-icon-light.svg"
-                  alt="LandIt Logo"
-                  className="w-full h-full object-contain transition-transform group-hover:scale-[1.1] group-hover:rotate-3 duration-500"
-                />
-              </picture>
-            </div>
-            <span className="font-black text-xl tracking-tighter text-slate-900 dark:text-white leading-none">
-              Land<span className="text-[#E8A832] italic">It</span>
-            </span>
-          </Link>
+    /* 浮动胶囊顶栏：高度含上下留白共 --ui-nav-h，页面顶部避让读同一个变量 */
+    <nav className="fixed inset-x-0 top-0 z-50 px-3 pt-3 sm:px-5">
+      <div
+        className={`lk-liquid mx-auto flex h-[60px] max-w-[1320px] items-center justify-between gap-3 rounded-full pl-3 pr-2 transition-[background-color,box-shadow] duration-500 sm:pl-4 ${scrolled ? '!bg-brand-card/85' : ''}`}
+      >
+        <Link to="/" className="shrink-0 rounded-full pr-2" aria-label="LandIt">
+          <BrandLockup />
+        </Link>
 
-          <div className="hidden md:flex items-center gap-2">
-            <Link
-              to="/"
-              className={`relative px-4 py-2 text-sm font-bold whitespace-nowrap transition-all duration-300 ${isActive('/')
-                ? 'text-primary-600 dark:text-primary-400'
-                : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
-                }`}
-            >
-              {t('nav.home')}
-              {isActive('/') && (
-                <span className="absolute -bottom-1 left-4 right-4 h-[3px] bg-primary-600 dark:bg-primary-400 rounded-full" />
-              )}
-            </Link>
-            {user && (
-              <>
-                <Link
-                  to="/setup"
-                  className={`relative px-4 py-2 text-sm font-bold whitespace-nowrap transition-all duration-300 ${isActive('/setup')
-                    ? 'text-primary-600 dark:text-primary-400'
-                    : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
-                    }`}
-                >
-                  {t('nav.startInterview')}
-                  {isActive('/setup') && (
-                    <span className="absolute -bottom-1 left-4 right-4 h-[3px] bg-primary-600 dark:bg-primary-400 rounded-full" />
-                  )}
-                </Link>
-                <Link
-                  to="/dashboard"
-                  className={`relative px-4 py-2 text-sm font-bold whitespace-nowrap transition-all duration-300 ${isActive('/dashboard')
-                    ? 'text-primary-600 dark:text-primary-400'
-                    : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
-                    }`}
-                >
-                  {t('nav.history')}
-                  {isActive('/dashboard') && (
-                    <span className="absolute -bottom-1 left-4 right-4 h-[3px] bg-primary-600 dark:bg-primary-400 rounded-full" />
-                  )}
-                </Link>
-                <Link
-                  to="/resume-tailor"
-                  className={`relative px-4 py-2 text-sm font-bold whitespace-nowrap transition-all duration-300 ${isActive('/resume-tailor')
-                    ? 'text-primary-600 dark:text-primary-400'
-                    : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
-                    }`}
-                >
-                  {t('nav.resumeTailor')}
-                  {isActive('/resume-tailor') && (
-                    <span className="absolute -bottom-1 left-4 right-4 h-[3px] bg-primary-600 dark:bg-primary-400 rounded-full" />
-                  )}
-                </Link>
-              </>
-            )}
-            <Link
-              to="/experiences"
-              className={`relative px-4 py-2 text-sm font-bold whitespace-nowrap transition-all duration-300 ${isActive('/experiences')
-                ? 'text-primary-600 dark:text-primary-400'
-                : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
-                }`}
-            >
-              {t('nav.experiences')}
-              {isActive('/experiences') && (
-                <span className="absolute -bottom-1 left-4 right-4 h-[3px] bg-primary-600 dark:bg-primary-400 rounded-full" />
-              )}
-            </Link>
-            {user && (
-              <>
-                <Link
-                  to="/gallup"
-                  className={`relative px-4 py-2 text-sm font-bold whitespace-nowrap transition-all duration-300 ${isActive('/gallup')
-                    ? 'text-primary-600 dark:text-primary-400'
-                    : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
-                    }`}
-                >
-                  {t('nav.gallup')}
-                  {isActive('/gallup') && (
-                    <span className="absolute -bottom-1 left-4 right-4 h-[3px] bg-primary-600 dark:bg-primary-400 rounded-full" />
-                  )}
-                </Link>
-              </>
-            )}
-          </div>
+        <div className="hidden min-w-0 items-center gap-0.5 lg:flex">
+          {navItems.map(item => {
+            const active = isActive(item.to)
+            return (
+              <Link
+                key={item.to}
+                to={item.to}
+                className={`relative whitespace-nowrap rounded-full px-3.5 py-2 text-[13.5px] font-medium transition-colors duration-200 xl:px-4 ${active ? 'text-brand-ink' : 'text-brand-muted hover:text-brand-ink'}`}
+              >
+                {active && (
+                  <motion.span
+                    layoutId="nav-active-pill"
+                    className="lk-liquid-pill absolute inset-0 rounded-full"
+                    transition={{ type: 'spring', stiffness: 420, damping: 34 }}
+                  />
+                )}
+                <span className="relative">{item.label}</span>
+              </Link>
+            )
+          })}
+        </div>
 
-          <div className="hidden md:flex items-center gap-6">
-            <div className="flex items-center gap-1">
-              <LanguageSwitcher />
-              <AppThemeToggle />
-            </div>
+        <div className="hidden items-center gap-1.5 lg:flex">
+          <LanguageSwitcher variant="nav" />
+          <AppThemeToggle variant="nav" />
 
-            {user ? (
-              <div className="relative">
-                <button
-                  onClick={() => setDropdownOpen(!dropdownOpen)}
-                  className="flex items-center gap-3 pl-2 pr-4 py-1.5 rounded-full bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800 hover:border-slate-200 dark:hover:border-slate-700 transition-all group"
-                >
-                  <div className="relative">
-                    <div className="w-8 h-8 rounded-full bg-primary-600 flex items-center justify-center text-white text-xs font-black overflow-hidden">
-                      {avatarId ? (
-                        <img src={avatarId.startsWith('data:') || avatarId.startsWith('http') ? avatarId : `/avatars/${avatarId}.png`} alt="Avatar" className="w-full h-full object-cover" />
-                      ) : (
-                        user.user_metadata?.full_name?.[0] || user.email?.[0]?.toUpperCase() || 'U'
-                      )}
-                    </div>
-                    <div className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-white dark:border-slate-950 ${jobStatus === 'seeking' ? 'bg-emerald-500' : 'bg-slate-300'}`} />
-                  </div>
-                  <span className="text-sm font-bold text-slate-700 dark:text-slate-200 max-w-[100px] truncate">
-                    {user.user_metadata?.full_name || user.email.split('@')[0]}
-                  </span>
-                  <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-100 dark:border-emerald-500/20">
-                    <BrainCircuit className="w-3 h-3 text-emerald-500" />
-                    <span className="text-[10px] font-black text-emerald-600 dark:text-emerald-400">{tokens}</span>
-                  </div>
-                  <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform duration-300 ${dropdownOpen ? 'rotate-180' : ''}`} />
-                </button>
+          {user ? (
+            <div className="relative ml-1" ref={dropdownRef}>
+              <button
+                onClick={() => setDropdownOpen(!dropdownOpen)}
+                aria-expanded={dropdownOpen}
+                aria-haspopup="menu"
+                className={`group flex items-center gap-2.5 rounded-full border py-1 pl-1 pr-3 transition-colors ${dropdownOpen ? 'border-brand-ink/30 bg-brand-card' : 'border-transparent hover:border-brand-line hover:bg-brand-card/70'}`}
+              >
+                <Avatar />
+                <span className="max-w-[110px] truncate text-[13px] font-semibold text-brand-ink">
+                  {displayName}
+                </span>
+                <span className="flex items-center gap-1 rounded-full bg-brand-ochre/15 px-2 py-0.5 text-[11.5px] font-semibold tabular-nums text-brand-ink">
+                  <Zap className="h-3 w-3 fill-brand-ochre text-brand-ochre" />
+                  {tokens}
+                </span>
+                <ChevronDown className={`h-4 w-4 text-brand-muted transition-transform duration-300 ${dropdownOpen ? 'rotate-180' : ''}`} />
+              </button>
 
+              <AnimatePresence>
                 {dropdownOpen && (
-                  <div className="absolute right-0 mt-4 w-64 max-w-[calc(100vw-2rem)] bg-white dark:bg-slate-950 rounded-[2rem] shadow-2xl border border-slate-100 dark:border-slate-900 py-4 z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-300">
-                    <div className="px-6 py-4 border-b border-slate-50 dark:border-slate-900 mb-2">
-                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">{t('nav.profile')}</p>
-                      <p className="text-sm font-bold text-slate-900 dark:text-white truncate">
-                        {user.user_metadata?.full_name || user.email}
-                      </p>
-                      <div className="mt-2 flex items-center justify-between">
-                        <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">{t('nav.tokens')}</span>
-                        <span className="text-xs font-black text-emerald-500">{tokens}</span>
+                  <motion.div
+                    role="menu"
+                    initial={{ opacity: 0, y: 8, scale: 0.98 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 6, scale: 0.98 }}
+                    transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
+                    className="brand-float absolute right-0 z-50 mt-3 w-72 max-w-[calc(100vw-2rem)] origin-top-right overflow-hidden rounded-[22px] p-2 shadow-float"
+                  >
+                    {/* 账号卡：名字 + 能量值 */}
+                    <div className="relative mb-1 overflow-hidden rounded-[16px] bg-brand-inset px-4 py-3.5">
+                      <div className="flex items-center gap-3">
+                        <Avatar size="h-10 w-10" />
+                        <div className="min-w-0">
+                          <p className="text-[11px] font-medium text-brand-muted">{t('nav.profile')}</p>
+                          <p className="truncate text-[13.5px] font-semibold text-brand-ink">
+                            {user.user_metadata?.full_name || user.email}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="mt-3 flex items-center justify-between rounded-xl bg-brand-card px-3 py-2">
+                        <span className="flex items-center gap-1.5 text-[11.5px] text-brand-muted">
+                          <Zap className="h-3.5 w-3.5 fill-brand-ochre text-brand-ochre" />
+                          {t('nav.tokens')}
+                        </span>
+                        <span className="text-[13px] font-semibold tabular-nums text-brand-ink">{tokens}</span>
                       </div>
                     </div>
-                    <Link
-                      to="/dashboard"
-                      className="flex items-center gap-3 px-6 py-3 text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-900 transition-all"
-                      onClick={() => setDropdownOpen(false)}
-                    >
-                      <LayoutDashboard className="w-4 h-4" />
-                      {t('nav.history')}
-                    </Link>
-                    <Link
-                      to="/notes"
-                      className="flex items-center gap-3 px-6 py-3 text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-900 transition-all"
-                      onClick={() => setDropdownOpen(false)}
-                    >
-                      <StickyNote className="w-4 h-4" />
-                      {t('nav.notes')}
-                    </Link>
-                    <Link
-                      to="/resume-tailor"
-                      className="flex items-center gap-3 px-6 py-3 text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-900 transition-all"
-                      onClick={() => setDropdownOpen(false)}
-                    >
-                      <FilePenLine className="w-4 h-4" />
-                      {t('nav.resumeTailor')}
-                    </Link>
-                    <Link
-                      to="/profile"
-                      className="flex items-center gap-3 px-6 py-3 text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-900 transition-all"
-                      onClick={() => setDropdownOpen(false)}
-                    >
-                      <UserCircle className="w-4 h-4" />
-                      {t('nav.profile')}
-                    </Link>
-                    <Link
-                      to="/experiences?mine=true"
-                      className="flex items-center gap-3 px-6 py-3 text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-900 transition-all"
-                      onClick={() => setDropdownOpen(false)}
-                    >
-                      <BookOpen className="w-4 h-4" />
-                      {t('nav.myExperiences')}
-                    </Link>
+
+                    {accountLinks.map(({ to, label, icon: Icon }) => (
+                      <Link
+                        key={to}
+                        to={to}
+                        role="menuitem"
+                        className="group/item flex items-center gap-3 rounded-xl px-3 py-2.5 text-[13px] font-medium text-brand-muted transition-colors hover:bg-brand-inset hover:text-brand-ink"
+                        onClick={() => setDropdownOpen(false)}
+                      >
+                        <Icon className="h-4 w-4" />
+                        <span className="flex-1">{label}</span>
+                        <ArrowRight className="h-3.5 w-3.5 -translate-x-1 opacity-0 transition-all duration-200 group-hover/item:translate-x-0 group-hover/item:opacity-100" />
+                      </Link>
+                    ))}
+
                     <button
                       onClick={(e) => {
                         e.stopPropagation()
                         toggleJobStatus()
                       }}
-                      className="flex items-center justify-between w-full px-6 py-3 text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-900 transition-all"
+                      role="menuitem"
+                      className="flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-[13px] font-medium text-brand-muted transition-colors hover:bg-brand-inset hover:text-brand-ink"
                     >
-                      <div className="flex items-center gap-3">
-                        <Briefcase className="w-4 h-4" />
+                      <span className="flex items-center gap-3">
+                        <Briefcase className="h-4 w-4" />
                         <span>{t('profile.status')}</span>
-                      </div>
-                      <span className={`px-2 py-1 rounded-lg ${jobStatus === 'seeking' ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-500'
-                        }`}>
+                      </span>
+                      <span className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11.5px] font-semibold ${jobStatus === 'seeking' ? 'bg-brand-success/[0.12] text-brand-success' : 'bg-brand-inset text-brand-muted'}`}>
+                        <span className={`h-1.5 w-1.5 rounded-full ${jobStatus === 'seeking' ? 'bg-brand-success' : 'bg-brand-muted'}`} />
                         {jobStatus === 'seeking' ? t('profile.statusSeeking') : t('profile.statusHired')}
                       </span>
                     </button>
-                    <div className="my-2 px-6">
-                      <div className="h-px bg-slate-50 dark:bg-slate-900" />
-                    </div>
+
+                    <div className="mx-3 my-1.5 h-px bg-brand-line" />
+
                     <button
                       onClick={handleSignOut}
-                      className="flex items-center gap-3 w-full px-6 py-3 text-[10px] font-black uppercase tracking-widest text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20 transition-all"
+                      role="menuitem"
+                      className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-[13px] font-medium text-brand-danger transition-colors hover:bg-brand-danger/[0.07]"
                     >
-                      <LogOut className="w-4 h-4" />
+                      <LogOut className="h-4 w-4" />
                       {t('nav.signOut')}
                     </button>
-                  </div>
+                  </motion.div>
                 )}
-              </div>
-            ) : (
-              <div className="flex items-center gap-4">
-                <Link to="/login" className="text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-slate-900 dark:hover:text-white">
-                  {t('nav.login')}
-                </Link>
-                <Link to="/login" className="px-6 py-2.5 bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-slate-800 dark:hover:bg-slate-100 transition-all shadow-lg shadow-slate-900/10">
-                  {t('nav.signUpFree')}
-                </Link>
-              </div>
-            )}
-          </div>
+              </AnimatePresence>
+            </div>
+          ) : (
+            <div className="ml-1 flex items-center gap-1">
+              <Link to="/login" className="rounded-full px-4 py-2 text-[13.5px] font-medium text-brand-muted transition-colors hover:text-brand-ink">
+                {t('nav.login')}
+              </Link>
+              <Link to="/login" className="lk-btn lk-btn-primary !px-5 !py-2.5 !text-[13px]">
+                {t('nav.signUpFree')}
+              </Link>
+            </div>
+          )}
+        </div>
 
-          <div className="flex items-center gap-4 md:hidden">
-            <button
-              className="p-2 rounded-xl text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-slate-900 transition-all"
-              onClick={() => setMobileOpen(!mobileOpen)}
-            >
-              {mobileOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-            </button>
-          </div>
+        <div className="flex items-center gap-1 lg:hidden">
+          {user && (
+            <span className="mr-1 flex items-center gap-1 rounded-full bg-brand-ochre/15 px-2.5 py-1 text-[12px] font-semibold tabular-nums text-brand-ink">
+              <Zap className="h-3 w-3 fill-brand-ochre text-brand-ochre" />
+              {tokens}
+            </span>
+          )}
+          <button
+            className="grid h-10 w-10 place-items-center rounded-full text-brand-ink transition-colors hover:bg-brand-card"
+            onClick={() => setMobileOpen(!mobileOpen)}
+            aria-expanded={mobileOpen}
+            aria-label="Menu"
+          >
+            {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+          </button>
         </div>
       </div>
 
-      {mobileOpen && (
-        <div className="pointer-events-auto md:hidden bg-white dark:bg-slate-950 border-t border-slate-100 dark:border-slate-900 p-8 space-y-6 animate-in slide-in-from-top-4 duration-500 font-chinese-modern uppercase">
-          <Link to="/" className="block text-2xl font-black text-slate-900 dark:text-white tracking-tighter" onClick={() => setMobileOpen(false)}>{t('nav.home')}</Link>
-          <Link to="/experiences" className="block text-2xl font-black text-slate-900 dark:text-white tracking-tighter" onClick={() => setMobileOpen(false)}>{t('nav.experiences')}</Link>
-          {user ? (
-            <>
-              <Link to="/setup" className="block text-2xl font-black text-slate-900 dark:text-white tracking-tighter" onClick={() => setMobileOpen(false)}>{t('nav.startInterview')}</Link>
-              <Link to="/dashboard" className="block text-2xl font-black text-slate-900 dark:text-white tracking-tighter" onClick={() => setMobileOpen(false)}>{t('nav.history')}</Link>
-              <Link to="/notes" className="block text-2xl font-black text-slate-900 dark:text-white tracking-tighter" onClick={() => setMobileOpen(false)}>{t('nav.notes')}</Link>
-              <Link to="/resume-tailor" className="block text-2xl font-black text-slate-900 dark:text-white tracking-tighter" onClick={() => setMobileOpen(false)}>{t('nav.resumeTailor')}</Link>
-              <Link to="/profile" className="block text-2xl font-black text-slate-900 dark:text-white tracking-tighter" onClick={() => setMobileOpen(false)}>{t('nav.profile')}</Link>
-              <button onClick={handleSignOut} className="w-full text-left text-2xl font-black text-red-600 py-4 tracking-tighter">{t('nav.signOut')}</button>
-            </>
-          ) : (
-            <>
-              <Link to="/login" className="block text-2xl font-black text-slate-900 dark:text-white tracking-tighter" onClick={() => setMobileOpen(false)}>{t('nav.login')}</Link>
-              <Link to="/login" className="block w-full text-center px-8 py-4 bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-xs font-black uppercase tracking-widest rounded-full shadow-xl" onClick={() => setMobileOpen(false)}>{t('nav.signUpFree')}</Link>
-            </>
-          )}
-          <div className="pt-8 flex items-center justify-between border-t border-slate-100 dark:border-slate-900">
-            <LanguageSwitcher />
-            <AppThemeToggle />
-          </div>
-        </div>
-      )}
+      <AnimatePresence>
+        {mobileOpen && (
+          <motion.div
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+            className="brand-float mx-auto mt-2 max-h-[calc(100dvh-var(--ui-nav-h)-1rem)] max-w-[1320px] overflow-y-auto rounded-[26px] p-3 shadow-float lg:hidden"
+          >
+            {/* 与桌面端共用 navItems，顺序一致 */}
+            <div className="grid gap-0.5">
+              {navItems.map(item => (
+                <Link
+                  key={item.to}
+                  to={item.to}
+                  className={`flex items-center justify-between rounded-2xl px-4 py-3 font-display text-[19px] font-semibold tracking-tight ${isActive(item.to) ? 'bg-brand-inset text-brand-ink' : 'text-brand-ink/85'}`}
+                  onClick={() => setMobileOpen(false)}
+                >
+                  {item.label}
+                  <ArrowRight className="h-4 w-4 text-brand-muted" />
+                </Link>
+              ))}
+            </div>
+
+            {user ? (
+              <div className="mt-2 border-t border-brand-line pt-2">
+                <div className="flex items-center gap-3 px-4 py-3">
+                  <Avatar size="h-9 w-9" />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-[13.5px] font-semibold text-brand-ink">{displayName}</p>
+                    <p className="text-[11.5px] text-brand-muted">{t('nav.tokens')} · <span className="tabular-nums">{tokens}</span></p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={toggleJobStatus}
+                    className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11.5px] font-semibold ${jobStatus === 'seeking' ? 'bg-brand-success/[0.12] text-brand-success' : 'bg-brand-inset text-brand-muted'}`}
+                  >
+                    <Briefcase className="h-3 w-3" />
+                    {jobStatus === 'seeking' ? t('profile.statusSeeking') : t('profile.statusHired')}
+                  </button>
+                </div>
+                <div className="grid grid-cols-2 gap-1.5 px-1">
+                  {accountLinks.map(({ to, label, icon: Icon }) => (
+                    <Link
+                      key={to}
+                      to={to}
+                      className="flex items-center gap-2 rounded-xl bg-brand-inset px-3 py-2.5 text-[12.5px] font-medium text-brand-ink"
+                      onClick={() => setMobileOpen(false)}
+                    >
+                      <Icon className="h-4 w-4 text-brand-muted" />
+                      <span className="truncate">{label}</span>
+                    </Link>
+                  ))}
+                  <button onClick={handleSignOut} className="flex items-center gap-2 rounded-xl px-3 py-2.5 text-left text-[12.5px] font-semibold text-brand-danger">
+                    <LogOut className="h-4 w-4" />
+                    {t('nav.signOut')}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="mt-2 grid grid-cols-2 gap-2 border-t border-brand-line px-1 pt-3">
+                <Link to="/login" className="lk-btn lk-btn-ghost" onClick={() => setMobileOpen(false)}>{t('nav.login')}</Link>
+                <Link to="/login" className="lk-btn lk-btn-primary" onClick={() => setMobileOpen(false)}>{t('nav.signUpFree')}</Link>
+              </div>
+            )}
+            <div className="mt-3 flex items-center justify-between border-t border-brand-line px-2 pt-3">
+              <LanguageSwitcher />
+              <AppThemeToggle />
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </nav>
   )
 }

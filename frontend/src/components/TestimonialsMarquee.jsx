@@ -1,38 +1,52 @@
 import { useTranslation } from 'react-i18next'
-import { motion } from 'framer-motion'
-import { Star, Quote } from 'lucide-react'
+import { Star } from 'lucide-react'
+import { SectionHead, Reveal } from './brand/BrandKit'
+import Marquee from './brand/Marquee'
+
+/* 头像底色轮流取插画的墙面色 */
+const AVATAR_TONES = [
+  'bg-brand-harbor text-white',
+  'bg-brand-ochre text-[#22303D]',
+  'bg-brand-sage text-[#1B2A37]',
+  'bg-brand-brick text-white',
+  'bg-brand-ink text-brand-on-ink',
+  'bg-brand-sky text-[#22303D]',
+]
 
 function TestimonialCard({ index }) {
   const { t } = useTranslation()
-  
+
   return (
-    <div className="flex h-full w-[350px] sm:w-[450px] shrink-0 flex-col justify-between rounded-[2.5rem] border border-slate-100 bg-white p-8 dark:border-slate-800 dark:bg-slate-900 shadow-sm transition-all hover:shadow-xl hover:-translate-y-1">
-      <div className="space-y-6">
-        <div className="flex gap-1 text-yellow-400">
+    <figure className="brand-float relative flex h-full w-[320px] shrink-0 flex-col justify-between overflow-hidden p-7 sm:w-[400px]">
+      {/* 衬线大引号作水印 */}
+      <span aria-hidden="true" className="pointer-events-none absolute -right-2 -top-6 font-display text-[120px] leading-none text-brand-ochre/20">”</span>
+
+      <div className="relative space-y-4">
+        <div className="flex gap-0.5 text-brand-ochre" aria-label={t('landing.testimonialsStarsAria')}>
           {[...Array(5)].map((_, i) => (
-            <Star key={i} className="w-4 h-4 fill-current" />
+            <Star key={i} className="h-3.5 w-3.5 fill-current" />
           ))}
         </div>
-        
-        <p className="text-slate-600 dark:text-slate-300 italic leading-relaxed text-lg">
-          "{t(`landing.testimonial${index}Body`)}"
-        </p>
+
+        <blockquote className="text-[14.5px] leading-relaxed text-brand-ink">
+          “{t(`landing.testimonial${index}Body`)}”
+        </blockquote>
       </div>
 
-      <div className="mt-8 flex items-center gap-4">
-        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-slate-900 dark:bg-slate-800 font-bold text-white shadow-lg">
+      <figcaption className="relative mt-7 flex items-center gap-3.5 border-t border-brand-line pt-5">
+        <div className={`grid h-10 w-10 shrink-0 place-items-center rounded-full font-display text-[15px] font-semibold ${AVATAR_TONES[(index - 1) % AVATAR_TONES.length]}`}>
           {t(`landing.testimonial${index}Initial`)}
         </div>
-        <div className="overflow-hidden">
-          <h4 className="font-black text-slate-900 dark:text-white truncate">
+        <div className="min-w-0">
+          <p className="truncate text-[13.5px] font-semibold text-brand-ink">
             {t(`landing.testimonial${index}Author`)}
-          </h4>
-          <p className="text-xs font-medium text-slate-400 dark:text-slate-500 truncate">
+          </p>
+          <p className="truncate text-[12px] text-brand-muted">
             {t(`landing.testimonial${index}Meta`)}
           </p>
         </div>
-      </div>
-    </div>
+      </figcaption>
+    </figure>
   )
 }
 
@@ -41,49 +55,23 @@ export default function TestimonialsMarquee() {
   const indices = [1, 2, 3, 4, 5, 6]
 
   return (
-    <section className="relative pt-16 pb-24 bg-white dark:bg-slate-950 overflow-hidden">
-      <div className="max-w-7xl mx-auto px-4 text-center mb-16 space-y-4">
-        <motion.div 
-          initial={{ opacity: 0, y: 10 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          className="section-badge mx-auto"
-        >
-          <Quote className="w-3.5 h-3.5" />
-          {t('landing.testimonialsBadge')}
-        </motion.div>
-        <motion.h2 
-          initial={{ opacity: 0, y: 10 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ delay: 0.1 }}
-          className="text-4xl sm:text-6xl font-black text-slate-900 dark:text-white font-serif tracking-tight"
-        >
-          {t('landing.testimonialsTitle')}
-        </motion.h2>
-        <motion.p 
-          initial={{ opacity: 0, y: 10 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ delay: 0.2 }}
-          className="text-xl text-slate-500 dark:text-slate-400 max-w-2xl mx-auto"
-        >
-          {t('landing.testimonialsSub')}
-        </motion.p>
+    <section className="relative overflow-hidden py-24 sm:py-28">
+      <div className="ui-container mb-14">
+        <Reveal className="mx-auto max-w-3xl">
+          <SectionHead
+            align="center"
+            badge={t('landing.testimonialsBadge')}
+            title={t('landing.testimonialsTitle')}
+            sub={t('landing.testimonialsSub')}
+          />
+        </Reveal>
       </div>
 
-      <div className="relative flex overflow-hidden offer-marquee-mask">
-        {/* Single Row: Left */}
-        <div className="flex gap-8 py-8 animate-marquee hover:[animation-play-state:paused]">
-          {[...Array(4)].map((_, i) => (
-            <div key={i} className="flex gap-8 shrink-0">
-              {indices.map(index => (
-                <TestimonialCard key={`${i}-${index}`} index={index} />
-              ))}
-            </div>
-          ))}
-        </div>
-      </div>
+      <Marquee duration={70} gap={20} className="py-4">
+        {indices.map(index => (
+          <TestimonialCard key={index} index={index} />
+        ))}
+      </Marquee>
     </section>
   )
 }

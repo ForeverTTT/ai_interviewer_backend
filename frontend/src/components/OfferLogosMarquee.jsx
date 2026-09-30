@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { motion } from 'framer-motion'
+import Marquee from './brand/Marquee'
 import sapLogo from '../assets/logos/sap.png'
 import boschLogo from '../assets/logos/bosch.png'
 import schaefflerLogo from '../assets/logos/schaeffler.png'
@@ -32,10 +33,11 @@ const MARQUEE_SEQUENCE = [
   { kind: 'uni', id: 'eth' },
 ]
 
+/* 去掉白卡片外框：B2B 场景里「信任墙」越干净越可信；默认灰阶，悬停还原品牌色 */
 function LogoItem({ children, title }) {
   return (
     <div
-      className="flex h-16 sm:h-24 w-44 sm:w-56 shrink-0 items-center justify-center rounded-[2rem] border border-slate-100 bg-white dark:border-slate-800 dark:bg-slate-900 shadow-sm transition-all hover:scale-105"
+      className="flex h-16 w-40 shrink-0 items-center justify-center opacity-60 grayscale transition-all duration-500 hover:opacity-100 hover:grayscale-0 sm:h-20 sm:w-48 dark:opacity-75 dark:brightness-[1.6]"
       title={title}
     >
       {children}
@@ -45,7 +47,7 @@ function LogoItem({ children, title }) {
 
 function LogoRow({ broken, setBroken, rowIndex }) {
   return (
-    <div className="flex shrink-0 items-center gap-8">
+    <>
       {MARQUEE_SEQUENCE.map((item, idx) => {
         const uniqueKey = `marquee-${rowIndex}-${item.kind}-${item.id}-${idx}`
         if (item.kind === 'brand') {
@@ -54,7 +56,7 @@ function LogoRow({ broken, setBroken, rowIndex }) {
           return (
             <LogoItem key={uniqueKey} title={b.name}>
               {broken[uniqueKey] ? (
-                <span className="text-sm font-bold text-slate-400">{b.name}</span>
+                <span className="text-sm font-semibold text-brand-muted">{b.name}</span>
               ) : (
                 <img
                   src={src}
@@ -71,7 +73,7 @@ function LogoRow({ broken, setBroken, rowIndex }) {
         return (
           <LogoItem key={uniqueKey} title={u.sub}>
             {broken[uniqueKey] ? (
-              <span className="text-xs font-bold text-slate-400 text-center px-2">{u.name}</span>
+              <span className="px-2 text-center text-xs font-semibold text-brand-muted">{u.name}</span>
             ) : (
               <img
                 src={src}
@@ -83,7 +85,7 @@ function LogoRow({ broken, setBroken, rowIndex }) {
           </LogoItem>
         )
       })}
-    </div>
+    </>
   )
 }
 
@@ -92,32 +94,32 @@ export default function OfferLogosMarquee() {
   const [broken, setBroken] = useState({})
 
   return (
-    <section className="relative pt-12 pb-12 bg-white dark:bg-slate-950 overflow-hidden">
-      <div className="max-w-7xl mx-auto px-4 text-center mb-16">
-        <motion.p 
-          initial={{ opacity: 0, y: 10 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400 dark:text-slate-600 mb-6"
-        >
-          {t('offerMarquee.sub')}
-        </motion.p>
-        <motion.h3 
-          initial={{ opacity: 0, y: 10 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ delay: 0.1 }}
-          className="text-2xl sm:text-4xl font-black text-slate-900 dark:text-white font-serif leading-tight"
-        >
-          {t('offerMarquee.line1')}
-        </motion.h3>
-      </div>
+    <section className="relative overflow-hidden py-16 sm:py-20">
+      <div className="ui-container">
+        <div className="relative overflow-hidden rounded-[32px] border border-brand-line bg-brand-card/70 py-12 backdrop-blur-sm">
+          <div className="mb-8 px-6 text-center">
+            <motion.p
+              initial={{ opacity: 0, y: 10 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              className="lk-eyebrow justify-center"
+            >
+              {t('offerMarquee.sub')}
+            </motion.p>
+            <motion.h3
+              initial={{ opacity: 0, y: 10 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: 0.1 }}
+              className="lk-display mx-auto mt-4 max-w-3xl text-[24px] leading-tight sm:text-[32px]"
+            >
+              {t('offerMarquee.line1')}
+            </motion.h3>
+          </div>
 
-      <div className="relative flex overflow-hidden group offer-marquee-mask">
-        <div className="flex gap-8 py-4 animate-marquee hover:[animation-play-state:paused]">
-          {[0, 1, 2, 3].map((i) => (
-            <LogoRow key={i} rowIndex={i} broken={broken} setBroken={setBroken} />
-          ))}
+          <Marquee duration={45} gap={40} className="py-2">
+            <LogoRow rowIndex={0} broken={broken} setBroken={setBroken} />
+          </Marquee>
         </div>
       </div>
     </section>

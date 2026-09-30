@@ -1,11 +1,12 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
-  AlertTriangle, ArrowRight, BriefcaseBusiness,
-  CheckCircle2, FileClock, FileText, Loader2, PauseCircle,
+  AlertTriangle, ArrowRight, BarChart3, BriefcaseBusiness, CalendarDays,
+  CheckCircle2, Clock3, FileClock, FileText, Flame, Loader2, PauseCircle,
   PlayCircle, PlusCircle, Sparkles, Target, Trash2, BookmarkCheck,
+  Flag, Layers, History, RotateCcw, Eye,
 } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
 import { supabase } from '../lib/supabase'
@@ -13,6 +14,7 @@ import { getBackendBaseUrl } from '../lib/backendBase'
 import { authenticatedFetch } from '../lib/authenticatedFetch'
 import { createInterviewRequestId } from '../lib/interviewEvents'
 import OfferSprintPanel from '../components/OfferSprintPanel'
+import PageHeader from '../components/brand/PageHeader'
 
 const RESUMABLE_STATUSES = new Set(['draft', 'active', 'paused'])
 
@@ -24,6 +26,16 @@ function parseReport(raw) {
   if (!raw) return null
   if (typeof raw === 'object') return raw
   try { return JSON.parse(raw) } catch { return null }
+}
+
+function InlineRichText({ text }) {
+  const parts = String(text || '').split(/(\*\*[^*\n]+\*\*)/g)
+  return parts.map((part, index) => {
+    const match = part.match(/^\*\*([^*\n]+)\*\*$/)
+    return match
+      ? <strong key={index} className="rounded-[3px] bg-brand-glow/25 px-0.5 font-semibold text-brand-ink">{match[1]}</strong>
+      : part || null
+  })
 }
 
 function hasReport(interview) {
@@ -73,6 +85,33 @@ function sessionDate(interview) {
   return interview?.completed_at || interview?.updated_at || interview?.created_at || null
 }
 
+function localDayKey(value) {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return null
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+}
+
+function startOfWeek() {
+  const result = new Date()
+  result.setHours(0, 0, 0, 0)
+  result.setDate(result.getDate() - (result.getDay() || 7) + 1)
+  return result
+}
+
+function calculateStreak(dayKeys) {
+  const unique = new Set(dayKeys.filter(Boolean))
+  if (!unique.size) return 0
+  const cursor = new Date()
+  cursor.setHours(0, 0, 0, 0)
+  if (!unique.has(localDayKey(cursor))) cursor.setDate(cursor.getDate() - 1)
+  let streak = 0
+  while (unique.has(localDayKey(cursor))) {
+    streak += 1
+    cursor.setDate(cursor.getDate() - 1)
+  }
+  return streak
+}
+
 function formatEffectiveDuration(seconds, t) {
   const totalMinutes = Math.floor(seconds / 60)
   if (totalMinutes < 60) return t('dashboard.growth.minutes', { count: totalMinutes })
@@ -99,6 +138,73 @@ function statusLabel(interview, t) {
   return t('dashboard.growth.status.closed')
 }
 
+/**
+ * 复习闪卡：最近收藏的题目，正面是题目，点一下在 3D 空间里翻到背面看答案要点。
+ * 完整的筛选、笔记和再次练习都在题目收藏库里，这里只做「随手翻一翻」。
+ */
+function ReviewFlashcards({ collections, t }) {
+  const [flipped, setFlipped] = useState({})
+  if (!collections.length) {
+    return (
+      <div className="brand-float flex min-h-52 flex-col items-center justify-center gap-4 px-6 py-10 text-center">
+        <Layers className="h-8 w-8 text-brand-muted" />
+        <p className="max-w-md text-[13px] leading-relaxed text-brand-muted">{t('dashboard.growth.collections.empty')}</p>
+        <Link to="/notes" className="lk-btn lk-btn-ghost">{t('dashboard.growth.collections.viewAll')}<ArrowRight className="h-3.5 w-3.5" /></Link>
+      </div>
+    )
+  }
+  const tones = ['from-brand-harbor/[0.16]', 'from-brand-ochre/[0.22]', 'from-brand-sage/[0.24]', 'from-brand-brick/[0.14]']
+  return (
+    <section className="space-y-4">
+      <div className="flex flex-wrap items-end justify-between gap-3 px-1">
+        <div>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-brand-muted">{t('dashboard.growth.collections.eyebrow')}</p>
+          <h2 className="mt-1.5 font-brand text-[17px] font-semibold text-brand-ink">{t('dashboard.growth.collections.title')}</h2>
+        </div>
+        <Link to="/notes" className="lk-btn lk-btn-ghost !py-2 !text-[12.5px]">{t('dashboard.growth.collections.viewAll')}<ArrowRight className="h-3.5 w-3.5" /></Link>
+      </div>
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        {collections.map((collection, index) => {
+          const isFlipped = Boolean(flipped[collection.id])
+          const answer = String(collection.answer_text || collection.answer || '').trim()
+          return (
+            <div key={collection.id} className="lk-perspective h-[220px]">
+              <motion.button
+                type="button"
+                onClick={() => setFlipped(cur => ({ ...cur, [collection.id]: !cur[collection.id] }))}
+                animate={{ rotateY: isFlipped ? 180 : 0 }}
+                transition={{ type: 'spring', stiffness: 120, damping: 18 }}
+                style={{ transformStyle: 'preserve-3d' }}
+                className="relative h-full w-full text-left"
+                aria-pressed={isFlipped}
+              >
+                <span className={`absolute inset-0 flex flex-col rounded-[22px] border border-brand-line bg-gradient-to-br ${tones[index % tones.length]} to-brand-card p-5 shadow-sm [backface-visibility:hidden]`}>
+                  <span className="flex items-center justify-between">
+                    <span className="grid h-9 w-9 place-items-center rounded-xl bg-brand-card font-display text-[13px] font-semibold tabular-nums text-brand-ink shadow-sm">Q{index + 1}</span>
+                    <BookmarkCheck className="h-4 w-4 text-brand-muted" />
+                  </span>
+                  <span className="lk-display mt-4 line-clamp-4 text-[17px] leading-snug">{collection.question_text}</span>
+                  <span className="mt-auto flex items-center justify-between gap-2 pt-3 text-[11.5px] text-brand-muted">
+                    <span className="truncate">{collection.position}</span>
+                    <span className="flex shrink-0 items-center gap-1 font-medium text-brand-ink"><RotateCcw className="h-3 w-3" />{t('notes.reveal')}</span>
+                  </span>
+                </span>
+                <span className="absolute inset-0 flex flex-col rounded-[22px] border border-brand-ink/15 bg-brand-card p-5 shadow-sm [backface-visibility:hidden] [transform:rotateY(180deg)]">
+                  <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-brand-muted">{t('notes.answer')}</span>
+                  <span className="mt-2 line-clamp-5 text-[13px] leading-relaxed text-brand-ink">{answer || '—'}</span>
+                  <span className="mt-auto flex items-center justify-between gap-2 pt-3 text-[11.5px] text-brand-muted">
+                    <span className="flex items-center gap-1"><Eye className="h-3 w-3" />{t('notes.hide')}</span>
+                  </span>
+                </span>
+              </motion.button>
+            </div>
+          )
+        })}
+      </div>
+    </section>
+  )
+}
+
 export default function DashboardPage() {
   const { t, i18n } = useTranslation()
   const { user } = useAuth()
@@ -111,6 +217,10 @@ export default function DashboardPage() {
   const [pendingDelete, setPendingDelete] = useState(null)
   const [deletingId, setDeletingId] = useState(null)
   const [deleteModalError, setDeleteModalError] = useState(null)
+  const [taskBusy, setTaskBusy] = useState(false)
+  const [taskError, setTaskError] = useState(false)
+  const [section, setSection] = useState('sprint')
+  const formalFinalizeRequestedRef = useRef(new Set())
   const localeTag = i18n.language === 'de' ? 'de-DE' : i18n.language === 'en' ? 'en-US' : 'zh-CN'
 
   const closeDeleteModal = useCallback(() => {
@@ -156,6 +266,33 @@ export default function DashboardPage() {
         }
         const loadedInterviews = data.interviews || []
         if (!cancelled) setInterviews(loadedInterviews)
+        loadedInterviews.forEach((interview) => {
+          if (
+            interview.mode !== 'formal'
+            || hasReport(interview)
+            || isGenerating(interview)
+            || !RESUMABLE_STATUSES.has(interview.status)
+            || formalFinalizeRequestedRef.current.has(interview.id)
+          ) return
+          formalFinalizeRequestedRef.current.add(interview.id)
+          setInterviews(current => current.map(item => item.id === interview.id
+            ? { ...item, status: 'finalizing', finalize_status: 'processing' }
+            : item))
+          void authenticatedFetch(`${getBackendBaseUrl()}/api/interviews/${interview.id}/finalize`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-Request-Id': createInterviewRequestId(),
+            },
+            body: JSON.stringify({ messages: [], reportUiLanguage: i18n.language }),
+          }).then(async (finalizeResponse) => {
+            if (!finalizeResponse.ok || cancelled) return
+            const finalizeBody = await finalizeResponse.json().catch(() => ({}))
+            if (finalizeBody.interview) {
+              setInterviews(current => current.map(item => item.id === interview.id ? finalizeBody.interview : item))
+            }
+          }).catch(() => {})
+        })
       } catch {
         if (!cancelled) setLoadError(true)
       } finally {
@@ -169,11 +306,21 @@ export default function DashboardPage() {
   const metrics = useMemo(() => {
     const effectiveInterviews = interviews.filter(interview => interview.status === 'completed' || effectiveSeconds(interview) >= 480)
     const totalSeconds = interviews.reduce((sum, interview) => sum + effectiveSeconds(interview), 0)
+    const completedDayKeys = effectiveInterviews.map(interview => localDayKey(sessionDate(interview))).filter(Boolean)
+    const weekStart = startOfWeek()
+    const weeklyDays = new Set(effectiveInterviews
+      .filter(interview => {
+        const date = new Date(sessionDate(interview))
+        return !Number.isNaN(date.getTime()) && date >= weekStart
+      })
+      .map(interview => localDayKey(sessionDate(interview)))).size
     return {
       effectiveCount: effectiveInterviews.length,
       totalSeconds,
+      weeklyDays: growthOverview?.rhythm?.weeklyDays ?? weeklyDays,
+      streak: growthOverview?.rhythm?.streak ?? calculateStreak(completedDayKeys),
     }
-  }, [interviews])
+  }, [growthOverview, interviews])
 
   const latestReviewCandidate = useMemo(() => (
     interviews.find(interview => isGenerating(interview))
@@ -221,6 +368,8 @@ export default function DashboardPage() {
     const rawQuestionIndex = task?.question_index ?? task?.questionIndex
     const questionIndex = rawQuestionIndex === null || rawQuestionIndex === undefined ? NaN : Number(rawQuestionIndex)
     if (!existingCollectionId && (!sourceInterviewId || !Number.isInteger(questionIndex) || questionIndex < 0)) return
+    setTaskBusy(true)
+    setTaskError(false)
     try {
       let collectionId = existingCollectionId
       if (!collectionId) {
@@ -242,87 +391,402 @@ export default function DashboardPage() {
       if (!practiceResponse.ok || !practiceBody.interviewId) throw new Error('practice failed')
       navigate(`/interview/${practiceBody.interviewId}`)
     } catch {
-      throw new Error('practice creation failed')
-    }
+      setTaskError(true)
+      if (taskOverride) throw new Error('practice creation failed')
+    } finally { setTaskBusy(false) }
   }
 
-  return (
-    <div className="min-h-screen bg-[#f7f6f2] pb-24 pt-28 dark:bg-slate-950">
-      <main className="mx-auto max-w-7xl space-y-10 px-4 sm:px-6 lg:px-8">
-        <header className="flex flex-col gap-8 lg:flex-row lg:items-end lg:justify-between">
-          <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="max-w-3xl space-y-4">
-            <div className="section-badge">{t('dashboard.growth.eyebrow')}</div>
-            <div className="space-y-3">
-              <h1 className="font-serif text-4xl font-black tracking-tight text-slate-950 dark:text-white sm:text-5xl">{t('dashboard.growth.title')}</h1>
-              <p className="max-w-2xl text-lg leading-relaxed text-slate-600 dark:text-slate-300">{t('dashboard.growth.subtitle')}</p>
-            </div>
-          </motion.div>
-          <Link to="/setup" className="btn-primary inline-flex w-full items-center justify-center gap-2 px-7 py-4 sm:w-auto"><PlusCircle className="h-5 w-5" />{t('dashboard.newInterview')}</Link>
-        </header>
+  /* 卡片外壳：全站统一的 1px 描边 + 纯白底，不再用 card-premium 的投影 */
+  const CARD = 'brand-float rounded-[22px]'
+  /* 区块眉标：小字、中性灰、字距拉开 */
+  const EYEBROW = 'text-[11px] font-medium uppercase tracking-[0.16em] text-brand-muted'
+  const H2 = 'font-brand text-[17px] font-semibold tracking-[-0.01em] text-brand-ink'
 
-        <OfferSprintPanel
-          offerSprint={growthOverview?.offerSprint}
-          practiceStats={{
-            count: metrics.effectiveCount,
-            duration: formatEffectiveDuration(metrics.totalSeconds, t),
-          }}
-          onOverview={setGrowthOverview}
-          onStartTask={startRecommendedTask}
+  return (
+    <div className="theme-quiet min-h-screen pb-20 pt-[calc(var(--ui-nav-h)+2.75rem)]">
+      <main className="ui-container max-w-[1400px] space-y-5">
+
+        {/* ───────── 页头 ───────── */}
+        <PageHeader
+          eyebrow={t('dashboard.growth.eyebrow')}
+          title={t('dashboard.growth.title')}
+          subtitle={t('dashboard.growth.subtitle')}
+          actions={(
+            <Link to="/setup" className="lk-btn lk-btn-primary">
+              <PlusCircle className="h-4 w-4" />{t('dashboard.newInterview')}
+            </Link>
+          )}
+          className="!mb-3"
         />
 
-        <section aria-label={t('dashboard.growth.readiness.title')}>
-          <motion.article initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="relative overflow-hidden rounded-[2rem] bg-slate-950 p-7 text-white shadow-2xl shadow-slate-900/15 sm:p-9">
-            <div className="absolute -right-20 -top-20 h-56 w-56 rounded-full bg-primary-500/25 blur-3xl" />
-            <div className="relative flex min-h-[230px] flex-col justify-between gap-8">
-              <div className="flex items-start justify-between gap-5">
-                <div className="space-y-2"><div className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.18em] text-primary-300"><Target className="h-4 w-4" />{t('dashboard.growth.readiness.title')}</div><p className="max-w-md text-sm leading-relaxed text-slate-300">{t('dashboard.growth.readiness.description')}</p></div>
-                <BriefcaseBusiness className="h-8 w-8 text-white/30" />
+        {/* ───────── 主概览：准备度、最近结果、训练节奏合成一个视觉主体 ───────── */}
+        <motion.section
+          initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }}
+          aria-label={t('dashboard.growth.overview')}
+          className="overflow-hidden rounded-[26px] border border-brand-line bg-brand-card"
+        >
+          <div className="grid lg:grid-cols-12">
+            <article className="px-6 py-6 sm:px-8 sm:py-7 lg:col-span-7">
+              <div className="flex items-start justify-between gap-4">
+                <div className="min-w-0">
+                  <p className={`flex items-center gap-2 ${EYEBROW}`}><Target className="h-3.5 w-3.5" />{t('dashboard.growth.readiness.title')}</p>
+                  <p className="mt-2 max-w-lg text-[12.5px] leading-relaxed text-brand-muted">{t('dashboard.growth.readiness.description')}</p>
+                </div>
+                <BriefcaseBusiness className="h-5 w-5 shrink-0 text-brand-muted" />
               </div>
+
               {readinessScore !== null ? (
-                <div className="space-y-5"><div className="flex flex-wrap items-end justify-between gap-5"><div><span className="text-6xl font-black tabular-nums">{readinessScore}</span><span className="ml-2 text-sm font-bold text-slate-400">/ 100</span><p className="mt-1 text-[10px] font-black uppercase tracking-widest text-slate-500">{t(`dashboard.growth.readiness.${readiness?.assessment || 'initial'}`)}</p></div><Link to={readiness?.latestInterviewId || latestReport?.id ? `/interview/${readiness?.latestInterviewId || latestReport.id}/report` : '/setup'} className="inline-flex items-center gap-2 rounded-xl bg-white px-5 py-3 text-sm font-black text-slate-950 transition hover:bg-primary-50">{t('dashboard.growth.viewEvidence')} <ArrowRight className="h-4 w-4" /></Link></div>{readiness?.dimensions?.length > 0 && <div className="grid gap-2 sm:grid-cols-5">{readiness.dimensions.map(dimension => <details key={dimension.key} className="rounded-xl bg-white/[0.07] p-3"><summary className="cursor-pointer list-none"><div className="flex justify-between gap-2 text-[10px] font-black"><span>{t(`dashboard.growth.readiness.dimensions.${dimension.key}`)}</span><span className="text-primary-300">{dimension.score ?? '—'}</span></div><div className="mt-2 h-1 overflow-hidden rounded-full bg-white/10"><div className="h-full bg-primary-400" style={{ width: `${dimension.score ?? 0}%` }} /></div></summary><p className="mt-3 text-[10px] leading-relaxed text-slate-300">{dimension.evidence?.excerpt || t('dashboard.growth.readiness.insufficient')}</p>{dimension.trend !== null && dimension.trend !== undefined && <p className="mt-2 text-[10px] font-black text-primary-300">{dimension.trend > 0 ? '+' : ''}{dimension.trend}</p>}</details>)}</div>}</div>
+                <div className="mt-6 grid gap-6 sm:grid-cols-[112px_minmax(0,1fr)] sm:items-start">
+                  <div>
+                    <div className="relative grid h-[104px] w-[104px] place-items-center">
+                      <svg viewBox="0 0 120 120" className="h-full w-full -rotate-90">
+                        <circle cx="60" cy="60" r="50" fill="none" stroke="rgb(var(--brand-line))" strokeWidth="9" />
+                        <circle cx="60" cy="60" r="50" fill="none" stroke="rgb(var(--brand-violet))" strokeWidth="9" strokeLinecap="round" strokeDasharray={`${(2 * Math.PI * 50 * readinessScore) / 100} ${2 * Math.PI * 50}`} />
+                      </svg>
+                      <div className="absolute flex items-baseline gap-0.5">
+                        <span className="text-[29px] font-semibold leading-none tabular-nums text-brand-ink">{readinessScore}</span>
+                        <span className="text-[10px] text-brand-muted">/100</span>
+                      </div>
+                    </div>
+                    <p className="mt-2 text-center text-[11.5px] text-brand-muted">{t(`dashboard.growth.readiness.${readiness?.assessment || 'initial'}`)}</p>
+                  </div>
+
+                  {readiness?.dimensions?.length > 0 && (
+                    <div className="space-y-3 pt-1">
+                      {readiness.dimensions.map(dimension => (
+                        <details key={dimension.key} className="group">
+                          <summary className="flex cursor-pointer list-none items-center gap-3">
+                            <span className="w-[76px] shrink-0 text-[12px] text-brand-ink">{t(`dashboard.growth.readiness.dimensions.${dimension.key}`)}</span>
+                            <span className="h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-brand-inset">
+                              <span className="block h-full rounded-full bg-brand-violet" style={{ width: `${dimension.score ?? 0}%` }} />
+                            </span>
+                            <span className="w-7 shrink-0 text-right text-[12px] font-semibold tabular-nums text-brand-ink">{dimension.score ?? '—'}</span>
+                            {dimension.trend !== null && dimension.trend !== undefined && (
+                              <span className={`w-7 shrink-0 text-right text-[11px] font-medium tabular-nums ${dimension.trend > 0 ? 'text-brand-success' : dimension.trend < 0 ? 'text-brand-danger' : 'text-brand-muted'}`}>{dimension.trend > 0 ? '+' : ''}{dimension.trend}</span>
+                            )}
+                          </summary>
+                          <p className="mt-2 pl-[88px] text-[11.5px] leading-relaxed text-brand-muted">{dimension.evidence?.excerpt || t('dashboard.growth.readiness.insufficient')}</p>
+                        </details>
+                      ))}
+                    </div>
+                  )}
+                </div>
               ) : (
-                <div className="flex flex-wrap items-end justify-between gap-5"><div className="space-y-2"><p className="text-2xl font-black">{t('dashboard.growth.readiness.pendingTitle')}</p><p className="max-w-md text-sm text-slate-400">{t('dashboard.growth.readiness.pendingBody')}</p></div><Link to={latestReport ? `/interview/${latestReport.id}/report` : '/setup'} className="inline-flex items-center gap-2 rounded-xl bg-white px-5 py-3 text-sm font-black text-slate-950 transition hover:bg-primary-50">{latestReport ? t('dashboard.growth.viewLatestReport') : t('dashboard.growth.startBaseline')}<ArrowRight className="h-4 w-4" /></Link></div>
+                <div className="mt-6 border-t border-brand-line pt-5">
+                  <p className="text-[15px] font-semibold text-brand-ink">{t('dashboard.growth.readiness.pendingTitle')}</p>
+                  <p className="mt-1.5 max-w-lg text-[12.5px] leading-relaxed text-brand-muted">{t('dashboard.growth.readiness.pendingBody')}</p>
+                </div>
               )}
-            </div>
-          </motion.article>
-        </section>
+            </article>
 
-        <section className="card-premium overflow-hidden p-6 sm:p-8">
-          <div className="mb-7 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div><p className="text-xs font-black uppercase tracking-[0.18em] text-primary-600 dark:text-primary-400">{t('dashboard.growth.latest.eyebrow')}</p><h2 className="mt-2 font-serif text-2xl font-black text-slate-950 dark:text-white">{t('dashboard.growth.latest.title')}</h2></div>{latestReviewCandidate && !isGenerating(latestReviewCandidate) && <span className="text-xs font-bold text-slate-400">{new Date(sessionDate(latestReviewCandidate)).toLocaleDateString(localeTag, { year: 'numeric', month: 'short', day: 'numeric' })}</span>}</div>
-          {loading ? <div className="flex min-h-40 items-center justify-center"><Loader2 className="h-7 w-7 animate-spin text-primary-500" /></div>
-            : loadError ? <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-sm font-bold text-red-700 dark:border-red-900 dark:bg-red-950/30 dark:text-red-300">{t('dashboard.growth.loadFailed')}</div>
-              : !latestReviewCandidate ? <div className="flex flex-col items-start justify-between gap-6 rounded-[1.75rem] border-2 border-dashed border-slate-200 p-7 dark:border-slate-800 sm:flex-row sm:items-center"><div className="flex gap-4"><div className="rounded-2xl bg-slate-100 p-3 text-slate-400 dark:bg-slate-900"><Sparkles className="h-6 w-6" /></div><div><h3 className="font-black text-slate-950 dark:text-white">{t('dashboard.growth.latest.emptyTitle')}</h3><p className="mt-1 text-sm text-slate-500">{t('dashboard.growth.latest.emptyBody')}</p></div></div><Link to="/setup" className="btn-primary inline-flex w-full items-center justify-center gap-2 px-6 py-3 sm:w-auto">{t('dashboard.growth.startBaseline')} <ArrowRight className="h-4 w-4" /></Link></div>
-                : isGenerating(latestReviewCandidate) ? <div className="flex items-center gap-5 rounded-[1.75rem] border border-indigo-100 bg-indigo-50/70 p-7 dark:border-indigo-900/50 dark:bg-indigo-950/20" role="status"><div className="rounded-2xl bg-white p-3 text-indigo-600 shadow-sm dark:bg-slate-900 dark:text-indigo-300"><Loader2 className="h-6 w-6 animate-spin" /></div><div><h3 className="font-black text-slate-950 dark:text-white">{t('dashboard.growth.latest.generatingTitle')}</h3><p className="mt-1 text-sm text-slate-600 dark:text-slate-300">{t('dashboard.growth.latest.generatingBody')}</p></div></div>
-                  : hasReport(latestReviewCandidate) ? <div className="grid gap-6 rounded-[1.75rem] bg-slate-950 p-7 text-white md:grid-cols-[1fr_auto] md:items-end"><div className="space-y-4"><div className="flex flex-wrap items-center gap-2 text-xs font-bold text-slate-400"><span>{latestReviewCandidate.position}</span><span>·</span><span>{latestReviewCandidate.language}</span><span>·</span><span>{latestReviewCandidate.duration} {t('dashboard.durMin')}</span></div><p className="max-w-3xl text-lg font-bold leading-relaxed">{reportSummary(latestReviewCandidate) || t('dashboard.growth.latest.reportReadyBody')}</p>{reportStrength(latestReviewCandidate) && <p className="flex items-start gap-2 text-sm text-emerald-300"><CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />{reportStrength(latestReviewCandidate)}</p>}</div><Link to={`/interview/${latestReviewCandidate.id}/report`} className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-white px-6 py-4 text-sm font-black text-slate-950 transition hover:bg-primary-50 md:w-auto">{t('dashboard.growth.viewReport')} <ArrowRight className="h-4 w-4" /></Link></div>
-                    : isResumable(latestReviewCandidate) ? <div className="flex flex-col items-start justify-between gap-6 rounded-[1.75rem] border border-amber-200 bg-amber-50/70 p-7 dark:border-amber-900/50 dark:bg-amber-950/20 sm:flex-row sm:items-center"><div className="flex gap-4"><PauseCircle className="h-7 w-7 shrink-0 text-amber-600" /><div><h3 className="font-black text-slate-950 dark:text-white">{t('dashboard.growth.latest.unfinishedTitle')}</h3><p className="mt-1 text-sm text-slate-600 dark:text-slate-300">{t('dashboard.growth.latest.unfinishedBody', { position: latestReviewCandidate.position })}</p></div></div><Link to={`/interview/${latestReviewCandidate.id}`} className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-slate-950 px-6 py-4 text-sm font-black text-white dark:bg-white dark:text-slate-950 sm:w-auto">{t('dashboard.growth.continuePractice')} <ArrowRight className="h-4 w-4" /></Link></div>
-                      : <div className="flex flex-col items-start justify-between gap-6 rounded-[1.75rem] border border-slate-200 p-7 dark:border-slate-800 sm:flex-row sm:items-center"><div><h3 className="font-black text-slate-950 dark:text-white">{t('dashboard.growth.latest.noReportTitle')}</h3><p className="mt-1 text-sm text-slate-500">{t('dashboard.growth.latest.noReportBody')}</p></div><Link to={`/interview/${latestReviewCandidate.id}/report`} className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-slate-300 px-6 py-3 text-sm font-black text-slate-800 dark:border-slate-700 dark:text-white sm:w-auto">{t('dashboard.growth.checkReportStatus')} <ArrowRight className="h-4 w-4" /></Link></div>}
-        </section>
+            {/* 最近结果是全页唯一的顶部报告入口，避免与“查看报告依据”重复。 */}
+            <article className="border-t border-brand-line bg-brand-inset/55 px-6 py-6 sm:px-8 sm:py-7 lg:col-span-5 lg:border-l lg:border-t-0">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p className={EYEBROW}>{t('dashboard.growth.latest.eyebrow')}</p>
+                  <h2 className="mt-2 font-brand text-[19px] font-semibold text-brand-ink">{t('dashboard.growth.latest.title')}</h2>
+                </div>
+                {latestReviewCandidate && !isGenerating(latestReviewCandidate) && (
+                  <span className="text-[11px] tabular-nums text-brand-muted">{new Date(sessionDate(latestReviewCandidate)).toLocaleDateString(localeTag, { year: 'numeric', month: 'short', day: 'numeric' })}</span>
+                )}
+              </div>
 
-        <section className="card-premium p-6 sm:p-8">
-          <div className="mb-6 flex items-end justify-between gap-4"><div><p className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">{t('dashboard.growth.collections.eyebrow')}</p><h2 className="mt-2 font-serif text-2xl font-black text-slate-950 dark:text-white">{t('dashboard.growth.collections.title')}</h2></div><Link to="/notes" className="inline-flex items-center gap-2 text-sm font-black text-primary-600 dark:text-primary-400">{t('dashboard.growth.collections.viewAll')}<ArrowRight className="h-4 w-4" /></Link></div>
-          {growthOverview?.recentCollections?.length > 0 ? <div className="grid gap-4 md:grid-cols-3">{growthOverview.recentCollections.map(collection => <Link key={collection.id} to="/notes" className="group rounded-2xl border border-slate-200 p-5 transition hover:-translate-y-1 hover:border-primary-300 dark:border-slate-800 dark:hover:border-primary-800"><div className="flex items-center justify-between gap-3"><span className="rounded-full bg-amber-50 px-2.5 py-1 text-[10px] font-black text-amber-700 dark:bg-amber-950/30 dark:text-amber-300">{t('dashboard.growth.collections.toReview')}</span>{collection.is_pinned && <BookmarkCheck className="h-4 w-4 text-primary-500" />}</div><h3 className="mt-4 line-clamp-3 text-sm font-black leading-relaxed text-slate-950 dark:text-white">{collection.question_text}</h3><p className="mt-3 text-xs font-bold text-slate-400">{collection.position}</p></Link>)}</div> : <div className="rounded-2xl border-2 border-dashed border-slate-200 p-6 text-sm text-slate-500 dark:border-slate-800">{t('dashboard.growth.collections.empty')}</div>}
-        </section>
+              {loading ? (
+                <div className="flex min-h-52 items-center justify-center"><Loader2 className="h-6 w-6 animate-spin text-brand-muted" /></div>
+              ) : loadError ? (
+                <p className="mt-6 text-[13px] font-medium text-brand-danger">{t('dashboard.growth.loadFailed')}</p>
+              ) : !latestReviewCandidate ? (
+                <div className="mt-6 flex min-h-44 flex-col justify-between gap-5">
+                  <div>
+                    <h3 className="text-[15px] font-semibold text-brand-ink">{t('dashboard.growth.latest.emptyTitle')}</h3>
+                    <p className="mt-2 text-[12.5px] leading-relaxed text-brand-muted">{t('dashboard.growth.latest.emptyBody')}</p>
+                  </div>
+                  <Link to="/setup" className="inline-flex w-fit items-center gap-2 rounded-xl bg-brand-ink px-5 py-2.5 text-[12.5px] font-semibold text-brand-on-ink hover:opacity-90">{t('dashboard.growth.startBaseline')}<ArrowRight className="h-3.5 w-3.5" /></Link>
+                </div>
+              ) : isGenerating(latestReviewCandidate) ? (
+                <div className="mt-6 flex gap-3" role="status">
+                  <Loader2 className="mt-0.5 h-5 w-5 shrink-0 animate-spin text-brand-violet" />
+                  <div><h3 className="text-[14px] font-semibold text-brand-ink">{t('dashboard.growth.latest.generatingTitle')}</h3><p className="mt-1 text-[12.5px] leading-relaxed text-brand-muted">{t('dashboard.growth.latest.generatingBody')}</p></div>
+                </div>
+              ) : hasReport(latestReviewCandidate) ? (
+                <div className="mt-6 flex min-h-44 flex-col justify-between gap-5">
+                  <div>
+                    <div className="flex flex-wrap gap-x-2.5 gap-y-1 text-[11.5px] text-brand-muted"><span>{latestReviewCandidate.position}</span><span>·</span><span>{latestReviewCandidate.language}</span><span>·</span><span>{latestReviewCandidate.duration} {t('dashboard.durMin')}</span></div>
+                    <p className="mt-4 text-[15px] font-medium leading-relaxed text-brand-ink"><InlineRichText text={reportSummary(latestReviewCandidate) || t('dashboard.growth.latest.reportReadyBody')} /></p>
+                    {reportStrength(latestReviewCandidate) && <p className="mt-3 flex items-start gap-2 text-[12.5px] leading-relaxed text-brand-muted"><CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-brand-success" /><span><InlineRichText text={reportStrength(latestReviewCandidate)} /></span></p>}
+                  </div>
+                  <Link to={`/interview/${latestReviewCandidate.id}/report`} className="inline-flex w-fit items-center gap-2 rounded-xl bg-brand-ink px-5 py-2.5 text-[12.5px] font-semibold text-brand-on-ink hover:opacity-90">{t('dashboard.growth.viewReport')}<ArrowRight className="h-3.5 w-3.5" /></Link>
+                </div>
+              ) : isResumable(latestReviewCandidate) ? (
+                <div className="mt-6 flex min-h-44 flex-col justify-between gap-5"><div><h3 className="text-[14px] font-semibold text-brand-ink">{t('dashboard.growth.latest.unfinishedTitle')}</h3><p className="mt-2 text-[12.5px] leading-relaxed text-brand-muted">{t('dashboard.growth.latest.unfinishedBody', { position: latestReviewCandidate.position })}</p></div><Link to={`/interview/${latestReviewCandidate.id}`} className="inline-flex w-fit items-center gap-2 rounded-xl bg-brand-ink px-5 py-2.5 text-[12.5px] font-semibold text-brand-on-ink hover:opacity-90">{t('dashboard.growth.continuePractice')}<ArrowRight className="h-3.5 w-3.5" /></Link></div>
+              ) : (
+                <div className="mt-6 flex min-h-44 flex-col justify-between gap-5"><div><h3 className="text-[14px] font-semibold text-brand-ink">{t('dashboard.growth.latest.noReportTitle')}</h3><p className="mt-2 text-[12.5px] leading-relaxed text-brand-muted">{t('dashboard.growth.latest.noReportBody')}</p></div><Link to={`/interview/${latestReviewCandidate.id}/report`} className="inline-flex w-fit items-center gap-2 rounded-xl border border-brand-line bg-brand-card px-5 py-2.5 text-[12.5px] font-semibold text-brand-ink hover:border-brand-ink">{t('dashboard.growth.checkReportStatus')}<ArrowRight className="h-3.5 w-3.5" /></Link></div>
+              )}
+            </article>
+          </div>
 
-        <section className="space-y-6" aria-labelledby="review-history-title">
-          <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between"><div><p className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">{t('dashboard.growth.history.eyebrow')}</p><h2 id="review-history-title" className="mt-2 font-serif text-3xl font-black text-slate-950 dark:text-white">{t('dashboard.growth.history.title')}</h2><p className="mt-2 text-sm text-slate-500">{t('dashboard.growth.history.subtitle')}</p></div><div className="flex rounded-xl bg-white p-1 shadow-sm dark:bg-slate-900" role="group" aria-label={t('dashboard.growth.history.filterLabel')}>{['all', 'reports', 'continue'].map(option => <button key={option} type="button" onClick={() => setFilter(option)} className={`rounded-lg px-4 py-2 text-xs font-black transition ${filter === option ? 'bg-slate-950 text-white dark:bg-white dark:text-slate-950' : 'text-slate-500 hover:text-slate-950 dark:hover:text-white'}`}>{t(`dashboard.growth.history.filters.${option}`)}</button>)}</div></div>
-          {loading ? <div className="flex min-h-48 items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary-500" /></div>
-            : filteredInterviews.length === 0 ? <div className="card-premium flex min-h-56 flex-col items-center justify-center gap-5 p-8 text-center"><FileText className="h-10 w-10 text-slate-300" /><div><h3 className="font-black text-slate-950 dark:text-white">{filter === 'all' ? t('dashboard.growth.history.emptyTitle') : t('dashboard.growth.history.noMatchTitle')}</h3><p className="mt-1 text-sm text-slate-500">{filter === 'all' ? t('dashboard.growth.history.emptyBody') : t('dashboard.growth.history.noMatchBody')}</p></div>{filter === 'all' && <Link to="/setup" className="btn-primary inline-flex items-center gap-2 px-6 py-3">{t('dashboard.growth.startBaseline')} <ArrowRight className="h-4 w-4" /></Link>}</div>
-              : <div className="grid gap-5 lg:grid-cols-2">{filteredInterviews.map((interview, index) => {
-                const action = getAction(interview, t)
-                const ActionIcon = action.icon
-                const date = new Date(sessionDate(interview))
-                const summary = reportSummary(interview)
-                return <motion.article key={interview.id} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(index * 0.04, 0.25) }} role={action.route ? 'link' : undefined} tabIndex={action.route ? 0 : undefined} onClick={() => openInterview(interview)} onKeyDown={event => { if (action.route && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); openInterview(interview) } }} className={`card-premium group relative flex flex-col gap-6 p-6 transition sm:p-7 ${action.route ? 'cursor-pointer hover:-translate-y-1 hover:border-primary-200 hover:shadow-xl dark:hover:border-primary-900' : ''}`}>
-                  <div className="flex items-start justify-between gap-4"><div className="min-w-0 space-y-2"><span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-wider ${hasReport(interview) ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300' : isGenerating(interview) ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-950/30 dark:text-indigo-300' : isResumable(interview) ? 'bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-300' : 'bg-slate-100 text-slate-500 dark:bg-slate-800'}`}>{isGenerating(interview) && <Loader2 className="h-3 w-3 animate-spin" />}{statusLabel(interview, t)}</span><h3 className="truncate text-xl font-black text-slate-950 dark:text-white">{interview.position || t('dashboard.growth.history.untitled')}</h3></div><button type="button" onClick={event => { event.stopPropagation(); setPendingDelete({ id: interview.id, position: interview.position || '' }) }} className="relative z-10 rounded-xl p-2 text-slate-300 transition hover:bg-red-50 hover:text-red-500 focus:text-red-500 dark:hover:bg-red-950/30" aria-label={t('dashboard.delete')}><Trash2 className="h-4 w-4" /></button></div>
-                  <div className="flex flex-wrap gap-x-4 gap-y-2 text-xs font-bold text-slate-500"><span>{date.toLocaleDateString(localeTag, { year: 'numeric', month: 'short', day: 'numeric' })}</span><span>{interview.language}</span><span>{interview.mode === 'practice' ? t('dashboard.growth.history.practiceMode') : t('dashboard.growth.history.formalMode')}</span><span>{interview.duration} {t('dashboard.durMin')}</span></div>
-                  <p className="min-h-10 text-sm leading-relaxed text-slate-600 dark:text-slate-300">{summary || (isResumable(interview) ? t('dashboard.growth.history.resumeHint') : isGenerating(interview) ? t('dashboard.growth.latest.generatingBody') : t('dashboard.growth.history.noSummary'))}</p>
-                  <div className="mt-auto border-t border-slate-100 pt-5 dark:border-slate-800"><span className={`inline-flex w-full items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-black sm:w-auto ${action.tone === 'primary' ? 'bg-primary-600 text-white' : action.tone === 'dark' ? 'bg-slate-950 text-white dark:bg-white dark:text-slate-950' : 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-300'}`}><ActionIcon className={`h-4 w-4 ${isGenerating(interview) ? 'animate-spin' : ''}`} />{action.label}{action.route && <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />}</span></div>
-                </motion.article>
-              })}</div>}
-        </section>
+          <div className="grid divide-y divide-brand-line border-t border-brand-line bg-brand-card sm:grid-cols-4 sm:divide-x sm:divide-y-0">
+            <div className="px-6 py-4"><div className="flex items-center gap-2 text-[11px] text-brand-muted"><BarChart3 className="h-3.5 w-3.5" />{t('dashboard.growth.practice.title')}</div><p className="mt-1 text-[19px] font-semibold tabular-nums text-brand-ink">{metrics.effectiveCount}<span className="ml-1 text-[11.5px] font-normal text-brand-muted">{t('dashboard.growth.practice.count')}</span></p></div>
+            <div className="px-6 py-4"><div className="flex items-center gap-2 text-[11px] text-brand-muted"><Clock3 className="h-3.5 w-3.5" />{t('dashboard.growth.practice.title')}</div><p className="mt-1 text-[15px] font-semibold text-brand-ink">{formatEffectiveDuration(metrics.totalSeconds, t)}</p></div>
+            <div className="px-6 py-4"><div className="flex items-center gap-2 text-[11px] text-brand-muted"><CalendarDays className="h-3.5 w-3.5" />{t('dashboard.growth.rhythm.title')}</div><p className="mt-1 text-[19px] font-semibold tabular-nums text-brand-ink">{metrics.weeklyDays}<span className="ml-1 text-[11.5px] font-normal text-brand-muted">/ 5 {t('dashboard.growth.rhythm.weeklyDays')}</span></p></div>
+            <div className="px-6 py-4"><div className="flex items-center gap-2 text-[11px] text-brand-muted"><Flame className="h-3.5 w-3.5" />{t('dashboard.growth.rhythm.title')}</div><p className="mt-1 text-[15px] font-semibold text-brand-ink">{t('dashboard.growth.rhythm.streak', { count: metrics.streak })}</p></div>
+          </div>
+        </motion.section>
+
+        {/* ───────── 下半区：冲刺计划 / 复习闪卡 / 面试记录，用一组玻璃分段控件切换，页面不再一路堆叠 ───────── */}
+        <div className="flex justify-center pt-2">
+          <div className="lk-liquid inline-flex max-w-full gap-1 overflow-x-auto rounded-full p-1.5 scrollbar-hide" role="tablist" aria-label={t('dashboard.growth.title')}>
+            {[
+              { key: 'sprint', label: t('growthSprint.eyebrow'), icon: Flag },
+              { key: 'review', label: t('dashboard.growth.collections.title'), icon: Layers, count: growthOverview?.recentCollections?.length || 0 },
+              { key: 'history', label: t('dashboard.growth.history.title'), icon: History, count: interviews.length },
+            ].map(tab => {
+              const active = section === tab.key
+              const Icon = tab.icon
+              return (
+                <button
+                  key={tab.key}
+                  type="button"
+                  role="tab"
+                  aria-selected={active}
+                  onClick={() => setSection(tab.key)}
+                  className={`relative flex shrink-0 items-center gap-2 whitespace-nowrap rounded-full px-4 py-2 text-[13px] font-semibold transition-colors ${active ? 'text-brand-on-ink' : 'text-brand-muted hover:text-brand-ink'}`}
+                >
+                  {active && <motion.span layoutId="dashboard-section-pill" className="absolute inset-0 rounded-full bg-brand-ink" transition={{ type: 'spring', stiffness: 420, damping: 34 }} />}
+                  <Icon className="relative h-4 w-4" />
+                  <span className="relative">{tab.label}</span>
+                  {tab.count > 0 && <span className={`relative rounded-full px-1.5 text-[11px] tabular-nums ${active ? 'bg-white/15 dark:bg-black/15' : 'bg-brand-inset'}`}>{tab.count}</span>}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+
+        <AnimatePresence mode="wait" initial={false}>
+          <motion.div
+            key={section}
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
+            className="space-y-5"
+          >
+            {section === 'sprint' && (
+              <>
+                <OfferSprintPanel
+                  offerSprint={growthOverview?.offerSprint}
+                  practiceStats={{
+                    count: metrics.effectiveCount,
+                    duration: formatEffectiveDuration(metrics.totalSeconds, t),
+                  }}
+                  onOverview={setGrowthOverview}
+                  onStartTask={startRecommendedTask}
+                />
+
+        {/* ───────── 推荐任务（没有冲刺计划时才出现）───────── */}
+                {!growthOverview?.offerSprint?.plan && readiness?.nextPracticeTask && (
+                  <section className="grid gap-5 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
+                    <article className={`${CARD} px-6 py-6`}>
+                      <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="min-w-0 max-w-3xl">
+                          <p className={EYEBROW}>{t('dashboard.growth.task.eyebrow')}</p>
+                          <h2 className={`mt-2 ${H2}`}>{readiness.nextPracticeTask.title || readiness.nextPracticeTask.questionText}</h2>
+                          <p className="mt-2 text-[13px] leading-relaxed text-brand-ink">{readiness.nextPracticeTask.reason}</p>
+                          <p className="mt-2 text-[12px] text-brand-muted">{t('dashboard.growth.task.minutes', { count: readiness.nextPracticeTask.estimatedMinutes || 8 })}</p>
+                          {taskError && (
+                            <p className="mt-3 rounded-lg border border-brand-danger/30 bg-brand-danger/[0.06] px-3 py-2 text-[12px] font-medium text-brand-danger">
+                              {t('dashboard.growth.task.failed')}
+                            </p>
+                          )}
+                        </div>
+                        <button
+                          type="button"
+                          disabled={taskBusy || readiness.nextPracticeTask.questionIndex === null || readiness.nextPracticeTask.questionIndex === undefined || !Number.isInteger(Number(readiness.nextPracticeTask.questionIndex))}
+                          onClick={() => void startRecommendedTask()}
+                          className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-brand-ink px-5 py-3 text-[13px] font-semibold text-brand-on-ink transition-opacity hover:opacity-90 disabled:opacity-40"
+                        >
+                          {taskBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <PlayCircle className="h-4 w-4" />}
+                          {t('dashboard.growth.task.start')}
+                        </button>
+                      </div>
+                    </article>
+
+                    <article className={`${CARD} flex flex-col justify-center px-6 py-6`}>
+                      <p className={EYEBROW}>{t('dashboard.growth.task.weekly')}</p>
+                      <p className="mt-2 text-[24px] font-semibold tabular-nums text-brand-ink">
+                        {t('dashboard.growth.task.weeklyCount', { count: readiness.weeklyTasks?.length || 1 })}
+                      </p>
+                      <div className="mt-3 space-y-1.5">
+                        {(readiness.weeklyTasks || [readiness.nextPracticeTask]).slice(0, 5).map((task, index) => (
+                          <p key={task.id || index} className="line-clamp-1 text-[12.5px] text-brand-ink">
+                            <span className="mr-2 tabular-nums text-brand-muted">{index + 1}.</span>{task.title || task.questionText}
+                          </p>
+                        ))}
+                      </div>
+                      <p className="mt-3 text-[12px] leading-relaxed text-brand-muted">{t('dashboard.growth.task.weeklyBody')}</p>
+                    </article>
+                  </section>
+                )}
+
+              </>
+            )}
+
+            {section === 'review' && (
+              <ReviewFlashcards collections={growthOverview?.recentCollections || []} t={t} />
+            )}
+
+            {section === 'history' && (
+              <>
+        {/* ───────── 复盘历史 ───────── */}
+                <section className="space-y-4" aria-labelledby="review-history-title">
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+                    <div className="min-w-0">
+                      <p className={EYEBROW}>{t('dashboard.growth.history.eyebrow')}</p>
+                      <h2 id="review-history-title" className={`mt-2 ${H2}`}>{t('dashboard.growth.history.title')}</h2>
+                      <p className="mt-1.5 text-[12.5px] text-brand-muted">{t('dashboard.growth.history.subtitle')}</p>
+                    </div>
+                    <div className="flex shrink-0 gap-1 rounded-xl border border-brand-line bg-brand-inset p-1" role="group" aria-label={t('dashboard.growth.history.filterLabel')}>
+                      {['all', 'reports', 'continue'].map(option => (
+                        <button
+                          key={option} type="button" onClick={() => setFilter(option)} aria-pressed={filter === option}
+                          className={`rounded-lg px-3.5 py-1.5 text-[12.5px] font-medium transition-colors ${filter === option ? 'bg-brand-card text-brand-ink shadow-sm' : 'text-brand-muted hover:text-brand-ink'}`}
+                        >
+                          {t(`dashboard.growth.history.filters.${option}`)}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {loading ? (
+                    <div className="flex min-h-44 items-center justify-center"><Loader2 className="h-7 w-7 animate-spin text-brand-muted" /></div>
+                  ) : filteredInterviews.length === 0 ? (
+                    <div className={`${CARD} flex min-h-52 flex-col items-center justify-center gap-4 px-6 py-8 text-center`}>
+                      <FileText className="h-8 w-8 text-brand-muted" />
+                      <div>
+                        <h3 className="text-[14px] font-semibold text-brand-ink">
+                          {filter === 'all' ? t('dashboard.growth.history.emptyTitle') : t('dashboard.growth.history.noMatchTitle')}
+                        </h3>
+                        <p className="mt-1 text-[12.5px] text-brand-muted">
+                          {filter === 'all' ? t('dashboard.growth.history.emptyBody') : t('dashboard.growth.history.noMatchBody')}
+                        </p>
+                      </div>
+                      {filter === 'all' && (
+                        <Link to="/setup" className="inline-flex items-center gap-2 rounded-xl bg-brand-ink px-5 py-2.5 text-[12.5px] font-semibold text-brand-on-ink transition-opacity hover:opacity-90">
+                          {t('dashboard.growth.startBaseline')} <ArrowRight className="h-3.5 w-3.5" />
+                        </Link>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="divide-y divide-brand-line border-y border-brand-line">
+                      {filteredInterviews.map((interview, index) => {
+                        const action = getAction(interview, t)
+                        const ActionIcon = action.icon
+                        const date = new Date(sessionDate(interview))
+                        const summary = reportSummary(interview)
+                        const badgeTone = hasReport(interview)
+                          ? 'border-brand-success/30 bg-brand-success/[0.08] text-brand-success'
+                          : isGenerating(interview)
+                            ? 'border-brand-violet/30 bg-brand-violet/[0.08] text-brand-violet'
+                            : 'border-brand-line bg-brand-inset text-brand-muted'
+                        return (
+                          <motion.article
+                            key={interview.id}
+                            initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: Math.min(index * 0.04, 0.25) }}
+                            role={action.route ? 'link' : undefined}
+                            tabIndex={action.route ? 0 : undefined}
+                            onClick={() => openInterview(interview)}
+                            onKeyDown={event => { if (action.route && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); openInterview(interview) } }}
+                            className={`group relative grid gap-4 py-5 transition-colors sm:grid-cols-[150px_minmax(0,1fr)_auto] sm:items-center ${action.route ? 'cursor-pointer hover:bg-brand-inset/50' : ''}`}
+                          >
+                            <div className="space-y-2">
+                              <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[10.5px] font-medium ${badgeTone}`}>
+                                {isGenerating(interview) && <Loader2 className="h-3 w-3 animate-spin" />}
+                                {statusLabel(interview, t)}
+                              </span>
+                              <p className="text-[11.5px] tabular-nums text-brand-muted">{date.toLocaleDateString(localeTag, { year: 'numeric', month: 'short', day: 'numeric' })}</p>
+                            </div>
+
+                            <div className="min-w-0">
+                              <h3 className="truncate text-[15px] font-semibold text-brand-ink">{interview.position || t('dashboard.growth.history.untitled')}</h3>
+                              <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-[11.5px] text-brand-muted">
+                                <span>{interview.language}</span>
+                                <span>{interview.mode === 'practice' ? t('dashboard.growth.history.practiceMode') : t('dashboard.growth.history.formalMode')}</span>
+                                <span>{interview.duration} {t('dashboard.durMin')}</span>
+                              </div>
+                              <p className="mt-2 line-clamp-2 text-[12.5px] leading-relaxed text-brand-muted">
+                                <InlineRichText text={summary || (isResumable(interview)
+                                  ? t('dashboard.growth.history.resumeHint')
+                                  : isGenerating(interview)
+                                    ? t('dashboard.growth.latest.generatingBody')
+                                    : t('dashboard.growth.history.noSummary'))} />
+                              </p>
+                            </div>
+
+                            <div className="flex items-center justify-between gap-3 sm:justify-end">
+                              <span className={`inline-flex items-center gap-2 text-[12.5px] font-semibold ${action.route ? 'text-brand-ink' : 'text-brand-muted'}`}>
+                                <ActionIcon className={`h-3.5 w-3.5 ${isGenerating(interview) ? 'animate-spin' : ''}`} />
+                                {action.label}
+                                {action.route && <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-1" />}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={event => { event.stopPropagation(); setPendingDelete({ id: interview.id, position: interview.position || '' }) }}
+                                className="relative z-10 shrink-0 rounded-lg p-1.5 text-brand-muted transition-colors hover:bg-brand-danger/10 hover:text-brand-danger"
+                                aria-label={t('dashboard.delete')}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            </div>
+                          </motion.article>
+                        )
+                      })}
+                    </div>
+                  )}
+                </section>
+              </>
+            )}
+          </motion.div>
+        </AnimatePresence>
       </main>
 
-      <AnimatePresence>{pendingDelete && <div className="fixed inset-0 z-[100] flex items-center justify-center p-4"><motion.button type="button" aria-label={t('dashboard.deleteModalCancel')} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={closeDeleteModal} className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm" /><motion.div role="dialog" aria-modal="true" initial={{ opacity: 0, scale: 0.96, y: 16 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.96, y: 16 }} className="relative w-full max-w-md rounded-3xl bg-white p-8 shadow-2xl dark:bg-slate-900"><div className="mb-6 flex h-14 w-14 items-center justify-center rounded-2xl bg-red-50 text-red-500 dark:bg-red-950/30"><AlertTriangle className="h-7 w-7" /></div><h2 className="font-serif text-2xl font-black text-slate-950 dark:text-white">{t('dashboard.deleteModalTitle')}</h2><p className="mt-3 text-sm leading-relaxed text-slate-500 dark:text-slate-300">{t('dashboard.deleteConfirm')}</p>{pendingDelete.position && <p className="mt-2 font-bold text-slate-950 dark:text-white">“{pendingDelete.position}”</p>}{deleteModalError && <p className="mt-4 rounded-xl bg-red-50 p-3 text-sm font-bold text-red-600 dark:bg-red-950/30 dark:text-red-300">{deleteModalError}</p>}<div className="mt-8 grid grid-cols-2 gap-3"><button type="button" onClick={closeDeleteModal} className="rounded-xl border border-slate-200 px-4 py-3 text-sm font-black text-slate-700 dark:border-slate-700 dark:text-slate-200">{t('dashboard.deleteModalCancel')}</button><button type="button" onClick={() => void confirmDeleteInterview()} disabled={deletingId === pendingDelete.id} className="rounded-xl bg-red-600 px-4 py-3 text-sm font-black text-white disabled:opacity-60">{deletingId === pendingDelete.id ? <Loader2 className="mx-auto h-5 w-5 animate-spin" /> : t('dashboard.deleteModalConfirm')}</button></div></motion.div></div>}</AnimatePresence>
+      <AnimatePresence>
+        {pendingDelete && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <motion.button
+              type="button" aria-label={t('dashboard.deleteModalCancel')}
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              onClick={closeDeleteModal}
+              className="absolute inset-0 bg-brand-ink/40 backdrop-blur-sm"
+            />
+            <motion.div
+              role="dialog" aria-modal="true"
+              initial={{ opacity: 0, scale: 0.96, y: 16 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.96, y: 16 }}
+              className="brand-float relative w-full max-w-md rounded-[22px] p-6"
+            >
+              <div className="mb-5 grid h-12 w-12 place-items-center rounded-2xl bg-brand-danger/10 text-brand-danger">
+                <AlertTriangle className="h-6 w-6" />
+              </div>
+              <h2 className="font-brand text-[19px] font-semibold tracking-[-0.01em] text-brand-ink">{t('dashboard.deleteModalTitle')}</h2>
+              <p className="mt-2 text-[13.5px] leading-relaxed text-brand-ink">{t('dashboard.deleteConfirm')}</p>
+              {pendingDelete.position && <p className="mt-2 text-[13.5px] font-semibold text-brand-ink">“{pendingDelete.position}”</p>}
+              {deleteModalError && (
+                <p className="mt-4 rounded-xl border border-brand-danger/30 bg-brand-danger/[0.06] px-3.5 py-2.5 text-[12.5px] font-medium text-brand-danger">
+                  {deleteModalError}
+                </p>
+              )}
+              <div className="mt-6 grid grid-cols-2 gap-3">
+                <button type="button" onClick={closeDeleteModal} className="rounded-xl border border-brand-line bg-brand-card py-3 text-[13.5px] font-semibold text-brand-ink transition-colors hover:border-brand-ink">
+                  {t('dashboard.deleteModalCancel')}
+                </button>
+                <button type="button" onClick={() => void confirmDeleteInterview()} disabled={deletingId === pendingDelete.id} className="rounded-xl bg-brand-danger py-3 text-[13.5px] font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50">
+                  {deletingId === pendingDelete.id ? <Loader2 className="mx-auto h-5 w-5 animate-spin" /> : t('dashboard.deleteModalConfirm')}
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }
