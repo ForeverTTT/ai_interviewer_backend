@@ -470,7 +470,9 @@ router.post('/', requireAuth, async (req, res) => {
   const idempotencyKey = normalizeRequestId(req.body?.idempotencyKey || req.headers['idempotency-key'] || req.requestId)
 
   try {
-    const { data, error } = await dbFor(req).rpc('create_interview_session', {
+    // Service role only: the RPC charges p_token_cost, so users must not be
+    // able to call it directly with their own price.
+    const { data, error } = await supabase.rpc('create_interview_session', {
       p_user_id: req.user.id,
       p_idempotency_key: idempotencyKey,
       p_position: String(position).trim(),

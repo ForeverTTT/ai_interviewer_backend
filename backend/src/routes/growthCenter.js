@@ -525,7 +525,8 @@ router.post('/collections/:id/practice', requireAuth, async (req, res) => {
     if (collectionError) throw collectionError
     if (!collection) return res.status(404).json({ error: 'Collection not found' })
     const idempotencyKey = normalizeRequestId(req.body?.idempotencyKey || req.requestId)
-    const { data: created, error: createError } = await db.rpc('create_interview_session', {
+    // Service role only: the RPC charges p_token_cost (see POST /api/interviews).
+    const { data: created, error: createError } = await supabase.rpc('create_interview_session', {
       p_user_id: req.user.id,
       p_idempotency_key: idempotencyKey,
       p_position: collection.position || 'Focused practice',

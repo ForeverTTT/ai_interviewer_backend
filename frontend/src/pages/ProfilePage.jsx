@@ -1444,32 +1444,6 @@ export default function ProfilePage() {
     }
   }
 
-  const recharge = async (amount) => {
-    try {
-      const { data: { session } } = await supabase.auth.getSession()
-      const token = session?.access_token
-      if (!token) return
-
-      const res = await authenticatedFetch(`${backendUrl}/api/profile/recharge`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify({ amount })
-      })
-      if (res.ok) {
-        setTokens(prev => prev + amount)
-        window.dispatchEvent(new Event('tokensChanged'))
-        setNote({ type: 'ok', text: t('profile.rechargeModal.success') })
-        setTimeout(() => setNote(null), 2000)
-      }
-    } catch {
-      setNote({ type: 'err', text: t('common.error') })
-      setTimeout(() => setNote(null), 3000)
-    }
-  }
-
   const runCoach = async () => {
     setCoachErr(null)
     setCoachGenerating(true)

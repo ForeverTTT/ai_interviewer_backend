@@ -242,11 +242,11 @@ async function ensureProfileRow(userId, db) {
   let row = await fetchProfileRow(userId, db)
   if (row) return row
 
+  // tokens is not user-writable; the column default sets the starting balance.
   const ins = {
     id: userId,
     resume_text: '',
     resume_notes: '',
-    tokens: 1000,
     profile_json: {},
     job_search_status: 'seeking',
   }
@@ -329,22 +329,6 @@ router.put('/', requireAuth, validate(profileUpdateSchema), async (req, res) => 
   } catch (err) {
     console.error('[PUT /profile]', err)
     return res.status(500).json({ error: 'Failed to save profile' })
-  }
-})
-
-/** POST /api/profile/recharge — mock recharge */
-router.post('/recharge', requireAuth, async (req, res) => {
-  const { amount } = req.body ?? {}
-  if (!amount || typeof amount !== 'number' || amount <= 0) {
-    return res.status(400).json({ error: 'Invalid amount' })
-  }
-
-  try {
-    await addTokens(req.user.id, amount)
-    return res.json({ success: true, added: amount })
-  } catch (err) {
-    console.error('[POST /recharge]', err)
-    return res.status(500).json({ error: 'Recharge failed' })
   }
 })
 
@@ -471,10 +455,13 @@ router.post('/check-in', requireAuth, async (req, res) => {
 
     let tokensAwarded = 0
     if (!alreadyCheckedIn) {
-      await db.from('profiles').update({
+      // Check-in state gates the reward, so users have no write access to it;
+      // record it with the service role and award only once it is persisted.
+      const { error: streakError } = await supabase.from('profiles').update({
         daily_streak: newStreak,
         last_activity_at: new Date().toISOString()
       }).eq('id', userId)
+      if (streakError) throw streakError
       await addTokens(userId, 200)
       tokensAwarded = 200
     }
