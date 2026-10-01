@@ -1,6 +1,6 @@
-# AI Interviewer / OfferClaw
+# LandIt — AI 面试训练平台
 
-这是一个前后端同仓库的智能面试应用。`frontend/` 是 React + Vite 客户端，部署在 Firebase Hosting；`backend/` 是 Node.js + Express API，使用 Supabase 和 Gemini，部署在 Cloud Run。
+这是一个前后端同仓库的智能面试应用（产品名和历史名称的对应关系见[产品概览](docs/01-产品/产品概览.md#名称约定)）。`frontend/` 是 React + Vite 客户端，部署在 Firebase Hosting；`backend/` 是 Node.js + Express API，使用 Supabase 和 Gemini，部署在 Cloud Run。
 
 线上地址：[前端](https://aiinterviewer-491711-7b1cf.web.app/) · [后端健康检查](https://interview-backend-557559701677.europe-west1.run.app/api/health)
 
@@ -24,10 +24,13 @@ ai_interviewer_backend/
 │   ├── vite.config.js       开发服务器与构建配置
 │   ├── package.json         前端依赖和命令
 │   └── .env.example         前端环境变量模板
-├── docs/                    按前后端及用途分类的文档
-│   ├── 后端/                 开发指南、技术文档、设计方案、部署运维
-│   ├── 前端/                 开发指南、技术文档、产品与规划
-│   └── 文档索引.md           全部说明文档入口
+├── docs/                    项目文档，入口是 docs/README.md
+│   ├── 01-产品/              产品概览与功能说明
+│   ├── 02-开发指南/          本地开发、环境变量、测试、代码约定
+│   ├── 03-架构/              按业务领域划分的技术架构
+│   ├── 04-参考/              API、数据库、术语表
+│   ├── 05-运维/              部署、迁移发布、故障排查
+│   └── 06-决策与方案/        设计方案与问题清单
 └── .github/workflows/       前后端自动部署与前端 PR 预览
 ```
 
@@ -83,4 +86,4 @@ npm run build
 
 后端 Docker 构建从仓库根目录执行：`docker build -t interviewde-backend backend`。本仓库是前后端唯一的 GitHub Actions 正式部署源：推送到 `main` 时，后端运行文件变更触发 Cloud Run 部署，前端文件变更触发 Firebase Hosting `live` 部署；前端 PR 使用独立预览频道。当前前端源码由原独立前端仓库提交 `6b8d11df` 同步而来，已验证可构建出原线上版本的相同资源。原独立前端仓库的推送现在只做构建检查，不再部署 Hosting。数据库迁移仍需单独审核执行，不随 Cloud Run 自动部署。
 
-详细设置、测试及部署方法见[后端开发指南](docs/后端/开发指南/后端开发指南.md)、[前端开发指南](docs/前端/开发指南/前端开发指南.md)和[文档索引](docs/文档索引.md)。
+详细说明见[本地开发](docs/02-开发指南/本地开发.md)、[环境变量](docs/02-开发指南/环境变量.md)、[测试](docs/02-开发指南/测试.md)、[部署总览](docs/05-运维/部署总览.md)；全部文档的入口是[文档索引](docs/README.md)。
