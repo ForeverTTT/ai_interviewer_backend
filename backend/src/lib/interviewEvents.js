@@ -18,6 +18,9 @@ function cleanMetadata(metadata) {
     'fallbackFrom',
     'fallbackTo',
     'responseRequestId',
+    'turnIndex',
+    'inputToFirstAudioMs',
+    'firstAudioToTurnCompleteMs',
   ]
   return Object.fromEntries(
     allowed

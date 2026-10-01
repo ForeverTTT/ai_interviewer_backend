@@ -18,6 +18,8 @@ import {
   sanitizeMessages,
 } from '../lib/interviewSessionStore.js'
 import { applyInterviewAction, completeFormalAnswerAfterDeadline, expireFormalInterviewIfDue } from '../lib/interviewLearning.js'
+import { recordInterviewEvent } from '../lib/interviewEvents.js'
+import { createLiveTurnTimer } from '../lib/liveTurnTiming.js'
 
 const LIVE_PATH = '/api/chat/live'
 const LIVE_MODEL = process.env.GEMINI_LIVE_MODEL || 'gemini-3.1-flash-live-preview'
@@ -144,6 +146,7 @@ export function attachInterviewLiveSocket(server, { allowedOrigins = [] } = {}) 
     let persistChain = Promise.resolve()
     let persistRequestKey = null
     let practiceSpeechAllowed = false
+    const turnTimer = createLiveTurnTimer()
 
     const authTimer = setTimeout(() => {
       if (!authenticated) socket.close(1008, 'Authentication timeout')
@@ -215,6 +218,7 @@ export function attachInterviewLiveSocket(server, { allowedOrigins = [] } = {}) 
 
                 const inputDelta = content.inputTranscription?.text || ''
                 if (inputDelta) {
+                  turnTimer.onInputTranscript()
                   inputTranscript = appendTranscript(inputTranscript, inputDelta)
                   sendJson(socket, { type: 'input_transcript', text: inputTranscript })
                 }
@@ -229,6 +233,7 @@ export function attachInterviewLiveSocket(server, { allowedOrigins = [] } = {}) 
                   for (const part of content.modelTurn?.parts || []) {
                     const inline = part.inlineData || part.inline_data
                     if (inline?.data) {
+                      turnTimer.onOutputAudio()
                       sendJson(socket, {
                         type: 'audio',
                         data: inline.data,
@@ -240,6 +245,20 @@ export function attachInterviewLiveSocket(server, { allowedOrigins = [] } = {}) 
 
                 if (content.interrupted) sendJson(socket, { type: 'interrupted' })
                 if (content.turnComplete) {
+                  const timing = turnTimer.onTurnComplete()
+                  if (timing && !practiceMode) {
+                    // Baseline latency for the formal-interview orchestration
+                    // decision (docs/06-决策与方案/进行中/正式模拟对话编排方案.md).
+                    void recordInterviewEvent({
+                      interviewId,
+                      userId: interviewUserId,
+                      eventType: 'live_turn_timing',
+                      stage: 'live',
+                      model: LIVE_MODEL,
+                      durationMs: timing.inputToFirstAudioMs,
+                      metadata: timing,
+                    })
+                  }
                   const completedInput = inputTranscript.trim()
                   const completedOutput = outputTranscript.trim()
                   sendJson(socket, {
