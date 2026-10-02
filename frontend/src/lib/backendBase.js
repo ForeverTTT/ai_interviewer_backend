@@ -2,6 +2,11 @@
  * Backend API origin for fetch calls. Set VITE_BACKEND_URL in .env (see .env.example).
  */
 export function getBackendBaseUrl() {
+  // In development, keep API calls same-origin and let Vite proxy them to the
+  // backend selected for the current mode. This also avoids requiring every
+  // local preview port to be added to the deployed backend's CORS allowlist.
+  if (import.meta.env.DEV) return window.location.origin
+
   const raw = import.meta.env.VITE_API_URL || import.meta.env.VITE_BACKEND_URL
   if (raw != null && String(raw).trim() !== '') {
     return String(raw).replace(/\/$/, '')

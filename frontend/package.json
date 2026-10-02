@@ -4,6 +4,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:local": "vite --host 127.0.0.1 --port 3004 --strictPort",
+    "dev:remote": "vite --mode remote --host 127.0.0.1 --port 4174 --strictPort",
     "build": "vite build",
     "preview": "vite preview"
   },
