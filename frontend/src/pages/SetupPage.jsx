@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect, useRef } from 'react'
 import { useNavigate, Link, useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
+import { BRAND_ASSETS } from '../assets/brandAssets'
 import { supabase } from '../lib/supabase'
 import { getBackendBaseUrl } from '../lib/backendBase'
 import { authenticatedFetch } from '../lib/authenticatedFetch'
@@ -16,7 +17,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion'
 import './SetupPage.css'
 
-const INTERVIEW_COACH_WRITING = '/brand/flowlab-interview-coach-writing.png'
+const INTERVIEW_COACH_WRITING = BRAND_ASSETS.interviewCoachWriting
 
 function fileToBase64Data(file) {
   return new Promise((resolve, reject) => {

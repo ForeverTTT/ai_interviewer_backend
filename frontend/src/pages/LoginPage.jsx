@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useLocation, Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
+import { BRAND_ASSETS } from '../assets/brandAssets'
 import { motion } from 'framer-motion'
 import { ArrowLeft, ArrowRight } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
@@ -8,7 +9,7 @@ import LanguageSwitcher from '../components/LanguageSwitcher'
 import { AppThemeToggle } from '../components/ThemeToggle'
 import './LoginPage.css'
 
-const CHARACTER_SHEET = '/brand/flowlab-felt-character-board-v5-role-system.png'
+const CHARACTER_SHEET = BRAND_ASSETS.characterRoleBoard
 
 const SHELL_TEAM = [
   { id: 'coach', crop: 'top-left' },
@@ -111,7 +112,7 @@ export default function LoginPage() {
         <Link to="/" className="fl-login-brand fl-login-brand-center" aria-label={t('login.homeAria')}>
           <img
             className="fl-login-brand-wordmark"
-            src="/brand/flowlab-wordmark-icon-o-v1.png"
+            src={BRAND_ASSETS.wordmark}
             alt="FlowLab"
           />
         </Link>

@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useRef, forwardRef } from 'react'
 import { useTranslation } from 'react-i18next'
+import { BRAND_ASSETS } from '../assets/brandAssets'
 import { useSearchParams } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { getBackendBaseUrl } from '../lib/backendBase'
@@ -13,7 +14,7 @@ import {
   Trash2, Plus, X, Send, BrainCircuit, Zap, AlertTriangle
 } from 'lucide-react'
 
-const COMMUNITY_EGG = '/brand/flowlab-community-egg-avatar.png'
+const COMMUNITY_EGG = BRAND_ASSETS.communityAvatar
 
 function ResultBadge({ result, t }) {
   if (!result) return null

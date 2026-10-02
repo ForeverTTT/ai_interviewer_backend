@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
+import { BRAND_ASSETS } from '../assets/brandAssets'
 import { supabase } from '../lib/supabase'
 import { AlertCircle, ArrowLeft, CheckCircle2 } from 'lucide-react'
 import './AuthCallbackPage.css'
 
-const CALLBACK_MASCOT = '/brand/flowlab-logo-imagegen-felt-v1.png'
+const CALLBACK_MASCOT = BRAND_ASSETS.logoMascot
 
 export default function AuthCallbackPage() {
   const { t } = useTranslation()
@@ -130,7 +131,7 @@ export default function AuthCallbackPage() {
       <Link to="/" className="fl-auth-brand" aria-label="FlowLab 不卡壳实验室">
         <img
           className="fl-auth-brand-wordmark"
-          src="/brand/flowlab-wordmark-icon-o-v1.png"
+          src={BRAND_ASSETS.wordmark}
           alt="FlowLab"
         />
       </Link>

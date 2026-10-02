@@ -3,13 +3,14 @@ import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useAuth } from '../hooks/useAuth'
+import { BRAND_ASSETS } from '../assets/brandAssets'
 import LanguageSwitcher from './LanguageSwitcher'
 import { AppThemeToggle } from './ThemeToggle'
 import { useTheme } from '../context/ThemeContext'
 import { useAccountStatus } from '../hooks/useAccountStatus'
 import { Menu, X, Zap, ChevronDown, LogOut, LayoutDashboard, UserCircle, Briefcase, BookOpen, FilePenLine, StickyNote, ArrowRight } from 'lucide-react'
 
-const DEFAULT_USER_AVATAR = '/brand/flowlab-community-egg-avatar.png'
+const DEFAULT_USER_AVATAR = BRAND_ASSETS.communityAvatar
 
 /** 品牌标志 + 字标，顶栏和页脚共用 */
 export function BrandLockup({ size = 'md' }) {

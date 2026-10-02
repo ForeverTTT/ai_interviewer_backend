@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
+import { BRAND_ASSETS } from '../assets/brandAssets'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
   ArrowLeft, Bookmark, BookmarkCheck, CalendarDays, CheckCircle2,
@@ -13,7 +14,7 @@ import { authenticatedFetch } from '../lib/authenticatedFetch'
 import { createInterviewRequestId } from '../lib/interviewEvents'
 import './NotesPage.css'
 
-const REVIEW_MENTOR_WRITING = '/brand/flowlab-review-mentor-writing.png'
+const REVIEW_MENTOR_WRITING = BRAND_ASSETS.reviewMentorWriting
 
 const SOURCE_OPTIONS = ['', 'practice', 'report']
 const INTERVIEWER_OPTIONS = ['', 'mixed', 'technical', 'hr']

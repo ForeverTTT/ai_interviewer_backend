@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
+import { BRAND_ASSETS } from '../assets/brandAssets'
 import { supabase } from '../lib/supabase'
 import { getBackendBaseUrl } from '../lib/backendBase'
 import { authenticatedFetch } from '../lib/authenticatedFetch'
@@ -26,7 +27,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import xiaohongshuQr from '../assets/xiaohongshu_qr.png'
 import './ProfilePage.css'
 
-const RESUME_TAILOR_WORKING = '/brand/flowlab-resume-tailor-working.png'
+const RESUME_TAILOR_WORKING = BRAND_ASSETS.resumeTailorWorking
 
 function fileToBase64Data(file) {
   return new Promise((resolve, reject) => {
@@ -955,7 +956,7 @@ function ProfileDisplayView({ cvProfile, resumeText, resumeNotes, targetRole, co
             <div className="flex items-center gap-4">
               <div className="h-[72px] w-[72px] shrink-0 overflow-hidden rounded-2xl border border-brand-line bg-brand-inset">
                 <img
-                  src={avatarId || '/brand/flowlab-community-egg-avatar.png'}
+                  src={avatarId || BRAND_ASSETS.communityAvatar}
                   alt="Avatar"
                   className={`h-full w-full ${avatarId ? 'object-cover' : 'object-contain p-1.5'}`}
                 />

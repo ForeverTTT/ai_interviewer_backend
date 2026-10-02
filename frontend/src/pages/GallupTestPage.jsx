@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
+import { BRAND_ASSETS } from '../assets/brandAssets'
 import { Link } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
@@ -30,7 +31,7 @@ import { getBackendBaseUrl } from '../lib/backendBase'
 import { authenticatedFetch } from '../lib/authenticatedFetch'
 
 const API_URL = getBackendBaseUrl()
-const COMMUNITY_EGG = '/brand/flowlab-community-egg-avatar.png'
+const COMMUNITY_EGG = BRAND_ASSETS.communityAvatar
 
 /**
  * 四大领域各配一个色，全部写成完整类名（拼接类名会被生产构建 purge 掉）。

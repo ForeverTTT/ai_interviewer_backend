@@ -8,6 +8,7 @@ import {
   Menu, X, ChevronRight, Mail,
 } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
+import { BRAND_ASSETS } from '../../assets/brandAssets'
 import { useAccountStatus } from '../../hooks/useAccountStatus'
 import LanguageSwitcher from '../LanguageSwitcher'
 import { AppThemeToggle } from '../ThemeToggle'
@@ -24,9 +25,9 @@ import { AppThemeToggle } from '../ThemeToggle'
  */
 
 const COLLAPSE_KEY = 'landit_sidebar_collapsed'
-const DEFAULT_USER_AVATAR = '/brand/flowlab-community-egg-avatar.png'
-const BRAND_WORDMARK = '/brand/flowlab-wordmark-icon-o-v1.png'
-const BRAND_ICON = '/brand/flowlab-shell-base-icon-v1.png'
+const DEFAULT_USER_AVATAR = BRAND_ASSETS.communityAvatar
+const BRAND_WORDMARK = BRAND_ASSETS.wordmark
+const BRAND_ICON = BRAND_ASSETS.shellBaseIcon
 
 function workspaceRole(pathname) {
   if (pathname === '/dashboard' || pathname === '/notes' || /^\/interview\/[^/]+\/report$/.test(pathname)) return 'review'

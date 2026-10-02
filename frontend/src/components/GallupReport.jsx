@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useTranslation } from 'react-i18next'
+import { BRAND_ASSETS } from '../assets/brandAssets'
 import { 
   Dna, Target, Sparkles, TrendingUp, 
   RefreshCw, ChevronRight, Briefcase, 
@@ -22,7 +23,7 @@ const DOMAIN_TONES = {
 }
 
 const FALLBACK_TONE = DOMAIN_TONES.executing
-const COMMUNITY_EGG = '/brand/flowlab-community-egg-avatar.png'
+const COMMUNITY_EGG = BRAND_ASSETS.communityAvatar
 
 export default function GallupReport({ results, onRetake }) {
   const { t, i18n } = useTranslation()

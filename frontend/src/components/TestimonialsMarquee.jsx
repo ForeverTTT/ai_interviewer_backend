@@ -1,9 +1,10 @@
 import { useTranslation } from 'react-i18next'
+import { BRAND_ASSETS } from '../assets/brandAssets'
 import { Star } from 'lucide-react'
 import { SectionHead, Reveal } from './brand/BrandKit'
 import Marquee from './brand/Marquee'
 
-const DEFAULT_USER_AVATAR = '/brand/flowlab-community-egg-avatar.png'
+const DEFAULT_USER_AVATAR = BRAND_ASSETS.communityAvatar
 
 function TestimonialCard({ index }) {
   const { t } = useTranslation()

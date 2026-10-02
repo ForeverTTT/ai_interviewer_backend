@@ -3,8 +3,9 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useTranslation } from 'react-i18next'
 import { X } from 'lucide-react'
 import './CookieBanner.css'
+import { BRAND_ASSETS } from '../assets/brandAssets'
 
-const BRAND_MARK = '/brand/flowlab-shell-app-icon-192.png'
+const BRAND_MARK = BRAND_ASSETS.appIcon
 
 export default function CookieBanner() {
   const { t } = useTranslation()

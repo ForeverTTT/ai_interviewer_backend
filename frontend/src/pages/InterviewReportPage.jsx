@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
+import { BRAND_ASSETS } from '../assets/brandAssets'
 import { supabase } from '../lib/supabase'
 import { getBackendBaseUrl } from '../lib/backendBase'
 import {
@@ -16,7 +17,7 @@ import { createInterviewRequestId } from '../lib/interviewEvents'
 import { normalizeCjkSpacing } from '../lib/textNormalization'
 import './InterviewReportPage.css'
 
-const REVIEW_MENTOR_WRITING = '/brand/flowlab-review-mentor-writing.png'
+const REVIEW_MENTOR_WRITING = BRAND_ASSETS.reviewMentorWriting
 
 function normalizeUiCode(code) {
   const c = String(code || '').toLowerCase()

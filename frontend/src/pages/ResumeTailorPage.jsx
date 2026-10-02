@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
+import { BRAND_ASSETS } from '../assets/brandAssets'
 import {
   AlertCircle, Check, Copy, Download, FileText, Loader2,
   Sparkles, Upload, WandSparkles,
@@ -11,7 +12,7 @@ import { exportPdf, exportWord } from '../lib/documentExport'
 import { parseJobDescription } from '../lib/jobDescriptionParser'
 import './ResumeTailorPage.css'
 
-const RESUME_TAILOR_WORKING = '/brand/flowlab-resume-tailor-working.png'
+const RESUME_TAILOR_WORKING = BRAND_ASSETS.resumeTailorWorking
 
 /** 输入控件共用的一套品牌样式；写成常量避免每处手抄一遍长串类名 */
 const FIELD_BASE = 'w-full rounded-xl border border-brand-line bg-brand-inset text-brand-ink transition-colors placeholder:text-brand-muted/70 focus:border-brand-violet focus:outline-none focus:ring-4 focus:ring-brand-violet/10'

@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { useTranslation } from 'react-i18next'
+import { BRAND_ASSETS } from '../assets/brandAssets'
 import {
   ArrowRight,
   Check,
@@ -11,13 +12,13 @@ import { useAuth } from '../hooks/useAuth'
 import LanguageSwitcher from '../components/LanguageSwitcher'
 import './LandingPage.css'
 
-const CHARACTER_SHEET = '/brand/flowlab-felt-character-board-v5-role-system.png'
-const BRAND_WORDMARK = '/brand/flowlab-wordmark-icon-o-v1.png'
-const HERO_STICKER = '/brand/flowlab-sticker-interview-practice.png'
-const LAPTOP_STICKER = '/brand/flowlab-sticker-working-on-laptop.png'
-const PROGRESS_STICKER = '/brand/flowlab-sticker-good-progress.png'
-const ENCOURAGEMENT_STICKER = '/brand/flowlab-sticker-you-got-this.png'
-const COMMUNITY_AVATAR = '/brand/flowlab-community-egg-avatar.png'
+const CHARACTER_SHEET = BRAND_ASSETS.characterRoleBoard
+const BRAND_WORDMARK = BRAND_ASSETS.wordmark
+const HERO_STICKER = BRAND_ASSETS.stickers.interviewPractice
+const LAPTOP_STICKER = BRAND_ASSETS.stickers.workingOnLaptop
+const PROGRESS_STICKER = BRAND_ASSETS.stickers.goodProgress
+const ENCOURAGEMENT_STICKER = BRAND_ASSETS.stickers.youGotThis
+const COMMUNITY_AVATAR = BRAND_ASSETS.communityAvatar
 
 const SHELL_TEAM = [
   { id: 'coach', crop: 'top-left', color: 'navy' },

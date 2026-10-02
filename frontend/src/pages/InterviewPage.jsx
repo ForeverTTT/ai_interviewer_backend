@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
+import { BRAND_ASSETS } from '../assets/brandAssets'
 import { useLocation, useNavigate, Link, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { getBackendBaseUrl } from '../lib/backendBase'
@@ -18,7 +19,7 @@ import {
 } from 'lucide-react'
 import './InterviewPage.css'
 
-const CHARACTER_SHEET = '/brand/flowlab-felt-character-board-v5-role-system.png'
+const CHARACTER_SHEET = BRAND_ASSETS.characterRoleBoard
 
 function VoicePartnerPortrait() {
   return (
