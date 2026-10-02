@@ -3,10 +3,18 @@ import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { useTranslation } from 'react-i18next'
 import { BRAND_ASSETS } from '../assets/brandAssets'
+import boschLogo from '../assets/logos/bosch.png'
+import sapLogo from '../assets/logos/sap.png'
+import schaefflerLogo from '../assets/logos/schaeffler.png'
 import {
   ArrowRight,
+  AudioLines,
+  Bot,
   Check,
   ChevronRight,
+  Monitor,
+  ShieldCheck,
+  SlidersHorizontal,
 } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
 import LanguageSwitcher from '../components/LanguageSwitcher'
@@ -15,22 +23,16 @@ import './LandingPage.css'
 const CHARACTER_SHEET = BRAND_ASSETS.characterRoleBoard
 const BRAND_WORDMARK = BRAND_ASSETS.wordmark
 const HERO_STICKER = BRAND_ASSETS.stickers.interviewPractice
-const LAPTOP_STICKER = BRAND_ASSETS.stickers.workingOnLaptop
+const WHY_STICKER = BRAND_ASSETS.stickers.smallStepsBigTomorrow
 const PROGRESS_STICKER = BRAND_ASSETS.stickers.goodProgress
 const ENCOURAGEMENT_STICKER = BRAND_ASSETS.stickers.youGotThis
 const COMMUNITY_AVATAR = BRAND_ASSETS.communityAvatar
 
 const SHELL_TEAM = [
-  { id: 'coach', crop: 'top-left', color: 'navy' },
-  { id: 'practice', crop: 'bottom-left', color: 'aqua' },
+  { id: 'job', asset: BRAND_ASSETS.jobDetective, color: 'aqua' },
   { id: 'resume', crop: 'top-right', color: 'pink' },
+  { id: 'coach', crop: 'top-left', color: 'navy' },
   { id: 'review', crop: 'bottom-right', color: 'green' },
-]
-
-const JOURNEY = [
-  { id: 'resume', accent: 'resume', crop: 'top-right' },
-  { id: 'coach', accent: 'coach', crop: 'top-left' },
-  { id: 'review', accent: 'review', crop: 'bottom-right' },
 ]
 
 const COMMUNITY_POSTS = [
@@ -42,12 +44,40 @@ const COMMUNITY_POSTS = [
   { id: '426' },
 ]
 
+const TECH_ITEMS = [
+  { id: 'agent', icon: Bot },
+  { id: 'sft', icon: SlidersHorizontal },
+  { id: 'voice', icon: AudioLines },
+  { id: 'simulation', icon: Monitor },
+  { id: 'privacy', icon: ShieldCheck },
+]
+
+const OFFER_LOGOS = [
+  { id: 'heidelberg', name: 'Universität Heidelberg', src: '/logos/uni-heidelberg.svg' },
+  { id: 'bmw', name: 'BMW', src: '/logos/bmw.svg' },
+  { id: 'siemens', name: 'Siemens', src: '/logos/siemens.svg' },
+  { id: 'sap', name: 'SAP', src: sapLogo },
+  { id: 'bosch', name: 'Bosch', src: boschLogo },
+  { id: 'schaeffler', name: 'Schaeffler', src: schaefflerLogo },
+  { id: 'tum', name: 'Technische Universität München', src: '/logos/uni-tum.svg' },
+  { id: 'rwth', name: 'RWTH Aachen', src: '/logos/uni-rwth.svg' },
+  { id: 'eth', name: 'ETH Zürich', src: '/logos/uni-eth.svg' },
+]
+
 function MascotCrop({ crop, className = '' }) {
   return (
     <div className={`fl-mascot-crop fl-mascot-${crop} ${className}`} aria-hidden="true">
       <img src={CHARACTER_SHEET} alt="" />
     </div>
   )
+}
+
+function HowPortrait({ role }) {
+  if (role.asset) {
+    return <img src={role.asset} alt="" className="fl-how-mascot fl-how-mascot-image" aria-hidden="true" />
+  }
+
+  return <MascotCrop crop={role.crop} className="fl-how-mascot" />
 }
 
 function Hero({ ctaLink }) {
@@ -89,35 +119,58 @@ function Hero({ ctaLink }) {
   )
 }
 
-function CapabilityCards({ ctaLink }) {
+function HowFlowLabWorks({ user }) {
   const { t } = useTranslation()
+  const routes = {
+    resume: user ? '/resume-tailor' : '/login',
+    coach: user ? '/setup' : '/login',
+    review: user ? '/dashboard' : '/login',
+  }
+
   return (
-    <section className="fl-section fl-team-section" id="meet-shells">
-      <div className="fl-section-head">
-        <span>{t('landingV2.crew.eyebrow')}</span>
-        <h2>{t('landingV2.crew.title')}</h2>
-        <h3>{t('landingV2.crew.subtitle')}</h3>
-        <p>{t('landingV2.crew.copy')}</p>
+    <section className="fl-how-section" id="meet-shells">
+      <div className="fl-how-heading">
+        <div>
+          <h2>{t('landingV2.how.title')}</h2>
+        </div>
       </div>
-      <div className="fl-crew-grid">
+
+      <div className="fl-how-list">
         {SHELL_TEAM.map((role, index) => (
           <motion.article
             key={role.id}
-            className={`fl-crew-member-shell fl-crew-member-${role.color}`}
-            initial={{ opacity: 0, y: 30 }}
+            className={`fl-how-step fl-how-${role.id}`}
+            initial={{ opacity: 0, y: 36 }}
             whileInView={{ opacity: 1, y: 0 }}
-            whileHover={{ y: -10, scale: 1.025 }}
-            viewport={{ once: true, amount: 0.35 }}
-            transition={{ duration: 0.55, delay: index * 0.07, ease: [0.16, 1, 0.3, 1] }}
+            viewport={{ once: true, amount: 0.22 }}
+            transition={{ duration: 0.65, delay: index * 0.04, ease: [0.16, 1, 0.3, 1] }}
           >
-            <Link to={ctaLink} className="fl-crew-member" aria-label={t('landingV2.crew.cardAria', { role: t(`landingV2.crew.roles.${role.id}.role`), label: t(`landingV2.crew.roles.${role.id}.label`) })}>
-              <div className="fl-crew-character">
-                <MascotCrop crop={role.crop} className="fl-crew-portrait" />
-              </div>
-              <span className="fl-crew-accent-line" aria-hidden="true" />
-              <h3>{t(`landingV2.crew.roles.${role.id}.role`)}</h3>
-              <p>{t(`landingV2.crew.roles.${role.id}.label`)}</p>
-            </Link>
+            <div className="fl-how-visual" aria-hidden="true">
+              <span className="fl-how-halo" />
+              <HowPortrait role={role} />
+              <span className="fl-how-visual-name">{t(`landingV2.crew.roles.${role.id}.role`)}</span>
+            </div>
+
+            <div className="fl-how-copy">
+              <span className="fl-how-kicker">{t(`landingV2.how.steps.${role.id}.kicker`)}</span>
+              <h3>{t(`landingV2.how.steps.${role.id}.feature`)}</h3>
+              <p className="fl-how-intro">{t(`landingV2.how.steps.${role.id}.intro`)}</p>
+              <dl className="fl-how-details">
+                {['bring', 'help', 'result'].map((detail) => (
+                  <div key={detail}>
+                    <dt>{t(`landingV2.how.labels.${detail}`)}</dt>
+                    <dd>{t(`landingV2.how.steps.${role.id}.${detail}`)}</dd>
+                  </div>
+                ))}
+              </dl>
+              {role.id === 'job' ? (
+                <span className="fl-how-status">{t('landingV2.how.steps.job.cta')}</span>
+              ) : (
+                <Link to={routes[role.id]} className="fl-how-cta">
+                  {t(`landingV2.how.steps.${role.id}.cta`)} <ArrowRight size={17} />
+                </Link>
+              )}
+            </div>
           </motion.article>
         ))}
       </div>
@@ -125,34 +178,135 @@ function CapabilityCards({ ctaLink }) {
   )
 }
 
-function JourneySection() {
+function WhyFlowLab() {
   const { t } = useTranslation()
+  const reasons = ['loop', 'mentor', 'resume', 'simulation']
+  const path = ['search', 'resume', 'interview', 'review']
+
   return (
-    <section className="fl-section fl-journey-section">
-      <div className="fl-journey-head">
-        <div className="fl-journey-intro"><h2>{t('landingV2.journey.titleLine1')}<br />{t('landingV2.journey.titleLine2')}</h2></div>
-        <motion.img
-          className="fl-journey-sticker"
-          src={LAPTOP_STICKER}
-          alt={t('landingV2.journey.stickerAlt')}
-          initial={{ opacity: 0, y: 20, rotate: 5 }}
-          whileInView={{ opacity: 1, y: 0, rotate: -3 }}
-          viewport={{ once: true, amount: 0.4 }}
-          transition={{ duration: 0.65, ease: [0.16, 1, 0.3, 1] }}
-        />
-      </div>
-      <div className="fl-journey-list">
-        {JOURNEY.map((item, index) => (
-            <motion.article key={item.id} className={`fl-journey-item fl-journey-${item.accent}`} initial={{ opacity: 0, x: index % 2 ? 24 : -24 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true, amount: 0.25 }} transition={{ duration: 0.65, ease: [0.16, 1, 0.3, 1] }}>
-              <div className="fl-journey-mentor">
-                <div className="fl-journey-portrait-wrap">
-                  <MascotCrop crop={item.crop} className="fl-journey-portrait" />
-                </div>
-                <div className="fl-journey-mentor-copy"><strong>{t(`landingV2.journey.steps.${item.id}.mentor`)}</strong><span>{t(`landingV2.journey.steps.${item.id}.kicker`)}</span></div>
+    <section className="fl-why-section">
+      <motion.div
+        className="fl-why-heading"
+        initial={{ opacity: 0, y: 24 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true, amount: 0.45 }}
+        transition={{ duration: 0.65, ease: [0.16, 1, 0.3, 1] }}
+      >
+        <h2>{t('landingV2.why.title')}</h2>
+        <p>{t('landingV2.why.copy')}</p>
+      </motion.div>
+
+      <div className="fl-why-layout">
+        <motion.div
+          className="fl-why-story"
+          initial={{ opacity: 0, x: -28 }}
+          whileInView={{ opacity: 1, x: 0 }}
+          viewport={{ once: true, amount: 0.3 }}
+          transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
+        >
+          <img className="fl-why-sticker" src={WHY_STICKER} alt={t('landingV2.why.stickerAlt')} />
+          <h3>{t('landingV2.why.storyTitle')}</h3>
+          <p>{t('landingV2.why.storyCopy')}</p>
+          <div className="fl-why-path" aria-label={t('landingV2.why.pathLabel')}>
+            {path.map((step, index) => (
+              <div key={step}>
+                <i>{String(index + 1).padStart(2, '0')}</i>
+                <span>{t(`landingV2.why.path.${step}`)}</span>
               </div>
-              <div className="fl-journey-copy"><h3>{t(`landingV2.journey.steps.${item.id}.title`)}</h3><p>{t(`landingV2.journey.steps.${item.id}.copy`)}</p></div>
+            ))}
+          </div>
+        </motion.div>
+
+        <div className="fl-why-reasons">
+          {reasons.map((reason, index) => (
+            <motion.article
+              key={reason}
+              initial={{ opacity: 0, y: 24 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, amount: 0.45 }}
+              transition={{ duration: 0.58, delay: index * 0.06, ease: [0.16, 1, 0.3, 1] }}
+            >
+              <span>{String(index + 1).padStart(2, '0')}</span>
+              <div>
+                <h3>{t(`landingV2.why.reasons.${reason}.title`)}</h3>
+                <p>{t(`landingV2.why.reasons.${reason}.copy`)}</p>
+              </div>
             </motion.article>
+          ))}
+        </div>
+      </div>
+    </section>
+  )
+}
+
+function Technology() {
+  const { t } = useTranslation()
+
+  return (
+    <section className="fl-tech-section">
+      <motion.div
+        className="fl-tech-heading"
+        initial={{ opacity: 0, y: 24 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true, amount: 0.4 }}
+        transition={{ duration: 0.65, ease: [0.16, 1, 0.3, 1] }}
+      >
+        <h2>{t('landingV2.tech.title')}</h2>
+        <p>{t('landingV2.tech.copy')}</p>
+      </motion.div>
+
+      <div className="fl-tech-grid">
+        {TECH_ITEMS.map(({ id, icon: Icon }, index) => (
+          <article
+            key={id}
+            className={`fl-tech-card fl-tech-card-${id}`}
+          >
+            <div className="fl-tech-card-top">
+              <span className="fl-tech-icon"><Icon size={21} strokeWidth={1.8} /></span>
+              <span className="fl-tech-index">{String(index + 1).padStart(2, '0')}</span>
+            </div>
+            <span className="fl-tech-term">{t(`landingV2.tech.items.${id}.term`)}</span>
+            <h3>{t(`landingV2.tech.items.${id}.title`)}</h3>
+            <p>{t(`landingV2.tech.items.${id}.copy`)}</p>
+          </article>
         ))}
+      </div>
+    </section>
+  )
+}
+
+function OfferShowcase() {
+  const { t } = useTranslation()
+
+  const renderLogos = (duplicate = false) => (
+    <div className="fl-offer-logo-row" aria-hidden={duplicate ? 'true' : undefined}>
+      {OFFER_LOGOS.map((logo) => (
+        <div className="fl-offer-logo" key={`${duplicate ? 'copy' : 'original'}-${logo.id}`} title={logo.name}>
+          <img src={logo.src} alt={duplicate ? '' : logo.name} />
+        </div>
+      ))}
+    </div>
+  )
+
+  return (
+    <section className="fl-offer-section">
+      <motion.div
+        className="fl-offer-heading"
+        initial={{ opacity: 0, y: 18 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true, amount: 0.45 }}
+        transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+      >
+        <h2>{t('landingV2.offer.title')}</h2>
+        <p>{t('landingV2.offer.disclaimer')}</p>
+      </motion.div>
+      <div className="fl-offer-band">
+        <div className="fl-offer-marquee" aria-label={t('landingV2.offer.logoLabel')}>
+          <div className="fl-offer-track">
+            {renderLogos()}
+            {renderLogos(true)}
+          </div>
+        </div>
       </div>
     </section>
   )
@@ -249,8 +403,10 @@ export default function LandingPage() {
       </div>
       <main>
         <Hero ctaLink={ctaLink} />
-        <CapabilityCards ctaLink={ctaLink} />
-        <JourneySection />
+        <HowFlowLabWorks user={user} />
+        <OfferShowcase />
+        <WhyFlowLab />
+        <Technology />
         <CommunityPreview />
         <Closing ctaLink={ctaLink} />
       </main>

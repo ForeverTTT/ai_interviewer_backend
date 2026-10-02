@@ -10,11 +10,11 @@
   "landingV2": {
     "metaTitle": "FlowLab — Interview practice without the freeze",
     "hero": {
-      "lead": "No canned answers and no turning interviews into exams. The FlowLab crew guides you from your resume and mock interviews to question-by-question review, so you can speak in your own voice.",
+      "lead": "No canned answers and no turning interviews into exams. The FlowLab crew guides you from finding the right roles and refining your resume to mock interviews and question-by-question review.",
       "primary": "Practice with FlowLab",
       "secondary": "See how it works",
       "proofLabel": "Product highlights",
-      "proof": { "jd": "Tailored to your JD", "voice": "English & German voice practice", "review": "Flashcard review by question" },
+      "proof": { "jd": "Tailored to your JD", "voice": "Chinese, English & German voice practice", "review": "Flashcard review by question" },
       "stickerAlt": "FlowLab interview practice"
     },
     "crew": {
@@ -24,11 +24,107 @@
       "copy": "Complex AI becomes four coaches with distinct personalities. You do not need to study the tools—just choose the help you need right now.",
       "cardAria": "Practice with {{role}}: {{label}}",
       "roles": {
-        "coach": { "role": "Interview Coach", "label": "Tailored follow-ups" },
-        "practice": { "role": "Practice Partner", "label": "Voice simulations" },
+        "job": { "role": "Job Detective", "label": "Resume-to-role matching" },
         "resume": { "role": "Resume Tailor", "label": "Resume refinement" },
+        "coach": { "role": "Interview Coach", "label": "Tailored follow-ups" },
         "review": { "role": "Review Mentor", "label": "Question review" }
       }
+    },
+    "how": {
+      "title": "What FlowLab can do for you",
+      "stickerAlt": "FlowLab coach preparing for job-search practice",
+      "labels": { "bring": "You bring", "help": "I help", "result": "You get" },
+      "steps": {
+        "job": {
+          "kicker": "01 · Find your direction",
+          "feature": "Role matching",
+          "intro": "Match roles to the experience, skills, and target direction in your resume, with clear fit evidence and application priorities.",
+          "bring": "Your current resume and a rough idea of what interests you.",
+          "help": "Map your experience and strengths to role families, then explain the fit and the gaps.",
+          "result": "Clearer role directions, matching evidence, and application priorities.",
+          "cta": "Role matching coming soon"
+        },
+        "resume": {
+          "kicker": "02 · Aim your application",
+          "feature": "Resume refinement",
+          "intro": "Read your saved resume, identify JD keywords, improve the wording without inventing experience, and generate a matching cover letter.",
+          "bring": "Your base resume and the complete target job description.",
+          "help": "Identify role keywords and strengthen structure and wording without fabricating experience.",
+          "result": "A tailored resume, clear edit rationale, and a matching cover letter.",
+          "cta": "Refine your resume"
+        },
+        "coach": {
+          "kicker": "03 · Say it out loud",
+          "feature": "Mock interviews",
+          "intro": "Choose any duration from 5–60 minutes for a quick warm-up or a complete mock interview.",
+          "bring": "Your target role, JD, practice language, and interview mode.",
+          "help": "Run a Chinese, English, or German voice interview and adjust depth and follow-ups as you answer.",
+          "result": "A complete mock interview, real speaking practice, and a question-by-question record.",
+          "cta": "Start an interview round"
+        },
+        "review": {
+          "kicker": "04 · Turn feedback into practice",
+          "feature": "Interview review",
+          "intro": "Analyze interview answers, generate a complete review with specific improvements, and turn weaker questions into reusable practice cards.",
+          "bring": "Answers and a report from a practice or formal mock interview.",
+          "help": "Break down answers, feedback, and weaker dimensions into questions you can revisit.",
+          "result": "Question-level review, saved flashcards, and tasks for the next round.",
+          "cta": "Open your Growth Center"
+        }
+      }
+    },
+    "why": {
+      "title": "Why choose FlowLab",
+      "copy": "FlowLab is more than an AI interview or resume tool. It supports the full job-search journey—from discovering roles and preparing applications to mock interviews and continuous review.",
+      "stickerAlt": "Small steps toward a better tomorrow",
+      "storyLabel": "The complete job-search journey",
+      "storyTitle": "The complete job-search journey",
+      "storyCopy": "FlowLab connects role discovery, application materials, interview practice, and review around one career goal, reducing repeated setup across disconnected tools.",
+      "pathLabel": "The FlowLab career loop",
+      "path": { "search": "Role search", "resume": "Resume", "interview": "Mock interview", "review": "Review" },
+      "reasons": {
+        "loop": { "title": "Role Search and Matching", "copy": "Match roles to the experience, skills, and target direction in your resume, with clear fit evidence, capability gaps, and application priorities." },
+        "mentor": { "title": "Targeted Application Materials", "copy": "Refine resume wording and structure around a target JD, then generate a role-aligned resume and cover letter without inventing experience." },
+        "resume": { "title": "Flexible Multilingual Mock Interviews", "copy": "Practice in Chinese, English, or German and choose any duration from 5–60 minutes for a quick warm-up or a complete simulation." },
+        "simulation": { "title": "Review and Continuous Practice", "copy": "Break down answers and weaker dimensions into specific improvements, saved questions, and tasks for the next practice round." }
+      }
+    },
+    "tech": {
+      "eyebrow": "Core technology",
+      "title": "The AI architecture behind FlowLab",
+      "copy": "FlowLab combines multi-agent orchestration, supervised fine-tuning, neural speech, and realistic interaction into a stable, connected job-search training experience that can keep improving over time.",
+      "items": {
+        "agent": {
+          "term": "Multi-Agent",
+          "title": "Multi-Agent Architecture",
+          "copy": "Our multi-agent architecture dynamically switches between roles such as technical lead and HR within one interview. Follow-up logic and depth adapt to each answer, recreating the role changes and pressure of a real multi-round process."
+        },
+        "sft": {
+          "term": "Supervised Fine-Tuning",
+          "title": "Supervised Fine-Tuning (SFT)",
+          "copy": "Models are tuned for German and European hiring contexts, including German communication patterns, industry terminology, and technical assessment styles, so questions, follow-ups, and feedback better reflect real recruitment."
+        },
+        "voice": {
+          "term": "Neural TTS",
+          "title": "High-Fidelity Interview Voice",
+          "copy": "High-fidelity neural speech synthesis recreates realistic interviewer pacing, pauses, and follow-up rhythm, turning interview pressure into repeatable speaking practice."
+        },
+        "simulation": {
+          "term": "Realistic Simulation",
+          "title": "Immersive Interview Window",
+          "copy": "A Zoom-style interview interface combines camera and real-time voice interaction to recreate the atmosphere of a formal interview—not just a sequence of text questions and answers."
+        },
+        "privacy": {
+          "term": "Privacy by Design",
+          "title": "Privacy and Data Security",
+          "copy": "Privacy safeguards are built around application materials and interview data, with appropriate access controls and secure handling for sensitive information so every practice session remains private."
+        }
+      }
+    },
+    "offer": {
+      "title": "FlowLab has helped users receive offers from these schools and companies",
+      "disclaimer": "Leading German and European companies and technical universities (illustrative only; no official partnership implied)",
+      "logoLabel": "Schools and companies connected to user offers"
     },
     "journey": {
       "titleLine1": "From preparation to review,",
@@ -36,7 +132,7 @@
       "stickerAlt": "FlowLab coach practicing on a laptop",
       "steps": {
         "resume": { "mentor": "Resume Tailor", "kicker": "Start with the target", "title": "Paste the JD and bring your resume", "copy": "We first understand the role and your experience, then decide what is truly worth practicing this round." },
-        "coach": { "mentor": "Interview Coach", "kicker": "Now, say it out loud", "title": "Talk through a round with an AI interviewer", "copy": "Real voice, continuous follow-ups, and English or German practice turn ideas in your head into natural answers." },
+        "coach": { "mentor": "Interview Coach", "kicker": "Now, say it out loud", "title": "Talk through a round with an AI interviewer", "copy": "Real voice, continuous follow-ups, and Chinese, English, or German practice turn ideas in your head into natural answers." },
         "review": { "mentor": "Review Mentor", "kicker": "Turn feedback into practice", "title": "Review each question with flashcards", "copy": "Compare your answer, reference approaches, and concrete next steps so the next round feels immediately stronger." }
       }
     },
@@ -63,7 +159,7 @@
     "closing": { "aria": "Start using FlowLab", "stickerAlt": "You got this", "cta": "Start your first round free" },
     "footer": {
       "quickNav": "Quick navigation", "home": "Home", "start": "Start practicing", "growth": "Growth history", "profile": "Profile",
-      "about": "About FlowLab", "languages": "English and German interviews", "roles": "Internships / Werkstudent / graduate roles", "companion": "Practice with FlowLab · grow with every round",
+      "about": "About FlowLab", "languages": "Chinese, English, and German interviews", "roles": "Internships / Werkstudent / graduate roles", "companion": "Practice with FlowLab · grow with every round",
       "copyright": "© 2026 FlowLab. All rights reserved.", "tagline": "From campus to career, speak without freezing."
     }
   },

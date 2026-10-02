@@ -15,6 +15,8 @@ export const BRAND_ASSETS = Object.freeze({
   communityAvatar: brandFile('flowlab-community-egg-avatar.png'),
   characterRoleBoard: brandFile('flowlab-felt-character-board-v5-role-system.png'),
   interviewCoachWriting: brandFile('flowlab-interview-coach-writing.png'),
+  jobDetective: brandFile('flowlab-job-detective-monocle-v2.png'),
+  jobDetectiveSearching: brandFile('flowlab-job-detective-v1.png'),
   reviewMentorWriting: brandFile('flowlab-review-mentor-writing.png'),
   resumeTailorWorking: brandFile('flowlab-resume-tailor-working.png'),
   brandIdentityStickerBoard: brandFile('flowlab-brand-identity-sticker-board.png'),

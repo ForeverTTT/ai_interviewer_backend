@@ -10,11 +10,11 @@
   "landingV2": {
     "metaTitle": "FlowLab — Interviewtraining ohne Blackout",
     "hero": {
-      "lead": "Keine auswendig gelernten Standardantworten und kein Interview als Prüfung. Das FlowLab-Team begleitet dich vom Lebenslauf über Probeinterviews bis zur Frage-für-Frage-Auswertung – für Antworten, die wirklich nach dir klingen.",
+      "lead": "Keine auswendig gelernten Standardantworten und kein Interview als Prüfung. Das FlowLab-Team begleitet dich von passenden Stellen und deinem Lebenslauf über Probeinterviews bis zur Frage-für-Frage-Auswertung.",
       "primary": "Mit FlowLab üben",
       "secondary": "So funktioniert es",
       "proofLabel": "Produktvorteile",
-      "proof": { "jd": "Auf deine JD zugeschnitten", "voice": "Englische & deutsche Sprachpraxis", "review": "Fragen mit Lernkarten auswerten" },
+      "proof": { "jd": "Auf deine JD zugeschnitten", "voice": "Chinesisch, Englisch & Deutsch", "review": "Fragen mit Lernkarten auswerten" },
       "stickerAlt": "FlowLab Interviewtraining"
     },
     "crew": {
@@ -24,11 +24,107 @@
       "copy": "Komplexe KI wird zu vier Coaches mit eigener Persönlichkeit. Du musst keine Tools verstehen – wähle einfach die Hilfe, die du gerade brauchst.",
       "cardAria": "Mit {{role}} üben: {{label}}",
       "roles": {
-        "coach": { "role": "Interview-Coach", "label": "Individuelle Nachfragen" },
-        "practice": { "role": "Übungspartner", "label": "Sprachsimulation" },
+        "job": { "role": "Job-Detektiv", "label": "Lebenslauf-Job-Matching" },
         "resume": { "role": "Lebenslauf-Coach", "label": "Lebenslauf optimieren" },
+        "coach": { "role": "Interview-Coach", "label": "Individuelle Nachfragen" },
         "review": { "role": "Review-Mentor", "label": "Fragen auswerten" }
       }
+    },
+    "how": {
+      "title": "Was FlowLab für dich tun kann",
+      "stickerAlt": "FlowLab-Coach bereitet das Bewerbungstraining vor",
+      "labels": { "bring": "Du bringst mit", "help": "Ich helfe", "result": "Du erhältst" },
+      "steps": {
+        "job": {
+          "kicker": "01 · Die Richtung finden",
+          "feature": "Stellen-Matching",
+          "intro": "Passende Stellen anhand von Erfahrung, Kompetenzen und Zielrichtung im Lebenslauf ermitteln – mit nachvollziehbaren Gründen und Bewerbungsprioritäten.",
+          "bring": "Deinen aktuellen Lebenslauf und eine grobe Idee deiner Interessen.",
+          "help": "Erfahrungen und Stärken passenden Berufsfeldern zuordnen und Gründe sowie Lücken erklären.",
+          "result": "Klarere Berufsrichtungen, nachvollziehbare Matches und Bewerbungsprioritäten.",
+          "cta": "Job-Matching folgt in Kürze"
+        },
+        "resume": {
+          "kicker": "02 · Unterlagen auf die Stelle ausrichten",
+          "feature": "Lebenslauf optimieren",
+          "intro": "Den gespeicherten Lebenslauf auslesen, JD-Schlüsselwörter erkennen, Formulierungen ohne erfundene Erfahrung optimieren und ein passendes Anschreiben erstellen.",
+          "bring": "Deinen Basis-Lebenslauf und die vollständige Stellenbeschreibung.",
+          "help": "Schlüsselbegriffe erkennen und Struktur sowie Formulierungen stärken, ohne Erfahrung zu erfinden.",
+          "result": "Einen zugeschnittenen Lebenslauf, nachvollziehbare Änderungen und ein passendes Anschreiben.",
+          "cta": "Lebenslauf optimieren"
+        },
+        "coach": {
+          "kicker": "03 · Antworten laut aussprechen",
+          "feature": "Probeinterview",
+          "intro": "Wähle flexibel 5–60 Minuten – für ein kurzes Warm-up oder ein vollständiges Probeinterview.",
+          "bring": "Zielrolle, JD, Übungssprache und Interviewmodus.",
+          "help": "Ein Sprachinterview auf Chinesisch, Englisch oder Deutsch führen und Tiefe sowie Nachfragen dynamisch anpassen.",
+          "result": "Ein vollständiges Probeinterview, echte Sprechpraxis und eine Aufzeichnung nach Fragen.",
+          "cta": "Interviewrunde starten"
+        },
+        "review": {
+          "kicker": "04 · Feedback wirklich trainieren",
+          "feature": "Interview-Auswertung",
+          "intro": "Interviewantworten analysieren, eine vollständige Auswertung mit konkreten Verbesserungen erstellen und schwächere Fragen in wiederverwendbare Lernkarten überführen.",
+          "bring": "Antworten und Bericht aus einer Übung oder formellen Simulation.",
+          "help": "Antworten, Feedback und schwächere Dimensionen zerlegen und als wiederholbare Fragen organisieren.",
+          "result": "Review pro Frage, gespeicherte Lernkarten und Aufgaben für die nächste Runde.",
+          "cta": "Growth Center öffnen"
+        }
+      }
+    },
+    "why": {
+      "title": "Warum FlowLab?",
+      "copy": "FlowLab ist mehr als ein KI-Tool für Interviews oder Lebensläufe. Es begleitet den gesamten Bewerbungsweg – von Stellensuche und Unterlagen bis zu Probeinterviews und kontinuierlicher Auswertung.",
+      "stickerAlt": "Mit kleinen Schritten in eine bessere Zukunft",
+      "storyLabel": "Der vollständige Bewerbungsweg",
+      "storyTitle": "Der vollständige Bewerbungsweg",
+      "storyCopy": "FlowLab verbindet Stellensuche, Bewerbungsunterlagen, Interviewtraining und Auswertung rund um ein gemeinsames Karriereziel und reduziert wiederholte Einrichtung in getrennten Tools.",
+      "pathLabel": "Der FlowLab-Bewerbungskreislauf",
+      "path": { "search": "Stellensuche", "resume": "Lebenslauf", "interview": "Probeinterview", "review": "Auswertung" },
+      "reasons": {
+        "loop": { "title": "Stellensuche und Matching", "copy": "Passende Stellen aus Erfahrung, Kompetenzen und Zielrichtung im Lebenslauf ableiten – mit nachvollziehbaren Gründen, Kompetenzlücken und Bewerbungsprioritäten." },
+        "mentor": { "title": "Gezielte Bewerbungsunterlagen", "copy": "Formulierungen und Struktur des Lebenslaufs auf eine Ziel-JD ausrichten und ohne erfundene Erfahrung einen passenden Lebenslauf sowie ein Anschreiben erstellen." },
+        "resume": { "title": "Flexible mehrsprachige Probeinterviews", "copy": "Auf Chinesisch, Englisch oder Deutsch üben und zwischen 5 und 60 Minuten für ein kurzes Warm-up oder eine vollständige Simulation wählen." },
+        "simulation": { "title": "Auswertung und kontinuierliches Training", "copy": "Antworten und schwächere Dimensionen in konkrete Verbesserungen, gespeicherte Fragen und Aufgaben für die nächste Übungsrunde überführen." }
+      }
+    },
+    "tech": {
+      "eyebrow": "Kerntechnologie",
+      "title": "Die KI-Architektur hinter FlowLab",
+      "copy": "FlowLab verbindet Multi-Agenten-Orchestrierung, überwachtes Feintuning, neuronale Sprache und realistische Interaktion zu einem stabilen, zusammenhängenden Bewerbungstraining, das kontinuierlich weiterentwickelt werden kann.",
+      "items": {
+        "agent": {
+          "term": "Multi-Agent",
+          "title": "Multi-Agenten-Architektur",
+          "copy": "Die Multi-Agenten-Architektur wechselt innerhalb eines Interviews dynamisch zwischen Rollen wie technischer Leitung und HR. Logik und Tiefe der Nachfragen passen sich jeder Antwort an und bilden Rollenwechsel sowie Druck eines realen mehrstufigen Prozesses nach."
+        },
+        "sft": {
+          "term": "Supervised Fine-Tuning",
+          "title": "Überwachtes Feintuning (SFT)",
+          "copy": "Die Modelle werden für den deutschen und europäischen Bewerbungskontext optimiert – einschließlich deutscher Ausdrucksweisen, Branchenterminologie und technischer Prüfungsformen. So orientieren sich Fragen, Nachfragen und Feedback stärker an realen Auswahlverfahren."
+        },
+        "voice": {
+          "term": "Neural TTS",
+          "title": "Authentische Sprachpräsenz",
+          "copy": "Hochwertige neuronale Sprachsynthese bildet Sprechtempo, Pausen und Nachfragerhythmus realer Interviewer nach und macht Gesprächsdruck zu wiederholbarer Sprechpraxis."
+        },
+        "simulation": {
+          "term": "Realistic Simulation",
+          "title": "Immersives Interviewfenster",
+          "copy": "Eine Zoom-ähnliche Oberfläche verbindet Kamera und Sprachinteraktion in Echtzeit und bildet die Atmosphäre eines formellen Interviews ab – statt nur Textfragen und Antworten aneinanderzureihen."
+        },
+        "privacy": {
+          "term": "Privacy by Design",
+          "title": "Datenschutz und Datensicherheit",
+          "copy": "Schutzmechanismen für Bewerbungsunterlagen und Interviewdaten, angemessene Zugriffskontrollen sowie eine sichere Verarbeitung sensibler Informationen halten jede Übungssitzung privat."
+        }
+      }
+    },
+    "offer": {
+      "title": "FlowLab hat Nutzern zu Angeboten dieser Hochschulen und Unternehmen verholfen",
+      "disclaimer": "Führende deutsche und europäische Unternehmen und technische Hochschulen (beispielhafte Darstellung; keine offizielle Partnerschaft)",
+      "logoLabel": "Hochschulen und Unternehmen im Zusammenhang mit Nutzerangeboten"
     },
     "journey": {
       "titleLine1": "Von der Vorbereitung bis zum Review:",
@@ -36,7 +132,7 @@
       "stickerAlt": "FlowLab-Coach beim Üben am Laptop",
       "steps": {
         "resume": { "mentor": "Lebenslauf-Coach", "kicker": "Mit dem Ziel beginnen", "title": "JD einfügen und Lebenslauf mitbringen", "copy": "Zuerst verstehen wir die Stelle und deine Erfahrung. Dann wählen wir aus, was sich in dieser Runde wirklich zu üben lohnt." },
-        "coach": { "mentor": "Interview-Coach", "kicker": "Jetzt laut aussprechen", "title": "Eine Runde mit dem KI-Interviewer", "copy": "Echte Sprache, direkte Nachfragen sowie Übungen auf Englisch oder Deutsch machen Gedanken zu natürlichen Antworten." },
+        "coach": { "mentor": "Interview-Coach", "kicker": "Jetzt laut aussprechen", "title": "Eine Runde mit dem KI-Interviewer", "copy": "Echte Sprache, direkte Nachfragen sowie Übungen auf Chinesisch, Englisch oder Deutsch machen Gedanken zu natürlichen Antworten." },
         "review": { "mentor": "Review-Mentor", "kicker": "Feedback wirklich trainieren", "title": "Jede Frage mit Lernkarten auswerten", "copy": "Vergleiche Antwort, Lösungsansätze und nächste Schritte, damit du sie in der nächsten Runde direkt anwenden kannst." }
       }
     },
@@ -63,7 +159,7 @@
     "closing": { "aria": "FlowLab starten", "stickerAlt": "Du schaffst das", "cta": "Erste Runde kostenlos starten" },
     "footer": {
       "quickNav": "Schnellnavigation", "home": "Startseite", "start": "Training starten", "growth": "Fortschritt", "profile": "Profil",
-      "about": "Über FlowLab", "languages": "Interviews auf Englisch und Deutsch", "roles": "Praktikum / Werkstudent / Berufseinstieg", "companion": "Mit FlowLab üben · mit jeder Runde wachsen",
+      "about": "Über FlowLab", "languages": "Interviews auf Chinesisch, Englisch und Deutsch", "roles": "Praktikum / Werkstudent / Berufseinstieg", "companion": "Mit FlowLab üben · mit jeder Runde wachsen",
       "copyright": "© 2026 FlowLab. Alle Rechte vorbehalten.", "tagline": "Vom Campus in den Beruf – sprechen ohne Blackout."
     }
   },
