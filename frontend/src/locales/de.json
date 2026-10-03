@@ -10,11 +10,17 @@
   "landingV2": {
     "metaTitle": "FlowLab — Interviewtraining ohne Blackout",
     "hero": {
-      "lead": "Keine auswendig gelernten Standardantworten und kein Interview als Prüfung. Das FlowLab-Team begleitet dich von passenden Stellen und deinem Lebenslauf über Probeinterviews bis zur Frage-für-Frage-Auswertung.",
+      "title": "Immersive KI-Interviews,",
+      "titleAccent": "bis deine Antworten sitzen",
+      "lead": "Füge deine Stellenanzeige ein und übe laut mit einem KI-Interviewer auf Deutsch, Englisch oder Chinesisch. Er hakt bei dem nach, was du tatsächlich sagst. Danach wird jede Antwort ausgewertet, und schwache Antworten werden zu Lernkarten.",
       "primary": "Mit FlowLab üben",
       "secondary": "So funktioniert es",
       "proofLabel": "Produktvorteile",
-      "proof": { "jd": "Auf deine JD zugeschnitten", "voice": "Chinesisch, Englisch & Deutsch", "review": "Fragen mit Lernkarten auswerten" },
+      "proof": {
+        "jd": "Auf deine JD zugeschnitten",
+        "voice": "Chinesisch, Englisch & Deutsch",
+        "review": "Fragen mit Lernkarten auswerten"
+      },
       "stickerAlt": "FlowLab Interviewtraining"
     },
     "crew": {
@@ -32,44 +38,97 @@
     },
     "how": {
       "title": "Was FlowLab für dich tun kann",
-      "stickerAlt": "FlowLab-Coach bereitet das Bewerbungstraining vor",
-      "labels": { "bring": "Du bringst mit", "help": "Ich helfe", "result": "Du erhältst" },
+      "subtitle": "Eine Stellenanzeige genügt. In drei Schritten bereit fürs Interview.",
       "steps": {
-        "job": {
-          "kicker": "01 · Die Richtung finden",
-          "feature": "Stellen-Matching",
-          "intro": "Passende Stellen anhand von Erfahrung, Kompetenzen und Zielrichtung im Lebenslauf ermitteln – mit nachvollziehbaren Gründen und Bewerbungsprioritäten.",
-          "bring": "Deinen aktuellen Lebenslauf und eine grobe Idee deiner Interessen.",
-          "help": "Erfahrungen und Stärken passenden Berufsfeldern zuordnen und Gründe sowie Lücken erklären.",
-          "result": "Klarere Berufsrichtungen, nachvollziehbare Matches und Bewerbungsprioritäten.",
-          "cta": "Job-Matching folgt in Kürze"
-        },
         "resume": {
-          "kicker": "02 · Unterlagen auf die Stelle ausrichten",
+          "kicker": "Lebenslauf ausrichten",
           "feature": "Lebenslauf optimieren",
-          "intro": "Den gespeicherten Lebenslauf auslesen, JD-Schlüsselwörter erkennen, Formulierungen ohne erfundene Erfahrung optimieren und ein passendes Anschreiben erstellen.",
-          "bring": "Deinen Basis-Lebenslauf und die vollständige Stellenbeschreibung.",
-          "help": "Schlüsselbegriffe erkennen und Struktur sowie Formulierungen stärken, ohne Erfahrung zu erfinden.",
-          "result": "Einen zugeschnittenen Lebenslauf, nachvollziehbare Änderungen und ein passendes Anschreiben.",
+          "intro": "Füge die Stellenanzeige ein und FlowLab formuliert deine echte Erfahrung so, wie die Stelle sie sucht.",
+          "points": [
+            "Erkennt Schlüsselwörter der Stellenanzeige",
+            "Formuliert um, erfindet aber nichts",
+            "Passendes Anschreiben, Export als Word / PDF"
+          ],
           "cta": "Lebenslauf optimieren"
         },
         "coach": {
-          "kicker": "03 · Antworten laut aussprechen",
-          "feature": "Probeinterview",
-          "intro": "Wähle flexibel 5–60 Minuten – für ein kurzes Warm-up oder ein vollständiges Probeinterview.",
-          "bring": "Zielrolle, JD, Übungssprache und Interviewmodus.",
-          "help": "Ein Sprachinterview auf Chinesisch, Englisch oder Deutsch führen und Tiefe sowie Nachfragen dynamisch anpassen.",
-          "result": "Ein vollständiges Probeinterview, echte Sprechpraxis und eine Aufzeichnung nach Fragen.",
+          "kicker": "Antworten laut aussprechen",
+          "feature": "Immersives KI-Interview",
+          "intro": "Sprich laut mit einem KI-Interviewer. Er hört zu und hakt bei dem nach, was du tatsächlich gesagt hast.",
+          "points": [
+            "Sprachtraining auf Chinesisch, Englisch oder Deutsch",
+            "Fach- und HR-Interviewer wechseln sich ab",
+            "5–60 Minuten, vom Warm-up bis zum vollen Interview"
+          ],
           "cta": "Interviewrunde starten"
         },
         "review": {
-          "kicker": "04 · Feedback wirklich trainieren",
+          "kicker": "Feedback trainieren",
           "feature": "Interview-Auswertung",
-          "intro": "Interviewantworten analysieren, eine vollständige Auswertung mit konkreten Verbesserungen erstellen und schwächere Fragen in wiederverwendbare Lernkarten überführen.",
-          "bring": "Antworten und Bericht aus einer Übung oder formellen Simulation.",
-          "help": "Antworten, Feedback und schwächere Dimensionen zerlegen und als wiederholbare Fragen organisieren.",
-          "result": "Review pro Frage, gespeicherte Lernkarten und Aufgaben für die nächste Runde.",
+          "intro": "Direkt danach dein Bericht: was gut lief, wo Lücken sind und welche Frage du als Nächstes übst.",
+          "points": [
+            "Bewertung in fünf Dimensionen",
+            "Jede Antwort mit einer Musterantwort verglichen",
+            "Schwache Fragen speichern und erneut üben"
+          ],
           "cta": "Growth Center öffnen"
+        }
+      },
+      "soon": {
+        "badge": "Bald verfügbar",
+        "title": "Stellen-Matching",
+        "copy": "Findet passende Stellen zu deinem Lebenslauf und erklärt Passung und Bewerbungsprioritäten."
+      },
+      "mock": {
+        "resume": {
+          "tabResume": "Gezielter Lebenslauf",
+          "tabLetter": "Anschreiben",
+          "run": "Schlüsselwörter abgleichen",
+          "targetLabel": "Zielposition",
+          "targetValue": "Data Analyst · Berlin",
+          "section": "Projekte",
+          "bullets": [
+            "Analyse der Nutzerbindung mit [SQL] und [Python] aufgebaut, als Basis für Produktentscheidungen",
+            "3 Runden [A/B-Tests] in [teamübergreifender Zusammenarbeit] mit Produkt und Operations"
+          ],
+          "matched": "Gefundene Schlüsselwörter",
+          "missing": "Ohne Nachweis",
+          "missingKeywords": [
+            "Tableau"
+          ],
+          "missingNote": "Wird nicht in den Lebenslauf gezwungen"
+        },
+        "coach": {
+          "phase": "Fach-Interviewer",
+          "interviewer": "KI-Interviewer",
+          "speaking": "Spricht",
+          "you": "Du",
+          "transcript": "Live-Transkript",
+          "followUp": "Nachfrage",
+          "connected": "Verbunden",
+          "q1": "Du hast Nutzerbindung erwähnt. Wie hast du den Effekt gemessen?",
+          "a1": "Wir haben die 7-Tage-Retention verfolgt. Nach dem A/B-Test stieg sie um vier Punkte…",
+          "q2": "Und bei kleiner Stichprobe: Woran erkennst du, dass das Ergebnis belastbar ist?"
+        },
+        "review": {
+          "readiness": "Bereitschaft in fünf Dimensionen",
+          "dimensions": {
+            "technical": "Fachkompetenz",
+            "evidence": "Erfahrung und Belege",
+            "structure": "Strukturierte Darstellung",
+            "communication": "Kommunikation und Zusammenarbeit",
+            "strategy": "Strategie und Stellenpassung"
+          },
+          "round": "Runde 2",
+          "question": "Erzähl von einem Projekt, das du teamübergreifend vorangetrieben hast.",
+          "answerLabel": "Deine Antwort",
+          "answer": "Ich habe Produkt und Operations an einen Tisch geholt, Anforderungen abgestimmt, und wir haben pünktlich geliefert.",
+          "gapLabel": "Größte Lücke",
+          "gap": "Beschreibt den Ablauf, nennt aber kein messbares Ergebnis.",
+          "tipLabel": "Verbesserungstipp",
+          "tip": "Mit STAR abschließen und Zahlen ergänzen.",
+          "collect": "Frage speichern",
+          "collected": "Gespeichert"
         }
       }
     },

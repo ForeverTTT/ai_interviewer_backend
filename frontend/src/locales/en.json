@@ -10,11 +10,17 @@
   "landingV2": {
     "metaTitle": "FlowLab — Interview practice without the freeze",
     "hero": {
-      "lead": "No canned answers and no turning interviews into exams. The FlowLab crew guides you from finding the right roles and refining your resume to mock interviews and question-by-question review.",
+      "title": "Immersive AI interviews",
+      "titleAccent": "until your answers flow",
+      "lead": "Paste your target job description and practise out loud with an AI interviewer in English, German or Chinese. It follows up on what you actually say. Afterwards every answer is reviewed, and weak ones become flashcards for next time.",
       "primary": "Practice with FlowLab",
       "secondary": "See how it works",
       "proofLabel": "Product highlights",
-      "proof": { "jd": "Tailored to your JD", "voice": "Chinese, English & German voice practice", "review": "Flashcard review by question" },
+      "proof": {
+        "jd": "Tailored to your JD",
+        "voice": "Chinese, English & German voice practice",
+        "review": "Flashcard review by question"
+      },
       "stickerAlt": "FlowLab interview practice"
     },
     "crew": {
@@ -32,44 +38,97 @@
     },
     "how": {
       "title": "What FlowLab can do for you",
-      "stickerAlt": "FlowLab coach preparing for job-search practice",
-      "labels": { "bring": "You bring", "help": "I help", "result": "You get" },
+      "subtitle": "Start from one job description. Three steps to interview-ready.",
       "steps": {
-        "job": {
-          "kicker": "01 · Find your direction",
-          "feature": "Role matching",
-          "intro": "Match roles to the experience, skills, and target direction in your resume, with clear fit evidence and application priorities.",
-          "bring": "Your current resume and a rough idea of what interests you.",
-          "help": "Map your experience and strengths to role families, then explain the fit and the gaps.",
-          "result": "Clearer role directions, matching evidence, and application priorities.",
-          "cta": "Role matching coming soon"
-        },
         "resume": {
-          "kicker": "02 · Aim your application",
+          "kicker": "Aim your resume",
           "feature": "Resume refinement",
-          "intro": "Read your saved resume, identify JD keywords, improve the wording without inventing experience, and generate a matching cover letter.",
-          "bring": "Your base resume and the complete target job description.",
-          "help": "Identify role keywords and strengthen structure and wording without fabricating experience.",
-          "result": "A tailored resume, clear edit rationale, and a matching cover letter.",
+          "intro": "Paste the job description and FlowLab rewrites your real experience in the language the role is looking for.",
+          "points": [
+            "Picks out JD keywords automatically",
+            "Rewords what is true, never invents experience",
+            "Matching cover letter, export to Word / PDF"
+          ],
           "cta": "Refine your resume"
         },
         "coach": {
-          "kicker": "03 · Say it out loud",
-          "feature": "Mock interviews",
-          "intro": "Choose any duration from 5–60 minutes for a quick warm-up or a complete mock interview.",
-          "bring": "Your target role, JD, practice language, and interview mode.",
-          "help": "Run a Chinese, English, or German voice interview and adjust depth and follow-ups as you answer.",
-          "result": "A complete mock interview, real speaking practice, and a question-by-question record.",
+          "kicker": "Say it out loud",
+          "feature": "Immersive AI interviews",
+          "intro": "Talk to an AI interviewer out loud. It listens to your answer and follows up on what you actually said.",
+          "points": [
+            "Voice practice in Chinese, English or German",
+            "Technical and HR interviewers take turns",
+            "5–60 minutes, from warm-up to full mock"
+          ],
           "cta": "Start an interview round"
         },
         "review": {
-          "kicker": "04 · Turn feedback into practice",
+          "kicker": "Turn feedback into practice",
           "feature": "Interview review",
-          "intro": "Analyze interview answers, generate a complete review with specific improvements, and turn weaker questions into reusable practice cards.",
-          "bring": "Answers and a report from a practice or formal mock interview.",
-          "help": "Break down answers, feedback, and weaker dimensions into questions you can revisit.",
-          "result": "Question-level review, saved flashcards, and tasks for the next round.",
+          "intro": "Get your report right away: what worked, where the gaps are and which question to practise next.",
+          "points": [
+            "Readiness score across five dimensions",
+            "Each answer compared with a reference, gaps spelled out",
+            "Save weak questions and practise them again"
+          ],
           "cta": "Open your Growth Center"
+        }
+      },
+      "soon": {
+        "badge": "Coming soon",
+        "title": "Role matching",
+        "copy": "Matches roles to your resume and explains the fit and what to apply for first."
+      },
+      "mock": {
+        "resume": {
+          "tabResume": "Tailored resume",
+          "tabLetter": "Motivation letter",
+          "run": "Match keywords and tailor",
+          "targetLabel": "Target position",
+          "targetValue": "Data Analyst · Berlin",
+          "section": "Projects",
+          "bullets": [
+            "Built user-retention analysis with [SQL] and [Python] to guide product decisions",
+            "Ran 3 rounds of [A/B testing] through [cross-team collaboration] with product and ops"
+          ],
+          "matched": "Matched keywords",
+          "missing": "Keywords without evidence",
+          "missingKeywords": [
+            "Tableau"
+          ],
+          "missingNote": "Not forced into your resume"
+        },
+        "coach": {
+          "phase": "Tech Reviewer",
+          "interviewer": "AI Interviewer",
+          "speaking": "Speaking",
+          "you": "You",
+          "transcript": "Live transcript",
+          "followUp": "Follow-up",
+          "connected": "Connected",
+          "q1": "You mentioned improving retention. How did you measure the impact?",
+          "a1": "We tracked 7-day retention. After the A/B test it went up four points…",
+          "q2": "And if the sample was small, how would you know the result is real?"
+        },
+        "review": {
+          "readiness": "Five-dimension readiness",
+          "dimensions": {
+            "technical": "Technical ability",
+            "evidence": "Experience and evidence depth",
+            "structure": "Structured expression",
+            "communication": "Communication and collaboration",
+            "strategy": "Interview strategy and role fit"
+          },
+          "round": "Round 2",
+          "question": "Tell me about a time you drove a cross-team project.",
+          "answerLabel": "Your answer",
+          "answer": "I set up meetings with product and ops, aligned on requirements, and we shipped on time.",
+          "gapLabel": "Key gap",
+          "gap": "Describes the process but gives no measurable result.",
+          "tipLabel": "Improvement tip",
+          "tip": "Close with STAR and add the numbers.",
+          "collect": "Collect question",
+          "collected": "Collected"
         }
       }
     },

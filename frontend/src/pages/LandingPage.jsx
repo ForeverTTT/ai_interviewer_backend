@@ -18,22 +18,15 @@ import {
 } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
 import LanguageSwitcher from '../components/LanguageSwitcher'
+import { InterviewMock, ResumeMock, ReviewMock } from '../components/landing/ProductMocks'
 import './LandingPage.css'
 
-const CHARACTER_SHEET = BRAND_ASSETS.characterRoleBoard
 const BRAND_WORDMARK = BRAND_ASSETS.wordmark
 const HERO_STICKER = BRAND_ASSETS.stickers.interviewPractice
 const WHY_STICKER = BRAND_ASSETS.stickers.smallStepsBigTomorrow
 const PROGRESS_STICKER = BRAND_ASSETS.stickers.goodProgress
 const ENCOURAGEMENT_STICKER = BRAND_ASSETS.stickers.youGotThis
 const COMMUNITY_AVATAR = BRAND_ASSETS.communityAvatar
-
-const SHELL_TEAM = [
-  { id: 'job', asset: BRAND_ASSETS.jobDetective, color: 'aqua' },
-  { id: 'resume', crop: 'top-right', color: 'pink' },
-  { id: 'coach', crop: 'top-left', color: 'navy' },
-  { id: 'review', crop: 'bottom-right', color: 'green' },
-]
 
 const COMMUNITY_POSTS = [
   { id: '032' },
@@ -64,22 +57,6 @@ const OFFER_LOGOS = [
   { id: 'eth', name: 'ETH Zürich', src: '/logos/uni-eth.svg' },
 ]
 
-function MascotCrop({ crop, className = '' }) {
-  return (
-    <div className={`fl-mascot-crop fl-mascot-${crop} ${className}`} aria-hidden="true">
-      <img src={CHARACTER_SHEET} alt="" />
-    </div>
-  )
-}
-
-function HowPortrait({ role }) {
-  if (role.asset) {
-    return <img src={role.asset} alt="" className="fl-how-mascot fl-how-mascot-image" aria-hidden="true" />
-  }
-
-  return <MascotCrop crop={role.crop} className="fl-how-mascot" />
-}
-
 function Hero({ ctaLink }) {
   const { t } = useTranslation()
   const proofPoints = ['jd', 'voice', 'review']
@@ -88,8 +65,11 @@ function Hero({ ctaLink }) {
       <div className="fl-mesh fl-mesh-a" aria-hidden="true" /><div className="fl-mesh fl-mesh-b" aria-hidden="true" />
       <div className="fl-hero-grid">
         <motion.div className="fl-hero-copy" initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}>
-          <h1 className="fl-hero-logo-heading">
-            <img className="fl-hero-logo" src={BRAND_WORDMARK} alt="FlowLab" />
+          <img className="fl-hero-logo" src={BRAND_WORDMARK} alt="FlowLab" />
+          <h1 className="fl-hero-title">
+            {t('landingV2.hero.title')}
+            <br />
+            <em>{t('landingV2.hero.titleAccent')}</em>
           </h1>
           <p className="fl-hero-lead">{t('landingV2.hero.lead')}</p>
           <div className="fl-hero-actions">
@@ -119,61 +99,70 @@ function Hero({ ctaLink }) {
   )
 }
 
+const HOW_STEPS = [
+  { id: 'coach', Mock: InterviewMock, route: '/setup' },
+  { id: 'resume', Mock: ResumeMock, route: '/resume-tailor' },
+  { id: 'review', Mock: ReviewMock, route: '/dashboard' },
+]
+
 function HowFlowLabWorks({ user }) {
   const { t } = useTranslation()
-  const routes = {
-    resume: user ? '/resume-tailor' : '/login',
-    coach: user ? '/setup' : '/login',
-    review: user ? '/dashboard' : '/login',
-  }
 
   return (
     <section className="fl-how-section" id="meet-shells">
       <div className="fl-how-heading">
-        <div>
-          <h2>{t('landingV2.how.title')}</h2>
-        </div>
+        <h2>{t('landingV2.how.title')}</h2>
+        <p>{t('landingV2.how.subtitle')}</p>
       </div>
 
       <div className="fl-how-list">
-        {SHELL_TEAM.map((role, index) => (
-          <motion.article
-            key={role.id}
-            className={`fl-how-step fl-how-${role.id}`}
-            initial={{ opacity: 0, y: 36 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, amount: 0.22 }}
-            transition={{ duration: 0.65, delay: index * 0.04, ease: [0.16, 1, 0.3, 1] }}
-          >
-            <div className="fl-how-visual" aria-hidden="true">
-              <span className="fl-how-halo" />
-              <HowPortrait role={role} />
-              <span className="fl-how-visual-name">{t(`landingV2.crew.roles.${role.id}.role`)}</span>
-            </div>
+        {HOW_STEPS.map(({ id, Mock, route }, index) => {
+          const points = t(`landingV2.how.steps.${id}.points`, { returnObjects: true })
+          return (
+            <motion.article
+              key={id}
+              className={`fl-how-step fl-how-${id} ${index % 2 ? 'is-flipped' : ''}`}
+              initial={{ opacity: 0, y: 36 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, amount: 0.22 }}
+              transition={{ duration: 0.65, ease: [0.16, 1, 0.3, 1] }}
+            >
+              <div className="fl-how-visual">
+                <Mock />
+              </div>
 
-            <div className="fl-how-copy">
-              <span className="fl-how-kicker">{t(`landingV2.how.steps.${role.id}.kicker`)}</span>
-              <h3>{t(`landingV2.how.steps.${role.id}.feature`)}</h3>
-              <p className="fl-how-intro">{t(`landingV2.how.steps.${role.id}.intro`)}</p>
-              <dl className="fl-how-details">
-                {['bring', 'help', 'result'].map((detail) => (
-                  <div key={detail}>
-                    <dt>{t(`landingV2.how.labels.${detail}`)}</dt>
-                    <dd>{t(`landingV2.how.steps.${role.id}.${detail}`)}</dd>
-                  </div>
-                ))}
-              </dl>
-              {role.id === 'job' ? (
-                <span className="fl-how-status">{t('landingV2.how.steps.job.cta')}</span>
-              ) : (
-                <Link to={routes[role.id]} className="fl-how-cta">
-                  {t(`landingV2.how.steps.${role.id}.cta`)} <ArrowRight size={17} />
+              <div className="fl-how-copy">
+                <span className="fl-how-kicker">{String(index + 1).padStart(2, '0')} · {t(`landingV2.how.steps.${id}.kicker`)}</span>
+                <h3>{t(`landingV2.how.steps.${id}.feature`)}</h3>
+                <p className="fl-how-intro">{t(`landingV2.how.steps.${id}.intro`)}</p>
+                <ul className="fl-how-points">
+                  {Array.isArray(points) && points.map((point) => (
+                    <li key={point}><Check size={14} strokeWidth={3} /> {point}</li>
+                  ))}
+                </ul>
+                <Link to={user ? route : '/login'} className="fl-how-cta">
+                  {t(`landingV2.how.steps.${id}.cta`)} <ArrowRight size={17} />
                 </Link>
-              )}
-            </div>
-          </motion.article>
-        ))}
+              </div>
+            </motion.article>
+          )
+        })}
       </div>
+
+      <motion.div
+        className="fl-how-soon"
+        initial={{ opacity: 0, y: 24 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true, amount: 0.5 }}
+        transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+      >
+        <img src={BRAND_ASSETS.jobDetective} alt="" aria-hidden="true" />
+        <div>
+          <span className="fl-how-status">{t('landingV2.how.soon.badge')}</span>
+          <h3>{t('landingV2.how.soon.title')}</h3>
+          <p>{t('landingV2.how.soon.copy')}</p>
+        </div>
+      </motion.div>
     </section>
   )
 }
