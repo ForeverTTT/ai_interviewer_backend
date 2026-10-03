@@ -15,7 +15,7 @@ import { AVATAR_STATE, AvatarProvider } from './AvatarProvider.js'
  * through our own Web Audio path, because we already schedule that precisely
  * and re-deriving it from the video track would add latency and drift.
  * That means the two streams must be kept in sync by timestamp, not by
- * assuming the video track carries the audio — see AVATAR_ASSET_PIPELINE.md.
+ * assuming the video track carries the audio — see docs/03-技术与架构/模拟面试/数字人素材管线.md.
  */
 export class MuseTalkAvatarProvider extends AvatarProvider {
   /**

@@ -4,7 +4,7 @@ import { getBackendBaseUrl } from '../lib/backendBase'
  * Interviewer roster for the UI.
  *
  * Metadata is fetched from the backend, which owns it — see
- * docs/AVATAR_ASSET_PIPELINE.md for why it lives there and not here.
+ * docs/03-技术与架构/模拟面试/数字人素材管线.md for why it lives there and not here.
  * Only the *pixels* are frontend-local, and they are resolved below.
  */
 
