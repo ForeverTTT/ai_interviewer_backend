@@ -67,7 +67,7 @@ function Hero({ ctaLink }) {
         <motion.div className="fl-hero-copy" initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}>
           <img className="fl-hero-logo" src={BRAND_WORDMARK} alt="FlowLab" />
           <h1 className="fl-hero-title">
-            {t('landingV2.hero.title')}
+            {t('landingV2.hero.title')}{' '}
             <br />
             <em>{t('landingV2.hero.titleAccent')}</em>
           </h1>
