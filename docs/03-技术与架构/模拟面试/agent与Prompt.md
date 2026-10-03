@@ -1,6 +1,6 @@
 # agent与Prompt
 
-> 状态：**兼容通道，当前前端未启用** · 最后核对：2026-10-01 · 产品说明：[模拟面试](../../01-产品/功能说明/模拟面试.md)
+> 状态：**兼容通道，当前前端未启用** · 最后核对：2026-10-03 · 产品说明：[模拟面试](../../01-产品/功能说明/模拟面试.md)
 
 > **重要**：本文描述的 LangGraph 面试图和 `backend/data/prompts/` 下的模板（`motivation_letter.md` 除外）只在 SSE 文本通道 `POST /api/chat/message` 中运行。当前前端所有面试都走 Gemini Live（`ChatInterface` 的 `digitalHuman` 恒为真），**不会执行这里的节点和 Prompt**。当前实际使用的 Prompt 在代码中内联：
 >
@@ -22,22 +22,27 @@
 故障恢复和可观测性统一记录在 [面试流程](面试流程.md)。修改功能时应先判断
 归属，避免把所有后端业务内容继续堆入本文。
 
+例外是[第 2 节](#2-agent-总体结构与运行保障)：它从 Agent 的角度概括**全部 AI 通道**（不只是 LangGraph）
+如何被驱动、如何落库、出错后如何回滚，方便读者一次看清。其中涉及的状态机、表结构和 API 细节仍以
+[面试流程](面试流程.md)为准，两处不一致时以代码和面试流程为准。
+
 ## 目录
 
 1. [系统概览](#1-系统概览)
-2. [架构图](#2-架构图)
-3. [LangGraph 状态定义](#3-langgraph-状态定义)
-4. [节点详解](#4-节点详解)
-5. [路由逻辑](#5-路由逻辑)
-6. [面试计划生成](#6-面试计划生成)
-7. [Prompt 模板体系](#7-prompt-模板体系)
-8. [知识库](#8-知识库)
-9. [Agent 会话接入](#9-agent-会话接入)
-10. [SSE 流式通信](#10-sse-流式通信)
-11. [LLM 配置](#11-llm-配置)
-12. [辅助 Agent：动机信生成](#12-辅助-agent动机信生成)
-13. [LangGraph 执行流程示例](#13-langgraph-执行流程示例)
-14. [配置参考](#14-配置参考)
+2. [Agent 总体结构与运行保障](#2-agent-总体结构与运行保障)：结构图、Harness、持久化、错误回滚
+3. [LangGraph 架构图](#3-langgraph-架构图)
+4. [LangGraph 状态定义](#4-langgraph-状态定义)
+5. [节点详解](#5-节点详解)
+6. [路由逻辑](#6-路由逻辑)
+7. [面试计划生成](#7-面试计划生成)
+8. [Prompt 模板体系](#8-prompt-模板体系)
+9. [知识库](#9-知识库)
+10. [Agent 会话接入](#10-agent-会话接入)
+11. [SSE 流式通信](#11-sse-流式通信)
+12. [LLM 配置](#12-llm-配置)
+13. [辅助 Agent：动机信生成](#13-辅助-agent动机信生成)
+14. [LangGraph 执行流程示例](#14-langgraph-执行流程示例)
+15. [配置参考](#15-配置参考)
 
 ---
 
@@ -82,7 +87,236 @@ LangGraph。三条通道的完整关系见 [面试流程](面试流程.md)。Age
 
 ---
 
-## 2. 架构图
+## 2. Agent 总体结构与运行保障
+
+本节回答三个问题：模型是**怎么被驱动和约束**的（Harness）、状态**怎么保存**（持久化）、出错时**怎么保证不留下半截状态**（错误回滚）。
+一句话概括：**Agent 本身不保存任何状态；每一轮都从数据库读出状态 → 调用模型 → 校验输出 → 在一个数据库事务里一次性写回。**
+模型调用全部发生在写库之前，所以模型失败、超时或进程崩溃都不会留下写了一半的面试。
+
+### 2.1 Agent 结构图
+
+```mermaid
+flowchart TB
+    subgraph FE["① 前端 · 面试房间"]
+        LiveUI["语音面试<br/>正式对话 / 练习读题"]
+        PracticeUI["练习面板<br/>出题 · 作答 · 提示 · 重答"]
+        ReportUI["结束面试 / 报告页"]
+    end
+
+    subgraph HN["② 接入层 · Harness：鉴权 · 业务规则 · 输出闸门 · 幂等认领"]
+        WS["WebSocket /api/chat/live<br/>interviewLiveSocket.js"]
+        REST["REST /api/interview-sessions/*<br/>interviewSessions.js"]
+        SSE["SSE /api/chat/message<br/>chat.js · 兼容通道"]
+        FIN["POST /api/interviews/:id/finalize<br/>interviews.js"]
+    end
+
+    subgraph AG["③ Agent"]
+        Interviewer["面试官 Agent<br/>Gemini Live 实时语音"]
+        Planner["出题 Agent"]
+        Coach["教练 Agent"]
+        Hint["提示 Agent"]
+        Graph["LangGraph 面试图<br/>未启用"]
+        Reporter["报告 Agent"]
+    end
+
+    subgraph MD["④ 模型调用"]
+        LiveAPI["Gemini Live API<br/>gemini-3.1-flash-live-preview"]
+        Invoke["invokeGemini<br/>超时 · 配额降级 · 去 JSON 围栏"]
+        LC["LangChain LLM 实例<br/>见第 12 节"]
+    end
+
+    subgraph ST["⑤ 会话存储层 · interviewSessionStore.js / interviewLearning.js"]
+        Claim["claim / release<br/>幂等认领"]
+        Commit["commit_interview_turn<br/>apply_interview_action<br/>乐观锁 + 单事务提交"]
+        FinLock["claim_interview_finalize<br/>报告生成锁"]
+    end
+
+    DB[("⑥ Supabase PostgreSQL<br/>interviews · interview_messages · questions / attempts / hints / notes<br/>interview_requests · interview_events")]
+
+    LiveUI <--> WS
+    PracticeUI --> REST
+    ReportUI --> FIN
+
+    WS <--> Interviewer
+    REST --> Planner
+    REST --> Coach
+    REST --> Hint
+    SSE --> Graph
+    FIN --> Reporter
+
+    Interviewer <--> LiveAPI
+    Planner --> Invoke
+    Coach --> Invoke
+    Hint --> Invoke
+    Reporter --> Invoke
+    Graph --> LC
+
+    MD == "模型结果返回接入层后才写库" ==> ST
+    Claim --> Commit
+    ST --> DB
+```
+
+| Agent | 所在通道 | 当前是否在用 | 职责 | 代码 |
+|---|---|---|---|---|
+| 面试官 Agent | WebSocket | ✅ 所有面试 | 正式模式：自主提问与追问；练习模式：只在收到控制指令时朗读题目 | `live/interviewLiveSocket.js` 的 `buildSystemInstruction` |
+| 出题 Agent | REST | ✅ 练习模式 | 按路线阶段（opening / explore / technical / behavioral）生成下一题 | `lib/interviewLearning.js` |
+| 教练 Agent | REST | ✅ 练习模式，以及自适应难度的正式面试 | 对一次作答打分、给证据和改进点，顺带预生成 4 级提示 | 同上 |
+| 提示 Agent | REST | ✅ 练习模式 | 逐级发放提示：方向 → 结构 → 要点 → 参考答案 | 同上 |
+| LangGraph 面试图 | SSE | ⚠️ 兼容通道，前端未启用 | 见第 3–9 节 | `agents/interviewGraph.js` |
+| 报告 Agent | REST | ✅ 所有面试结束时 | 根据完整对话生成五维评分与逐题复盘 | `routes/interviews.js`，见[面试报告](../面试报告.md) |
+
+练习模式同时用两条通道：**状态推进走 REST**（出题、作答、提示、重答、掌握、跳过），**朗读题目走 WebSocket**——前端把题目包成
+`[PRACTICE_CONTROL] Read this question exactly once…` 发给面试官 Agent，让它只读题、不自由发挥（见 2.2 的输出闸门）。
+
+### 2.2 Harness：怎么驱动和约束模型
+
+这里的 Harness 指包在模型外面的那层代码：负责**组装输入、限制行为、校验输出、处理超时和降级**。模型只负责"想"，什么能被用户看到、什么能写进数据库，全部由 Harness 决定。
+
+#### 公共调用层 `invokeGemini`（`lib/geminiText.js`）
+
+出题、教练、提示、报告四个 Agent 都经过它：
+
+| 机制 | 行为 |
+|---|---|
+| 运行环境 | 配了 `GEMINI_API_KEY` 走 Google AI Studio，否则走 Vertex AI（`GCP_PROJECT_ID` / `GCP_LOCATION`） |
+| 超时 | 默认 45 秒，可按调用传 `timeoutMs`；超时抛出 `GEMINI_TIMEOUT`。超时只是不再等待结果，底层请求不会被取消，迟到的结果会被丢弃——因为写库在模型调用之后，这不会造成脏数据 |
+| 配额降级 | 只有主模型是 `gemini-3.7-flash` 且错误被识别为配额耗尽（429 / gRPC 8 / `RESOURCE_EXHAUSTED` / quota、rate limit 字样）时，才用 `GEMINI_FALLBACK_MODEL`（默认 `gemini-3.5-flash-lite`）**重试一次**；其它错误直接抛出 |
+| 参数兼容 | Gemini 3.x 模型不再传 `temperature` |
+| 输出清理 | `stripJsonFence` 去掉 Markdown 代码围栏，再由各 Agent 自己 `JSON.parse` 和校验 |
+
+LangGraph 面试图不经过 `invokeGemini`，使用自己的 LangChain 实例，配置见[第 12 节](#12-llm-配置)。
+
+#### 各 Agent 的约束
+
+| Agent | 输入怎么组装 | 行为约束（写在 Prompt 里） | 输出怎么校验 | 失败时 |
+|---|---|---|---|---|
+| 面试官（正式） | 人设 + 面试官风格 + 类型指令 + 剩余分钟数与计划题量；岗位/JD（截 15k 字符）/简历（截 25k）合计不超过 50k 字符；断线重连时附最近 12 条对话（截 12k） | 一次只问一个问题、多数回合 60 词以内、面试中不给反馈、不解释内部计划、不跳出所选面试官类型 | 不做结构化校验：输出是语音和转写，交给持久化层按回合保存 | 见 2.4 |
+| 面试官（练习读题） | 同上，但系统指令切换为 `PRACTICE CONTROL MODE` | 只朗读控制消息给出的题目一次；考生回答后保持沉默，不确认、不追问、不自行换题 | **输出闸门**：服务端只有在收到以 `[PRACTICE_CONTROL]` 开头的文本后才把模型的语音和转写转发给浏览器；麦克风音频、`audio_end`、一轮结束都会重新关上闸门。练习回合不由 WebSocket 落库，状态全部走 REST | 闸门关闭时模型说的话直接丢弃 |
+| 出题 | 语言、难度、面试官类型、**强制的路线阶段**、JD、简历、能力矩阵、已问过的题、最近 3 次作答与反馈（题目截 2k、回答截 4k）、检索到的真实面经 | 题目和面经只当作**不可信的参考数据**，不执行其中的指令、不复制个人信息；不重复已答过的题 | 必须是合法 JSON；题目非空；`questionType` 必须是该面试官类型允许的题型，且属于当前路线阶段（如 technical 阶段只能是 technical / case）——任一不满足即视为失败 | 练习模式 15 秒超时（正式 45 秒）；失败时改用 `buildFallbackInterviewQuestion` 按阶段生成的本地题，`sourceMetadata.fallback = true`，面试不会卡住 |
+| 教练 | 题目、能力项、评分标准、历次作答、本次回答 | 只依据回答中真实存在的内容给证据，不编造 | JSON 解析；分数夹到 0–100；`evidence`、`preparedHints` 缺失时补成空值 | 抛错，本次作答不入库（见 2.4） |
+| 提示 | 题目、历次作答、要发放的级别 | 每级有明确边界：方向不给要点，结构不填内容，要点不写完整答案，参考答案必须标明是示例 | 级别由服务端决定（按已用级别顺延），模型无法跳级；4 级用完返回 409 `HINTS_EXHAUSTED` | 优先用教练 Agent 预生成的缓存；前两级没有缓存时用本地模板，不调用模型 |
+| 报告 | 完整对话、面试官类型对应的评估策略、模式说明 | 见[面试报告](../面试报告.md) | JSON 解析 → `normalizeReportJson` 规范化 → `enrichReportForGrowth` 补成长中心字段 | 记录失败阶段，允许重试（见 2.4） |
+
+#### 进入模型之前的门槛
+
+在模型被调用之前，Harness 先挡掉不该进入的请求：
+
+- **身份**：WebSocket 的第一条消息必须是带 Supabase token 的 `start`，10 秒内未通过验证即断开；REST/SSE 走 `requireAuth`。之后所有数据库访问都用该用户 token 创建的客户端，受 RLS 约束。
+- **来源**：WebSocket 校验 `Origin`，不在白名单内直接关闭。
+- **面试状态**：只有 `active` / `draft` 的面试能继续；每次加载都先执行 `expire_formal_interview_if_due`，正式面试到点后由服务端（不是模型）结束。
+- **业务规则**：练习题量上限、"先解决当前题再出下一题"、"重答前必须先申请重答"、正式模式不给提示和中间反馈等规则，都在路由层判断，不依赖模型自觉。
+- **配置来源**：语言、模式、难度、面试官类型一律从数据库里的面试记录读取，客户端在请求里传的配置会被覆盖，模型拿不到被篡改的配置。
+
+### 2.3 持久化：状态怎么保存
+
+**PostgreSQL 是唯一的事实来源。** 后端实例不在内存里保留任何面试状态；LangGraph 编译时也没有挂 checkpointer，
+`thread_id: interviewId` 只是标签，每一轮的初始状态都从 `interviews.graph_state_json` 读出来。所以服务重启、Cloud Run 扩容到多实例、请求落到另一台机器，都不影响面试进度。各张表的用途见[第 10 节](#10-agent-会话接入)。
+
+#### 两个保护机制
+
+| 机制 | 解决什么问题 | 怎么实现 |
+|---|---|---|
+| **幂等键** `idempotencyKey` | 网络重试、用户连点、断线重发不会生成两道题、两次作答或扣两次能量 | 每个写请求带一个键。`claim_interview_request` 先在 `interview_requests` 插入一条 `{"pending":true}`：插入成功 → `claimed`，继续执行；已有 pending → 返回"正在处理"（409）；已完成 → 直接**重放**当时保存的响应，不再调用模型 |
+| **乐观锁** `state_version` | 两个标签页、两个实例同时基于旧状态提交时，后来者不能覆盖新状态 | 读取时拿到当前版本，提交时作为 `expectedVersion` 传回。RPC 先 `SELECT … FOR UPDATE` 锁住面试行，版本不一致就返回 `{conflict: true, currentVersion}`，**不改动任何业务数据** |
+
+#### 写库的四个原语
+
+| RPC | 用在哪里 | 一个事务里做什么 |
+|---|---|---|
+| `claim_interview_request` | 所有写请求的第一步 | 登记 pending；超过 2 分钟仍 pending 的认领视为进程已崩溃，可被同一个键重新认领（返回 `recovered`） |
+| `commit_interview_turn` | 一轮对话（SSE、Live） | 校验版本 → 追加 `interview_messages` → 更新 checkpoint、`transcript_json`、题号、状态 → `state_version + 1` → 把响应写入 `interview_requests` 供重放 |
+| `apply_interview_action` | 题目级动作：出题、作答、提示、笔记、暂停/继续、重答、掌握、跳过、重连 | 校验版本和状态 → 写对应的题目/作答/提示/笔记/能力证据 → `state_version + 1` → 写 `interview_events` 审计记录 → 保存响应 |
+| `release_interview_request` | 出错时 | **只删除 pending 的认领**，已完成的记录不会被删，所以重放永远可用 |
+
+另外两个独立的"认领"也遵循同样思路：`create_interview_session` 把检查余额、扣 300 能量、创建面试和初始 checkpoint 放在同一个事务里，同一个键重试只会重放、不会重复扣费；`claim_interview_finalize` 用 `finalize_status = 'processing'` 加 2 分钟锁，保证同一场面试只有一个报告生成请求在跑。
+
+#### 一轮对话的落库时序
+
+以 SSE 通道为例（Live 通道的顺序相同，只是由 Gemini 的 `turnComplete` 事件触发）：
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant C as 前端
+    participant R as 路由（Harness）
+    participant S as 会话存储层
+    participant M as 模型
+    participant DB as PostgreSQL
+
+    C->>R: 用户回答 + interviewId + idempotencyKey
+    R->>S: claim(key)
+    S->>DB: 插入 pending
+    alt 已完成
+        DB-->>R: 保存过的响应
+        R-->>C: 重放，不调用模型
+    else 正在处理
+        R-->>C: 409
+    else claimed
+        R->>S: 读取 checkpoint、消息、state_version = v
+        R->>M: 调用模型
+        M-->>R: 面试官回复
+        R->>S: commit(expectedVersion = v)
+        S->>DB: 单事务：消息 + checkpoint + transcript + 版本 v+1 + 响应
+        R->>S: apply_interview_action(key:question)
+        S->>DB: 把回复登记为新题目，版本 v+2
+        R-->>C: 流式返回回复
+    end
+```
+
+一轮里如果有多个写步骤，就从主键派生出子键，让每一步都能单独幂等：
+
+| 子键 | 写什么 | 用在 |
+|---|---|---|
+| `<key>:answer` | 正式模式下考生对当前题的作答，**先于模型调用保存** | SSE、Live |
+| `<key>` | 本轮对话（消息 + checkpoint） | SSE、Live（Live 的主键是服务端生成的 `live-<uuid>`） |
+| `<key>:question` | 把面试官这轮说的话登记成下一道题 | SSE、Live |
+| `<key>:deadline-answer` | 正式面试过了截止时间后的最后一次作答，随后直接进入结束流程 | Live |
+
+Live 通道还用一条串行的 Promise 链（`persistChain`）保证同一连接里的回合按顺序落库，后一轮不会抢在前一轮之前提交。
+
+### 2.4 错误回滚：出错后怎么办
+
+核心原则是**先算后写、一次提交**，所以大多数情况下根本不需要"回滚"：
+
+1. 模型调用都在写库之前完成。模型失败 = 事务从未开始，数据库保持上一轮的样子。
+2. 每次写库都是一个数据库事务，要么全部写入，要么全部不写，不存在"消息写了、checkpoint 没写"。
+3. 出错后唯一要清理的是幂等认领：`release_interview_request` 删掉 pending 记录，让同一个键可以重新执行。
+4. 客户端拿到 409 时重新加载面试状态，再用新的版本号重试。
+
+#### 各类故障的处理
+
+| 故障 | 服务端怎么处理 | 数据库最终状态 | 怎么恢复 |
+|---|---|---|---|
+| 练习出题模型超时或返回不合规 | 改用本地备用题，照常提交 | 新题目已写入，标记 `fallback` | 无需处理 |
+| 教练/提示模型失败 | 释放认领，返回 500 | 本次作答或提示未写入 | 用户再提交一次 |
+| SSE 一轮中模型失败 | 释放认领；还没发 SSE 头就返回 JSON 错误，已经开始流式输出就发 `{type:'error'}` | 停在上一轮，没有半轮 checkpoint | 前端重发 |
+| 版本冲突（多标签页、多实例） | RPC 不改动业务数据，返回 `conflict`；路由释放认领，返回 409 + `currentVersion`（SSE 中为 `SESSION_CONFLICT`） | 保持对方提交后的新状态 | 重新加载后重试 |
+| 重复请求 | 同键 pending → 409；同键已完成 → 重放原响应 | 不重复写入 | 无需处理 |
+| 进程在认领后、提交前崩溃 | 无人释放认领 | pending 残留，业务数据未变 | 2 分钟后同一个键可以重新认领（`recovered`） |
+| 主轮已提交，`:question` 子步骤失败 | 主轮保留；SSE 重试时重放分支会用同一个 `:question` 键补做这一步 | 对话已保存，题目登记在重试时补齐 | 用同一个键重试 |
+| 状态已提交，后续非事务步骤失败（如练习题同步到收藏夹） | 返回 500，但认领已是"完成"状态，释放不会删掉它 | 作答已保存 | 用同一个键重试会直接拿到重放结果 |
+| Live 回合持久化失败 | 释放 `<key>`、`<key>:answer`、`<key>:question` 三个认领，向浏览器发送通用错误 `Interview state could not be saved` | 停在最后一次成功提交的回合；这一轮语音已经播出但没有保存 | 重连后从数据库恢复 |
+| Live 断线或 Gemini 连接关闭 | Gemini 会话是临时资源，直接丢弃 | 不受影响 | 新连接重新读取 checkpoint 和最近 12 条对话，系统指令提示模型"接着上次继续，不要重复问候和旧题" |
+| 正式面试到达截止时间 | 每次加载先执行 `expire_formal_interview_if_due`；当前题允许按宽限规则完成一次 | 进入 `finalizing` | 前端进入报告生成，见[面试流程 · 正式计时](面试流程.md#8-正式计时与最后一题宽限) |
+| 报告生成失败 | `finalize_status = 'failed'`，记录失败阶段和错误摘要；模型、解析、保存三个阶段返回 `retryable: true` | 面试记录与对话完整保留，报告为空 | 重新点击生成；已成功的报告默认直接复用，只有主动要求重新生成才会覆盖 |
+| 余额不足 | 创建事务内检查，返回 403 `INSUFFICIENT_TOKENS` | 不创建面试，不扣费 | 充值后重试 |
+
+#### 有意不回滚的内容
+
+- **正式模式的考生作答**：在调用模型之前就用 `:answer` 子键保存。即使面试官回复生成失败，考生已经说出的回答也不会丢，重试时子键保证不会存两次。
+- **`interview_events` 审计记录与 `live_turn_timing` 等观测事件**：用于事后排查，失败的尝试也会留下记录。
+
+#### 目前做不到的
+
+- **没有"回退到某个版本"的功能。** `graph_state_json` 每轮被覆盖，不保存历史快照；需要追查时只能从 `interview_messages`（按序号保存的完整对话）和 `interview_events` 还原过程。
+- **Live 语音已播出但未保存的回合**无法补救：模型的声音已经到达用户，而数据库停在上一轮。重连后模型看到的是上一轮之前的对话。
+- **能量扣除后面试中途失败不会自动退款**，扣费只保证"同一次创建不重复扣"。
+
+更完整的失败与降级清单见[面试流程 · 失败与降级](面试流程.md#18-失败与降级)，幂等和事务边界的定义见[面试流程 · 一致性、幂等与并发](面试流程.md#12-一致性幂等与并发)。
+
+---
+
+## 3. LangGraph 架构图
 
 ### 面试图结构
 
@@ -153,7 +387,7 @@ LangGraph。三条通道的完整关系见 [面试流程](面试流程.md)。Age
 
 ---
 
-## 3. LangGraph 状态定义
+## 4. LangGraph 状态定义
 
 `InterviewStateAnnotation` 定义了图内所有共享状态：
 
@@ -186,15 +420,15 @@ opening → questioning → closed
 
 ---
 
-## 4. 节点详解
+## 5. 节点详解
 
-### 4.1 route_turn（路由节点）
+### 5.1 route_turn（路由节点）
 
 **类型**：空节点（无 LLM 调用），仅用于条件分支
 
 **输出**：`{}`（不修改状态）
 
-### 4.2 analyze_answer（分析器 — 内部节点）
+### 5.2 analyze_answer（分析器 — 内部节点）
 
 **角色**：对用户最新回答进行结构化评估，不直接与用户交流
 
@@ -225,7 +459,7 @@ opening → questioning → closed
 - 仅当候选人明确要求停止、拒绝继续或回答无法使用时才设 `end_interview: true`
 - 分析器不在 `RESPONSE_NODES` 中，其输出不会通过 SSE 发送给前端
 
-### 4.3 generate_opening（开场节点）
+### 5.3 generate_opening（开场节点）
 
 **角色**：以面试官身份问候并请求自我介绍
 
@@ -244,7 +478,7 @@ opening → questioning → closed
 
 **状态更新**：`phase → 'questioning'`，所有计数器归零
 
-### 4.4 ask_explore（经历深挖节点）
+### 5.4 ask_explore（经历深挖节点）
 
 **角色**：深入了解候选人的简历、项目、实习经历
 
@@ -266,7 +500,7 @@ opening → questioning → closed
 
 **状态更新**：`planIndex + 1`, `questionCount + 1`, `exploreCount + 1`
 
-### 4.5 ask_technical（技术提问节点）
+### 5.5 ask_technical（技术提问节点）
 
 **角色**：围绕职位需求提出技术问题
 
@@ -286,7 +520,7 @@ opening → questioning → closed
 
 **状态更新**：`planIndex + 1`, `questionCount + 1`, `technicalCount + 1`
 
-### 4.6 ask_behavioral（行为提问节点）
+### 5.6 ask_behavioral（行为提问节点）
 
 **角色**：使用 STAR 方法进行行为面试
 
@@ -306,7 +540,7 @@ opening → questioning → closed
 
 **状态更新**：`planIndex + 1`, `questionCount + 1`, `behavioralCount + 1`
 
-### 4.7 give_feedback（反馈节点）
+### 5.7 give_feedback（反馈节点）
 
 **角色**：SSE 通道面试结束时在对话中输出的反馈。报告页的结构化报告由 `finalize` 另行生成，见[面试报告](../面试报告.md)
 
@@ -343,9 +577,9 @@ opening → questioning → closed
 
 ---
 
-## 5. 路由逻辑
+## 6. 路由逻辑
 
-### 5.1 routeTurnEdge（第一级路由）
+### 6.1 routeTurnEdge（第一级路由）
 
 从 `route_turn` 节点出发，决定进入哪条主路径：
 
@@ -355,7 +589,7 @@ if planIndex >= planLength  → give_feedback      // 计划题目全部完成
 otherwise                   → analyze_answer     // 分析用户回答
 ```
 
-### 5.2 routeQuestionEdge（第二级路由）
+### 6.2 routeQuestionEdge（第二级路由）
 
 从 `analyze_answer` 节点出发，决定下一个提问节点：
 
@@ -389,7 +623,7 @@ otherwise → plan[planIndex]  // 按计划执行
 
 ---
 
-## 6. 面试计划生成
+## 7. 面试计划生成
 
 ### buildInterviewPlan(maxQ, interviewerType)
 
@@ -455,7 +689,7 @@ E = 3 - 1 = 2
 
 ---
 
-## 7. Prompt 模板体系
+## 8. Prompt 模板体系
 
 ### 模板位置
 
@@ -502,9 +736,9 @@ E = 3 - 1 = 2
 
 ---
 
-## 8. 知识库
+## 9. 知识库
 
-### 8.1 技术领域库
+### 9.1 技术领域库
 
 **文件**：`backend/data/knowledge_base/technical_domains.json`
 
@@ -548,7 +782,7 @@ E = 3 - 1 = 2
 - 返回最高分的领域
 - 无匹配时回退到 `software_fullstack`
 
-### 8.2 行为胜任力库
+### 9.2 行为胜任力库
 
 **文件**：`backend/data/knowledge_base/behavioral_competencies.json`
 
@@ -579,7 +813,7 @@ E = 3 - 1 = 2
 
 ---
 
-## 9. Agent 会话接入
+## 10. Agent 会话接入
 
 ### 持久化存储
 
@@ -596,6 +830,7 @@ E = 3 - 1 = 2
 | 幂等记录 | `interview_requests`、`interview_creation_requests` | 网络重试时重放已提交结果 |
 
 所有查询同时约束 `interviewId` 和当前认证用户，避免同一用户的多场面试串线。
+写库原语、幂等子键和故障回滚的全景见[第 2.3 节](#23-持久化状态怎么保存)和[第 2.4 节](#24-错误回滚出错后怎么办)。
 
 ### 会话生命周期
 
@@ -645,7 +880,7 @@ Gemini Live 的网络连接本身是临时资源。重新连接必须提供 `int
 
 ---
 
-## 10. SSE 流式通信
+## 11. SSE 流式通信
 
 ### 端点
 
@@ -703,7 +938,7 @@ for await (const [mode, payload] of stream) {
 
 ---
 
-## 11. LLM 配置
+## 12. LLM 配置
 
 ### 三个 LLM 实例
 
@@ -743,7 +978,7 @@ safetySettings: [
 
 ---
 
-## 12. 辅助 Agent：动机信生成
+## 13. 辅助 Agent：动机信生成
 
 ### 端点
 
@@ -782,7 +1017,7 @@ safetySettings: [
 
 ---
 
-## 13. LangGraph 执行流程示例
+## 14. LangGraph 执行流程示例
 
 以一个 10 分钟英语面试（Software Engineer 职位）为例：
 
@@ -847,7 +1082,7 @@ safetySettings: [
 
 ---
 
-## 14. 配置参考
+## 15. 配置参考
 
 ### 环境变量
 

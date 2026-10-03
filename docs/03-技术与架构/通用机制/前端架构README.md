@@ -549,7 +549,7 @@ colors: {
 
 ## 11. SSE 流式通信
 
-前端 SSE 解析见[面试房间 · 兼容通道：SSE 文本面试](../模拟面试/面试房间.md#3-兼容通道sse-文本面试)，后端事件类型见[agent与Prompt · SSE 流式通信](../模拟面试/agent与Prompt.md#10-sse-流式通信)。
+前端 SSE 解析见[面试房间 · 兼容通道：SSE 文本面试](../模拟面试/面试房间.md#3-兼容通道sse-文本面试)，后端事件类型见[agent与Prompt · SSE 流式通信](../模拟面试/agent与Prompt.md#11-sse-流式通信)。
 
 ---
 
