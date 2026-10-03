@@ -285,7 +285,7 @@
 .fl-community-heading > span svg { color:var(--fl-pink-strong); }
 .fl-community-heading h2 { margin:15px 0 0; color:#1d1c20; font-family:inherit; font-size:clamp(38px,4vw,52px); font-weight:900; letter-spacing:.02em; line-height:1.15; }
 .fl-community-heading p { max-width:620px; margin:16px auto 0; color:#72757d; font-size:14px; line-height:1.8; }
-.fl-community-sticker { position:absolute; width:150px; height:116px; left:-80px; top:-58px; object-fit:contain; filter:drop-shadow(0 15px 18px rgba(67,89,70,.1)); }
+.fl-community-sticker { position:absolute; width:150px; height:116px; left:-70px; top:-104px; object-fit:contain; filter:drop-shadow(0 15px 18px rgba(67,89,70,.1)); }
 .fl-community-carousel { width:100%; margin:0 auto; }
 .fl-community-feed { position:relative; min-height:340px; overflow:hidden; padding:6px 0 28px; background:transparent; box-shadow:none; text-align:left; }
 .fl-community-track { --fl-community-gap:18px; display:flex; width:max-content; gap:var(--fl-community-gap); animation:fl-community-autoscroll 38s linear infinite; will-change:transform; }

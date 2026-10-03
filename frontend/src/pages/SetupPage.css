@@ -1,11 +1,23 @@
+/* One card: the coach sits top-left with its head above the card edge and talks
+   through the speech bubble; the JD input spans the full width underneath. */
 .setup-coach-stage {
+  --coach-size: clamp(132px, 13vw, 176px);
+  --coach-lift: calc(var(--coach-size) * 0.3);
   position: relative;
   display: grid;
-  grid-template-columns: minmax(250px, 34%) minmax(0, 1fr);
-  gap: clamp(18px, 2.6vw, 38px);
-  align-items: end;
-  min-height: 380px;
-  padding: 10px 0 4px;
+  grid-template-columns: var(--coach-size) minmax(0, 1fr);
+  grid-template-areas:
+    "guide head"
+    "body body";
+  gap: 16px 22px;
+  margin-top: var(--coach-lift);
+  padding: 0 clamp(20px, 2.2vw, 30px) clamp(20px, 2.2vw, 26px);
+  border: 1px solid rgb(var(--brand-violet) / 0.12);
+  border-radius: 28px;
+  background: rgb(var(--brand-card) / 0.97);
+  box-shadow:
+    0 2px 5px rgb(var(--brand-shadow) / 0.04),
+    0 24px 54px -34px rgb(var(--brand-violet) / 0.48);
   isolation: isolate;
 }
 
@@ -13,52 +25,33 @@
   content: '';
   position: absolute;
   z-index: -1;
-  left: -3%;
-  bottom: -4%;
-  width: 43%;
+  left: 0;
+  top: calc(var(--coach-lift) * -1);
+  width: calc(var(--coach-size) * 1.5);
   aspect-ratio: 1;
   border-radius: 999px;
-  background: radial-gradient(circle, rgb(var(--brand-violet) / 0.13), transparent 68%);
-  filter: blur(8px);
+  background: radial-gradient(circle, rgb(var(--brand-violet) / 0.1), transparent 66%);
+  pointer-events: none;
 }
 
 .setup-coach-dialog {
-  position: relative;
-  align-self: center;
-  transform: translateY(-22px);
-  min-width: 0;
-  padding: clamp(20px, 2.2vw, 30px);
-  border: 1px solid rgb(var(--brand-violet) / 0.12);
-  border-radius: 28px;
-  background: rgb(var(--brand-card) / 0.97);
-  box-shadow:
-    0 2px 5px rgb(var(--brand-shadow) / 0.04),
-    0 24px 54px -34px rgb(var(--brand-violet) / 0.48);
+  display: contents;
 }
 
-.setup-coach-dialog::after {
-  content: '';
-  position: absolute;
-  z-index: 0;
-  left: -29px;
-  top: 50%;
-  width: 34px;
-  height: 38px;
-  background: rgb(var(--brand-card) / 0.97);
-  clip-path: polygon(100% 0, 0 50%, 100% 100%);
-  transform: translateY(-50%);
-  filter: drop-shadow(-8px 4px 7px rgb(var(--brand-violet) / 0.08));
-}
 
 .setup-coach-dialog-header {
-  position: relative;
-  z-index: 1;
+  grid-area: head;
+  align-self: end;
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
   align-items: flex-start;
-  justify-content: space-between;
-  gap: 14px 18px;
-  margin-bottom: 16px;
+  gap: 12px;
+  min-width: 0;
+  padding-top: 22px;
+}
+
+.setup-coach-body {
+  grid-area: body;
 }
 
 .setup-coach-heading {
@@ -96,24 +89,38 @@
 }
 
 .setup-coach-message {
+  /* Opaque tint so the tail and the bubble overlap without a visible seam. */
+  --bubble-bg: color-mix(in srgb, rgb(var(--brand-violet)) 7%, rgb(var(--brand-card)));
   position: relative;
-  z-index: 1;
-  min-width: min(360px, 100%);
-  flex: 1;
+  max-width: 44rem;
   margin: 0;
+  padding: 12px 16px;
+  border-radius: 16px;
+  background: var(--bubble-bg);
   color: rgb(var(--brand-ink));
   font-size: 14px;
   font-weight: 600;
-  line-height: 1.7;
+  line-height: 1.65;
+}
+
+.setup-coach-message::before {
+  content: '';
+  position: absolute;
+  left: -8px;
+  top: 16px;
+  width: 10px;
+  height: 16px;
+  background: var(--bubble-bg);
+  clip-path: polygon(100% 0, 0 50%, 100% 100%);
 }
 
 .setup-coach-guide {
+  grid-area: guide;
   position: relative;
   z-index: 2;
-  align-self: end;
-  transform: translateY(-22px);
+  align-self: start;
   min-width: 0;
-  padding-bottom: 4px;
+  margin-top: calc(var(--coach-lift) * -1);
 }
 
 .setup-coach-name {
@@ -125,15 +132,14 @@
   letter-spacing: 0.1em;
 }
 
+/* The character fills x 19%–80% of the artwork; scale and shift so it fills the column. */
 .setup-coach-portrait {
   display: block;
-  width: 116%;
+  width: 163%;
+  max-width: none;
   height: auto;
-  max-height: 390px;
-  margin-left: -8%;
-  object-fit: contain;
-  object-position: center bottom;
-  filter: drop-shadow(0 20px 20px rgb(var(--brand-shadow) / 0.16));
+  margin-left: -31%;
+  filter: drop-shadow(0 16px 16px rgb(var(--brand-shadow) / 0.16));
 }
 
 .setup-summary-card {
@@ -152,43 +158,29 @@
   background: rgb(var(--brand-violet) / 0.94);
 }
 
+/* With the overview column alongside (Tailwind xl), line the card up with its top
+   edge; the coach's head then rises into the page's top padding instead. */
+@media (min-width: 1280px) {
+  .setup-coach-stage {
+    margin-top: 0;
+  }
+}
+
 @media (max-width: 760px) {
   .setup-coach-stage {
-    grid-template-columns: minmax(0, 1fr);
-    min-height: 0;
-    gap: 8px;
-    padding-top: 0;
+    --coach-size: 96px;
+    gap: 12px 14px;
+    padding: 0 16px 18px;
+    border-radius: 24px;
   }
 
-  .setup-coach-dialog {
-    order: 1;
-    transform: none;
-    padding: 20px;
-  }
-
-  .setup-coach-dialog::after {
-    left: auto;
-    right: 22%;
-    top: auto;
-    bottom: -25px;
-    width: 30px;
-    height: 28px;
-    clip-path: polygon(0 0, 100% 0, 50% 100%);
-    transform: none;
+  .setup-coach-dialog-header {
+    padding-top: 14px;
   }
 
   .setup-coach-message {
-    margin-left: 0;
-  }
-
-  .setup-coach-guide {
-    order: 2;
-    transform: none;
-    width: min(74vw, 300px);
-    justify-self: end;
-  }
-
-  .setup-coach-portrait {
-    max-height: 270px;
+    padding: 10px 13px;
+    font-size: 13px;
+    line-height: 1.6;
   }
 }

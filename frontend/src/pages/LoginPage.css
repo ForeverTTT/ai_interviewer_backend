@@ -15,7 +15,7 @@
   overflow:hidden;
   background:radial-gradient(circle at 9% 14%,rgba(254,183,201,.38),transparent 30%),radial-gradient(circle at 84% 13%,rgba(143,219,216,.38),transparent 32%),radial-gradient(circle at 62% 88%,rgba(255,214,100,.15),transparent 28%),var(--login-paper);
   color:var(--login-ink);
-  font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+  font-family:"DM Sans", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", system-ui, sans-serif;
 }
 
 .fl-login-page *, .fl-login-page *::before, .fl-login-page *::after { box-sizing:border-box; }
@@ -73,14 +73,16 @@
 .fl-login-terms { margin:28px 0 0; padding-top:22px; border-top:1px solid rgba(68,67,75,.09); color:#92909a; font-size:10.5px; line-height:1.65; text-align:center; }
 
 @media (max-width: 980px) {
-  .fl-login-page { grid-template-columns:1fr; gap:0; padding:0; overflow:visible; }
+  /* clip, not hidden: trims the decorative mesh sideways without creating a scroll container */
+  .fl-login-page { grid-template-columns:1fr; gap:0; padding:0; overflow:visible; overflow-x:clip; }
   .fl-login-team-panel { min-height:auto; padding:28px 24px 12px; }
   .fl-login-brand-center { margin:32px auto 0; }
   .fl-login-brand-wordmark { width:min(260px,54vw); }
   .fl-login-team-row { width:min(680px,100%); margin:18px auto 0; }
   .fl-login-mascot-crop { width:110%; }
   .fl-login-form-panel { min-height:auto; padding:24px 24px 48px; }
-  .fl-login-tools { position:absolute; z-index:5; top:28px; right:24px; }
+  /* keep the language/theme controls in flow so they sit above the card instead of on it */
+  .fl-login-tools { justify-content:flex-end; }
   .fl-login-back { display:none; }
   .fl-login-card { margin:24px auto 0; padding:36px 30px 30px; }
 }
@@ -92,8 +94,7 @@
   .fl-login-team-row { width:calc(100% + 12px); margin:13px 0 0 -6px; }
   .fl-login-mascot-crop { width:119%; }
   .fl-login-form-panel { padding:16px 20px 38px; }
-  .fl-login-tools { top:18px; right:14px; }
-  .fl-login-card { margin-top:6px; padding:32px 20px 26px; border-radius:26px; }
+  .fl-login-card { margin-top:12px; padding:32px 20px 26px; border-radius:26px; }
   .fl-login-card > p:not(.fl-login-error):not(.fl-login-terms) { font-size:13.5px; }
   .fl-login-options { margin-top:28px; }
   .fl-login-option { min-height:58px; border-radius:18px; font-size:13px; }

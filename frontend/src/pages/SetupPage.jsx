@@ -958,14 +958,6 @@ export default function SetupPage() {
     <div className="setup-page theme-quiet relative min-h-screen pb-14 pt-[calc(var(--ui-nav-h)+0.75rem)]">
       <div className="ui-container relative z-10">
 
-        <div className="mb-5 flex justify-end">
-          <span className="inline-flex items-center gap-2 rounded-full border border-brand-line bg-brand-card/80 px-4 py-2 text-[12.5px] text-brand-muted backdrop-blur">
-            <Zap className="h-3.5 w-3.5 fill-brand-ochre text-brand-ochre" />
-            {t('nav.tokens')}
-            <span className="font-semibold tabular-nums text-brand-ink">{tokens}</span>
-          </span>
-        </div>
-
         {formNotice && (
           <motion.div
             initial={{ opacity: 0, y: -8 }}
@@ -1118,7 +1110,7 @@ export default function SetupPage() {
                   </div>
                 </header>
 
-                <div className="min-w-0">
+                <div className="setup-coach-body min-w-0">
                   <div className="relative">
                     <textarea
                       id="setup-job-desc"
@@ -1389,9 +1381,16 @@ export default function SetupPage() {
           {/* ───────────── 右栏：原有面试概览 ───────────── */}
           <aside className="xl:sticky xl:top-[calc(var(--ui-nav-h)+1.5rem)] xl:max-h-[calc(100dvh-var(--ui-nav-h)-3rem)] xl:overflow-y-auto">
             <div className="brand-float setup-summary-card rounded-[24px] px-5 py-5">
-              <h2 className="mb-1 flex items-center gap-2.5 font-brand text-[17px] font-semibold tracking-[-0.01em] text-brand-ink">
-                {t('setup.summaryOverview')}
-              </h2>
+              <div className="mb-1 flex items-center justify-between gap-3">
+                <h2 className="font-brand text-[17px] font-semibold tracking-[-0.01em] text-brand-ink">
+                  {t('setup.summaryOverview')}
+                </h2>
+                <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-brand-line bg-brand-inset px-2.5 py-1 text-[11.5px] text-brand-muted">
+                  <Zap className="h-3 w-3 fill-brand-ochre text-brand-ochre" />
+                  {t('nav.tokens')}
+                  <span className="font-semibold tabular-nums text-brand-ink">{tokens}</span>
+                </span>
+              </div>
               <div className="divide-y divide-brand-line">
                 <div className="pb-1.5">
                   <SummaryRow

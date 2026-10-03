@@ -10,7 +10,7 @@
     radial-gradient(circle at 91% 8%, rgba(254, 183, 201, 0.18), transparent 27rem),
     radial-gradient(circle at 13% 42%, rgba(247, 117, 169, 0.07), transparent 30rem),
     rgb(var(--brand-bg));
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  font-family: "DM Sans", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", system-ui, sans-serif;
 }
 
 .resume-tailor-hero {
