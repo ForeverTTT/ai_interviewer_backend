@@ -13,7 +13,7 @@
 | 内容类型 | `application/json`，请求体默认最大 10 MB（PDF 解析接口为 17 MB），超出时返回 413 `REQUEST_TOO_LARGE` |
 | 幂等 | 有副作用的面试类接口接受请求体中的 `idempotencyKey` 或 `Idempotency-Key` 请求头；重试时返回第一次的结果 |
 | 乐观锁 | 面试状态写入时校验 `state_version`；冲突时返回 409 和 `currentVersion` |
-| 限流 | 所有 `/api/*`：每 IP 每 15 分钟 1000 次；`/api/chat/*` 和 `/api/ai-assistant/*` 另外限制为每 IP 每小时 500 次 |
+| 限流 | 所有 `/api/*`（`/api/ux-events` 除外）：每 IP 每 15 分钟 1000 次；`/api/chat/*` 和 `/api/ai-assistant/*` 另外限制为每 IP 每小时 500 次；`/api/ux-events` 单独限制为每 IP 每分钟 120 次 |
 | Request ID | 每个响应都带 `X-Request-Id` 头，500 错误的响应体里也有 `requestId` |
 | 错误格式 | `{ "error": "...", "code"?: "...", "details"?: ..., "requestId"?: "..." }` |
 | 未知路由 | 404 `{ "error": "Route <METHOD> <path> not found" }` |
@@ -25,6 +25,15 @@
 | 方法 | 路径 | 鉴权 | 说明 |
 |---|---|:---:|---|
 | GET | `/api/health` | | 返回 `status`、`timestamp`、`service`、`commit`、`revision`、`deployedAt` |
+
+## 产品埋点 `/api/ux-events`
+
+设计见[数据埋点与分析方案](../06-决策与方案/进行中/数据埋点与分析方案.md)。前端只在用户同意 Cookie 后调用。
+
+| 方法 | 路径 | 鉴权 | 说明 |
+|---|---|:---:|---|
+| POST | `/api/ux-events` | 可选 | 批量上报浏览器事件，请求体 `{ events: [...] }`，每批 1–20 条。带有效 token 时事件归属到该用户，否则按匿名处理；不接受请求体里的用户 ID。事件名和字段按 `backend/src/lib/analytics.js` 的白名单校验，不合格的单条事件被丢弃。批次格式错误返回 400，其余一律返回 204 |
+| POST | `/api/feedback` | ✅ | 对 AI 结果的 👍/👎 反馈。请求体 `feedbackId`、`feature`（`interview_report` / `resume_tailor` / `cover_letter` / `resume_diagnose` / `gallup`）、`rating`（`up` / `down`），可选 `reasons`（预设原因代码数组，最多 5 个，必须与 rating 对应）和 `interviewId`。不接受自由文本。成功返回 204，格式错误返回 400 |
 
 ## 面试 `/api/interviews`
 
