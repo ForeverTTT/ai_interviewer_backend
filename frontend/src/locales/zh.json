@@ -1774,7 +1774,8 @@
     "hide": "隐藏",
     "cookie": {
       "title": "Cookie 与隐私设置",
-      "desc": "我们使用 Cookie 以提供更安全、更优质的服务体验。继续使用即表示您同意我们的数据保护政策。",
+      "desc": "我们用必要的本地存储保持登录等基本功能。经你同意后，我们还会收集使用数据（如页面浏览、点击和停留时长）来改进产品，不会记录你输入的内容。你可以随时在「Cookie 设置」中更改选择。",
+      "manage": "Cookie 设置",
       "accept": "全部接受",
       "settings": "自定义",
       "decline": "拒绝",
@@ -2182,5 +2183,32 @@
       },
       "ownership": "无论未来是否启用高级能力，已有报告、历史记录、收藏和基础训练闭环始终归你访问。"
     }
+  },
+  "feedback": {
+    "helpful": "有帮助",
+    "notHelpful": "没帮助",
+    "prompt": {
+      "interview_report": "这份面试报告对你有帮助吗？",
+      "resume_tailor": "优化后的简历有用吗？",
+      "cover_letter": "这封求职信有用吗？",
+      "resume_diagnose": "这份简历诊断对你有帮助吗？",
+      "gallup": "这份优势报告对你有帮助吗？"
+    },
+    "reasonsUp": "哪里做得好？（可多选）",
+    "reasonsDown": "哪里需要改进？（可多选）",
+    "reason": {
+      "accurate": "准确，符合我的情况",
+      "actionable": "建议可以直接用",
+      "clear": "清楚易懂",
+      "saves_time": "帮我节省了时间",
+      "inaccurate": "不准确",
+      "too_generic": "太泛泛，不够具体",
+      "hard_to_understand": "看不太懂",
+      "missing_info": "缺少我需要的内容",
+      "too_slow": "等待太久"
+    },
+    "submit": "提交",
+    "skip": "跳过",
+    "thanks": "谢谢你的反馈！"
   }
 }

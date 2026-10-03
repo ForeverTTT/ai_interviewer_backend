@@ -446,7 +446,7 @@ export default function NotesPage() {
           </section>
         ) : (
           /* ───────── 题库目录：只浏览与选择，编辑和练习都进入单卡 ───────── */
-          <section ref={studyRef} className="fl-notes-library-list">
+          <section ref={studyRef} className="fl-notes-library-list" data-track-mask data-track-section="notes-library">
             {filtered.map((collection, index) => (
               <article key={collection.id} className="fl-notes-library-row">
                 <div className="fl-notes-library-index">{String(index + 1).padStart(2, '0')}</div>

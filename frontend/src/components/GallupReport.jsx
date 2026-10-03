@@ -8,6 +8,7 @@ import {
   Lightbulb, ShieldCheck, Zap, Globe, Users,
   ArrowUp
 } from 'lucide-react'
+import FeedbackPrompt from './FeedbackPrompt'
 import GallupRadar from './GallupRadar'
 
 /**
@@ -376,6 +377,11 @@ export default function GallupReport({ results, onRetake }) {
 
 
       </motion.div>
+
+      <FeedbackPrompt
+        feature="gallup"
+        targetKey={scoresData.map((domain) => `${domain.key}${domain.score}`).join('_') || undefined}
+      />
 
       {/* Back to Top Button */}
       <AnimatePresence>

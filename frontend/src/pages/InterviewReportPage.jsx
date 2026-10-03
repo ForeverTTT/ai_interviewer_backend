@@ -15,6 +15,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { authenticatedFetch } from '../lib/authenticatedFetch'
 import { createInterviewRequestId } from '../lib/interviewEvents'
 import { normalizeCjkSpacing } from '../lib/textNormalization'
+import FeedbackPrompt from '../components/FeedbackPrompt'
 import './InterviewReportPage.css'
 
 const REVIEW_MENTOR_WRITING = BRAND_ASSETS.reviewMentorWriting
@@ -1295,7 +1296,7 @@ export default function InterviewReportPage() {
                   </p>
                 </div>
 
-                <div className="space-y-6">
+                <div className="space-y-6" data-track-mask data-track-section="report-transcript">
                   {transcript.map((m, i) => {
                     const coach = lineReviewByIndex.get(i)
                     return (
@@ -1371,6 +1372,7 @@ export default function InterviewReportPage() {
           </div>
         </article>
 
+        <FeedbackPrompt feature="interview_report" targetKey={interviewId} interviewId={interviewId} className="mt-8" />
       </div>
     </div>
   )

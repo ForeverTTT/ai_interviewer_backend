@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useId } from 'react'
 import { useTranslation } from 'react-i18next'
+import { track } from '../lib/analytics'
 import { ChevronDown, Check, Globe2 } from 'lucide-react'
 
 const OPTIONS = [
@@ -42,7 +43,9 @@ export default function LanguageSwitcher({ className = '', variant = 'light' }) 
   const regionOf = (code) => OPTIONS.find(o => o.code === code)?.regionCode
 
   const pickLanguage = async (code) => {
+    const from = i18n.resolvedLanguage
     await i18n.changeLanguage(code)
+    if (from !== code) track('language_changed', { from, to: code })
     setOpen(false)
   }
 

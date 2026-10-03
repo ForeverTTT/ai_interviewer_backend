@@ -25,6 +25,7 @@ import {
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import xiaohongshuQr from '../assets/xiaohongshu_qr.png'
+import FeedbackPrompt from '../components/FeedbackPrompt'
 import './ProfilePage.css'
 
 const RESUME_TAILOR_WORKING = BRAND_ASSETS.resumeTailorWorking
@@ -431,6 +432,8 @@ function CoachReport({ coach, t }) {
           </div>
         </section>
       )}
+
+      <FeedbackPrompt feature="resume_diagnose" targetKey={coach.generatedAt} />
     </div>
   )
 }

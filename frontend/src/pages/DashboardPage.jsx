@@ -166,7 +166,7 @@ function ReviewFlashcards({ collections, t }) {
         </div>
         <Link to="/notes" className="lk-btn lk-btn-ghost !py-2 !text-[12.5px]">{t('dashboard.growth.collections.viewAll')}<ArrowRight className="h-3.5 w-3.5" /></Link>
       </div>
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3" data-track-mask data-track-section="dashboard-collections">
         {collections.map((collection, index) => {
           const isFlipped = Boolean(flipped[collection.id])
           const answer = String(collection.answer_text || collection.answer || '').trim()

@@ -10,6 +10,7 @@ import { getBackendBaseUrl } from '../lib/backendBase'
 import { authenticatedFetch } from '../lib/authenticatedFetch'
 import { exportPdf, exportWord } from '../lib/documentExport'
 import { parseJobDescription } from '../lib/jobDescriptionParser'
+import FeedbackPrompt from '../components/FeedbackPrompt'
 import './ResumeTailorPage.css'
 
 const RESUME_TAILOR_WORKING = BRAND_ASSETS.resumeTailorWorking
@@ -73,6 +74,9 @@ export default function ResumeTailorPage() {
   const [language, setLanguage] = useState('Same as resume')
   const [tailoring, setTailoring] = useState(false)
   const [tailoredResume, setTailoredResume] = useState('')
+  // 每次生成成功换一个 key，反馈组件据此重新询问
+  const [tailorRunId, setTailorRunId] = useState(null)
+  const [letterRunId, setLetterRunId] = useState(null)
   const [matchedKeywords, setMatchedKeywords] = useState([])
   const [missingKeywords, setMissingKeywords] = useState([])
   const [improvements, setImprovements] = useState([])
@@ -205,6 +209,7 @@ export default function ResumeTailorPage() {
       if (res.status === 403) throw Object.assign(new Error('tokens'), { code: 'TOKENS' })
       if (!res.ok) throw new Error(body.error || 'tailor')
       setTailoredResume(body.tailoredResume || '')
+      setTailorRunId(String(Date.now()))
       setMatchedKeywords(body.matchedKeywords || [])
       setMissingKeywords(body.missingKeywords || [])
       setImprovements(body.improvements || [])
@@ -239,6 +244,7 @@ export default function ResumeTailorPage() {
       if (res.status === 403) throw Object.assign(new Error('tokens'), { code: 'TOKENS' })
       if (!res.ok) throw new Error(body.error || 'letter')
       setLetter(body.text || '')
+      setLetterRunId(String(Date.now()))
       window.dispatchEvent(new Event('tokensChanged'))
     } catch (error) {
       setNotice({ type: 'error', text: error?.code === 'TOKENS' ? t('resumeTailor.tokensError') : t('resumeTailor.letterError') })
@@ -344,6 +350,7 @@ export default function ResumeTailorPage() {
                     <div className="rounded-xl border border-brand-line bg-brand-inset p-5"><h3 className="flex items-center gap-2 text-[13px] font-semibold text-brand-ink"><span className="h-2 w-2 shrink-0 rounded-full bg-brand-ink" aria-hidden="true" />{t('resumeTailor.missing')}</h3><p className="mt-1 text-[11px] text-brand-muted">{t('resumeTailor.missingHint')}</p><div className="mt-3 flex flex-wrap gap-2">{missingKeywords.map(item => <span key={item} className={`${chip} border-brand-line bg-brand-card text-brand-ink`}>{item}</span>)}</div></div>
                   </div>
                   {improvements.length > 0 && <div className="rounded-xl border border-brand-line bg-brand-inset p-5"><h3 className="text-[13px] font-semibold text-brand-ink">{t('resumeTailor.changes')}</h3><ul className="mt-3 space-y-2 text-[13px] leading-relaxed text-brand-muted">{improvements.map(item => <li key={item} className="flex gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-brand-success" />{item}</li>)}</ul></div>}
+                  {tailorRunId && <FeedbackPrompt feature="resume_tailor" targetKey={tailorRunId} />}
                 </>
               ) : <div className="flex min-h-80 flex-col items-center justify-center rounded-xl border border-dashed border-brand-line bg-brand-inset text-center"><Sparkles className="h-7 w-7 text-brand-muted" /><p className="mt-3 max-w-sm text-[13px] text-brand-muted">{t('resumeTailor.emptyTailored')}</p></div>}
             </>
@@ -355,7 +362,7 @@ export default function ResumeTailorPage() {
                   {letterLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}{letterLoading ? t('resumeTailor.generatingLetter') : t('resumeTailor.generateLetter')} <span className={CTA_BADGE}>−100</span>
                 </button>
               </div>
-              {letter ? <><textarea value={letter} onChange={event => setLetter(event.target.value)} rows={24} className={TEXTAREA_CLASS} /><ResultActions title={`${position} - Motivation Letter`} text={letter} fileName={`${position || 'motivation'}-letter`} t={t} /></> : <div className="flex min-h-80 items-center justify-center rounded-xl border border-dashed border-brand-line bg-brand-inset px-6 text-center text-[13px] text-brand-muted">{t('resumeTailor.emptyLetter')}</div>}
+              {letter ? <><textarea value={letter} onChange={event => setLetter(event.target.value)} rows={24} className={TEXTAREA_CLASS} /><ResultActions title={`${position} - Motivation Letter`} text={letter} fileName={`${position || 'motivation'}-letter`} t={t} />{letterRunId && <FeedbackPrompt feature="cover_letter" targetKey={letterRunId} />}</> : <div className="flex min-h-80 items-center justify-center rounded-xl border border-dashed border-brand-line bg-brand-inset px-6 text-center text-[13px] text-brand-muted">{t('resumeTailor.emptyLetter')}</div>}
             </>
           )}
         </section>

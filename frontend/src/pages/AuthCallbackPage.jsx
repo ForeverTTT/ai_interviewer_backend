@@ -3,6 +3,9 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { BRAND_ASSETS } from '../assets/brandAssets'
 import { supabase } from '../lib/supabase'
+import { track } from '../lib/analytics'
+
+const NEW_USER_WINDOW_MS = 5 * 60 * 1000
 import { AlertCircle, ArrowLeft, CheckCircle2 } from 'lucide-react'
 import './AuthCallbackPage.css'
 
@@ -27,13 +30,23 @@ export default function AuthCallbackPage() {
     let redirectTimer = null
     let cleanupAuthListener = null
 
-    const showError = (message) => {
+    const showError = (message, reason) => {
+      track('login_failed', { reason })
       if (!mounted) return
       setStatus('error')
       setErrorMsg(message)
     }
 
     const finish = () => {
+      void supabase.auth.getSession().then(({ data }) => {
+        const authUser = data?.session?.user
+        if (!authUser) return
+        const createdAt = Date.parse(authUser.created_at || '')
+        track('login_completed', {
+          provider: authUser.app_metadata?.provider,
+          isNewUser: Number.isFinite(createdAt) && Date.now() - createdAt < NEW_USER_WINDOW_MS,
+        })
+      })
       if (!mounted) return
       setStatus('success')
       redirectTimer = window.setTimeout(() => {
@@ -55,7 +68,7 @@ export default function AuthCallbackPage() {
 
       if (error) {
         console.error('[AuthCallback] OAuth error:', error, errorDescription)
-        showError(decodeURIComponent(errorDescription || error))
+        showError(decodeURIComponent(errorDescription || error), 'oauth_error')
         return
       }
 
@@ -65,7 +78,7 @@ export default function AuthCallbackPage() {
         const { data, error: exchangeError } = await exchangePromiseRef.current
         if (exchangeError) {
           console.error('[AuthCallback] Exchange error:', exchangeError)
-          showError(t('auth.exchangeFail') + exchangeError.message)
+          showError(t('auth.exchangeFail') + exchangeError.message, 'exchange_failed')
           return
         }
         if (data?.session) {
@@ -103,7 +116,7 @@ export default function AuthCallbackPage() {
       const timer = window.setTimeout(() => {
         subscription.unsubscribe()
         console.warn('[AuthCallback] Timed out - no session received')
-        showError(t('auth.timeout') + window.location.origin + '/auth/callback')
+        showError(t('auth.timeout') + window.location.origin + '/auth/callback', 'timeout')
       }, 12000)
 
       const cleanup = () => {

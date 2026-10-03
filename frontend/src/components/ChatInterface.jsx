@@ -7,6 +7,7 @@ import { supabase } from '../lib/supabase'
 import { getBackendBaseUrl } from '../lib/backendBase'
 import { useGeminiLiveInterview } from '../hooks/useGeminiLiveInterview'
 import { normalizeCjkSpacing } from '../lib/textNormalization'
+import { track } from '../lib/analytics'
 import {
   Send, Volume2, VolumeX, Loader2, Video, VideoOff,
   Mic, MicOff, RefreshCw, BrainCircuit, Clock,
@@ -798,6 +799,7 @@ const ChatInterface = forwardRef(function ChatInterface({
   }, [releaseOpeningGate, onCandidateAnswerSubmitted, isPractice, practiceController])
 
   const handleLiveError = useCallback((error) => {
+    track('interview_live_error', { code: String(error?.code || error?.name || 'live_error') })
     setInitError(t('chat.connErr', { msg: error?.message || 'Gemini Live error' }))
     setIsStreaming(false)
     setCurrentAgent(null)
@@ -1543,7 +1545,7 @@ const ChatInterface = forwardRef(function ChatInterface({
                 </div>
               </div>
 
-              <div className="custom-scrollbar flex-1 space-y-5 overflow-y-auto scroll-smooth px-5 py-5">
+              <div className="custom-scrollbar flex-1 space-y-5 overflow-y-auto scroll-smooth px-5 py-5" data-track-mask data-track-section="interview-transcript">
                 {messageItems}
               </div>
 
@@ -1699,7 +1701,7 @@ const ChatInterface = forwardRef(function ChatInterface({
         </div>
       ) : (
         <>
-          <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-4 py-5">
+          <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-4 py-5" data-track-mask data-track-section="interview-transcript">
             {messageItems}
           </div>
           {inputBarSection}

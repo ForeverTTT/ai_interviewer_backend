@@ -15,6 +15,7 @@ import {
   MonitorPlay, BadgeCheck, Code2, Scale, Leaf, Search, ChevronRight, Lightbulb,
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { track } from '../lib/analytics'
 import './SetupPage.css'
 
 const INTERVIEW_COACH_WRITING = BRAND_ASSETS.interviewCoachWriting
@@ -665,6 +666,7 @@ export default function SetupPage() {
 
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors)
+      track('setup_validation_failed', { fields: Object.keys(newErrors).join(',') })
 
       // Auto-scroll to first error
       const firstErrorKey = newErrors.position ? 'setup-position' : 'setup-job-desc'
@@ -676,7 +678,20 @@ export default function SetupPage() {
       return
     }
 
+    track('setup_submitted', {
+      mode: form.mode,
+      interviewerType: form.interviewerType,
+      interviewerStyle: form.interviewerStyle,
+      difficulty: form.difficulty,
+      language: form.language,
+      durationMin: Number(form.duration) || undefined,
+      employmentType: form.employmentType,
+      hasJobDescription: Boolean(String(form.jobDescription || '').trim()),
+      hasResume: Boolean(effectiveResume),
+    })
+
     if (tokens < INTERVIEW_COST) {
+      track('setup_blocked', { reason: 'insufficient_tokens' })
       setFormNotice({ type: 'tokens', text: t('common.insufficientTokens', 'Insufficient Energy') })
       window.scrollTo({ top: 0, behavior: 'smooth' })
       return
@@ -740,10 +755,13 @@ export default function SetupPage() {
       console.error('[SetupPage] Failed to create persistent interview', error)
       setLoading(false)
       if (error?.code === 'AUTH_EXPIRED' || error?.code === 'AUTH_REJECTED' || error?.status === 401) {
+        track('setup_blocked', { reason: 'auth_expired' })
         setFormNotice({ type: 'auth', text: t('setup.sessionExpired') })
       } else if (error?.code === 'INSUFFICIENT_TOKENS' || error?.status === 403) {
+        track('setup_blocked', { reason: 'insufficient_tokens' })
         setFormNotice({ type: 'tokens', text: t('common.insufficientTokens', 'Insufficient Energy') })
       } else {
+        track('setup_blocked', { reason: 'error' })
         setFormNotice({ type: 'error', text: t('setup.createInterviewError') })
       }
       window.scrollTo({ top: 0, behavior: 'smooth' })
@@ -1045,7 +1063,8 @@ export default function SetupPage() {
                                   {t('setup.historyClear')}
                                 </button>
                               </div>
-                              <ul className="space-y-0.5">
+                              {/* 历史条目是用户自己填过的岗位和 JD，埋点只记点击，不记文字 */}
+                              <ul className="space-y-0.5" data-track-mask data-track-section="jd-history">
                                 {jdHistory.map((entry) => (
                                   <li key={entry.id} className="group relative">
                                     <button

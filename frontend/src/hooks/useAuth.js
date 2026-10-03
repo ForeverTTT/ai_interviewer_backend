@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
+import { track } from '../lib/analytics'
 
 export function useAuth() {
   const [user, setUser] = useState(null)
@@ -75,6 +76,8 @@ export function useAuth() {
   }
 
   const signOut = async () => {
+    // Before signing out, while the event can still be tied to the account.
+    track('logged_out')
     const { error } = await supabase.auth.signOut()
     if (error) throw error
   }

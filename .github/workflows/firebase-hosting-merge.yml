@@ -28,6 +28,9 @@ jobs:
         run: npm ci
       - name: Verify frontend production build
         working-directory: frontend
+        env:
+          # Tags analytics events with the release that produced them.
+          VITE_APP_VERSION: ${{ github.sha }}
         run: npm run build
       - name: Deploy frontend to Firebase Hosting live
         uses: FirebaseExtended/action-hosting-deploy@v0

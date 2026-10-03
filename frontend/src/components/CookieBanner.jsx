@@ -4,6 +4,14 @@ import { useTranslation } from 'react-i18next'
 import { X } from 'lucide-react'
 import './CookieBanner.css'
 import { BRAND_ASSETS } from '../assets/brandAssets'
+import { CONSENT_KEY, setConsent } from '../lib/analytics'
+
+/** 页脚等处的「Cookie 设置」入口派发这个事件，重新打开横幅。 */
+export const OPEN_COOKIE_SETTINGS_EVENT = 'open-cookie-settings'
+
+export function openCookieSettings() {
+  window.dispatchEvent(new Event(OPEN_COOKIE_SETTINGS_EVENT))
+}
 
 const BRAND_MARK = BRAND_ASSETS.appIcon
 
@@ -12,23 +20,28 @@ export default function CookieBanner() {
   const [isVisible, setIsVisible] = useState(false)
 
   useEffect(() => {
-    const consent = localStorage.getItem('cookie-consent')
-    // Show if not accepted (includes null or declined)
-    if (consent !== 'accepted') {
+    const consent = localStorage.getItem(CONSENT_KEY)
+    // Ask until the user makes a choice. A refusal is respected and not asked
+    // again; it can be changed from "Cookie settings".
+    if (consent !== 'accepted' && consent !== 'declined') {
       const timer = setTimeout(() => setIsVisible(true), 500)
       return () => clearTimeout(timer)
     }
   }, [])
 
+  useEffect(() => {
+    const open = () => setIsVisible(true)
+    window.addEventListener(OPEN_COOKIE_SETTINGS_EVENT, open)
+    return () => window.removeEventListener(OPEN_COOKIE_SETTINGS_EVENT, open)
+  }, [])
+
   const handleAccept = () => {
-    localStorage.setItem('cookie-consent', 'accepted')
+    setConsent(true)
     setIsVisible(false)
   }
 
   const handleDecline = () => {
-    // Save as declined, but since it's not 'accepted', 
-    // it will reappear on next page refresh as requested.
-    localStorage.setItem('cookie-consent', 'declined')
+    setConsent(false)
     setIsVisible(false)
   }
 
@@ -40,6 +53,7 @@ export default function CookieBanner() {
           animate={{ y: 0, opacity: 1 }}
           exit={{ y: 100, opacity: 0 }}
           className="fl-cookie-banner"
+          data-track-section="cookie-banner"
         >
           <div className="fl-cookie-card">
             <span className="fl-cookie-glow fl-cookie-glow-yellow" aria-hidden="true" />
