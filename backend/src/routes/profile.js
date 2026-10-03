@@ -5,6 +5,7 @@ import { requireAuth } from '../middleware/auth.js'
 import { assertGeminiConfigured, invokeGemini, stripJsonFence } from '../lib/geminiText.js'
 import { validate } from '../middleware/validate.js'
 import { checkTokens, deductTokens, addTokens } from '../middleware/tokens.js'
+import { trackServerEvent } from '../lib/analytics.js'
 
 const router = Router()
 
@@ -523,7 +524,7 @@ router.post('/resume/parse-pdf', requireAuth, async (req, res) => {
 })
 
 /** POST /api/profile/extract-cv — structured fields from resume text (Gemini JSON) */
-router.post('/extract-cv', requireAuth, (req, _, next) => { req.tokenCost = 50; next(); }, checkTokens, async (req, res) => {
+router.post('/extract-cv', requireAuth, (req, _, next) => { req.tokenCost = 50; req.tokenFeature = 'resume_parse'; next(); }, checkTokens, async (req, res) => {
   if (!assertGeminiConfigured(res)) return
 
   const draft = typeof req.body?.resumeText === 'string' ? req.body.resumeText.trim() : ''
@@ -552,7 +553,8 @@ router.post('/extract-cv', requireAuth, (req, _, next) => { req.tokenCost = 50; 
       return res.status(502).json({ error: 'Model returned invalid JSON', details: 'Try again or shorten resume.' })
     }
 
-    await deductTokens(req.user.id, 50)
+    await deductTokens(req.user.id, 50, { req, feature: 'resume_parse' })
+    trackServerEvent(req, 'resume_parsed', { props: { resumeLength: resume.length } })
     return res.json({ cvProfile: parsed, tokensDeducted: 50 })
   } catch (err) {
     console.error('[extract-cv]', err)
@@ -561,7 +563,7 @@ router.post('/extract-cv', requireAuth, (req, _, next) => { req.tokenCost = 50; 
 })
 
 /** POST /api/profile/resume-coach */
-router.post('/resume-coach', requireAuth, (req, _, next) => { req.tokenCost = 200; next(); }, checkTokens, async (req, res) => {
+router.post('/resume-coach', requireAuth, (req, _, next) => { req.tokenCost = 200; req.tokenFeature = 'resume_diagnose'; next(); }, checkTokens, async (req, res) => {
   if (!assertGeminiConfigured(res)) return
 
   const targetRole = typeof req.body?.targetRole === 'string' ? req.body.targetRole.trim() : ''
@@ -628,10 +630,12 @@ ${resume.slice(0, 48_000)}
 
     if (error) {
       console.error('[resume-coach] save', error)
+      trackServerEvent(req, 'resume_diagnosed', { props: { hasTargetRole: Boolean(targetRole), persisted: false } })
       return res.json({ coach: payload, persisted: false })
     }
 
-    await deductTokens(req.user.id, 200)
+    await deductTokens(req.user.id, 200, { req, feature: 'resume_diagnose' })
+    trackServerEvent(req, 'resume_diagnosed', { props: { hasTargetRole: Boolean(targetRole), persisted: true } })
     return res.json({ coach: payload, persisted: true, tokensDeducted: 200 })
   } catch (err) {
     console.error('[resume-coach]', err)

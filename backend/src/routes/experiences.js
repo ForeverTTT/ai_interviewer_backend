@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { supabase, supabaseForUser } from '../lib/supabase.js'
 import { validate } from '../middleware/validate.js'
 import { addTokens, deductTokens } from '../middleware/tokens.js'
+import { trackServerEvent } from '../lib/analytics.js'
 
 const router = Router()
 
@@ -124,7 +125,8 @@ router.post('/', validate(experienceSchema), async (req, res) => {
     if (error) throw error
     
     // Reward for community contribution
-    await addTokens(user.id, 200)
+    await addTokens(user.id, 200, { req, feature: 'experience_share' })
+    trackServerEvent(req, 'experience_shared', { userId: user.id, props: { type } })
     
     res.status(201).json({ ...data, tokensAwarded: 200 })
   } catch (err) {
@@ -154,7 +156,8 @@ router.delete('/:id', async (req, res) => {
 
     if (error) throw error
 
-    await deductTokens(user.id, 200)
+    await deductTokens(user.id, 200, { req, feature: 'experience_delete' })
+    trackServerEvent(req, 'experience_deleted', { userId: user.id })
 
     res.json({ success: true, tokensDeducted: 200 })
   } catch (err) {

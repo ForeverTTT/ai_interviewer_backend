@@ -3,6 +3,7 @@ import { requireAuth } from '../middleware/auth.js'
 import { supabase, supabaseForUser } from '../lib/supabase.js'
 import { normalizeRequestId } from '../lib/observability.js'
 import { recordInterviewEvent } from '../lib/interviewEvents.js'
+import { trackServerEvent } from '../lib/analytics.js'
 import {
   claimInterviewRequest,
   releaseInterviewRequest,
@@ -24,6 +25,7 @@ import {
 } from '../lib/interviewLearning.js'
 
 const router = Router()
+const TRACKED_PRACTICE_ACTIONS = new Set(['retry', 'master', 'skip', 'pause', 'resume', 'reconnect'])
 
 function dbFor(req) {
   return req.accessToken ? supabaseForUser(req.accessToken) : supabase
@@ -114,6 +116,9 @@ async function simpleAction(req, res, action, payload = req.body ?? {}, onSucces
       payload,
     })
     await onSuccess?.({ result, idempotencyKey, db, workspace })
+    if (TRACKED_PRACTICE_ACTIONS.has(action)) {
+      trackServerEvent(req, 'practice_action_used', { interviewId, props: { action } })
+    }
     return res.json(result)
   } catch (error) {
     if (claimed) {
@@ -336,6 +341,14 @@ router.post('/:id/questions/:questionId/answer', requireAuth, async (req, res) =
       },
     })
     await syncPracticeCollection(db, workspace, question, answerText, internalFeedback)
+    trackServerEvent(req, 'interview_answer_submitted', {
+      interviewId,
+      props: {
+        mode: workspace.interview.mode === 'practice' ? 'practice' : 'formal',
+        channel: 'api',
+        attemptNumber: priorAttempts.length + 1,
+      },
+    })
     // Formal mode deliberately returns no intermediate feedback.
     if (workspace.interview.mode === 'formal' && result.attempt) result.attempt.feedback_json = null
     return res.status(201).json(result)
@@ -380,6 +393,7 @@ router.post('/:id/questions/:questionId/hint', requireAuth, async (req, res) => 
       action: 'hint',
       payload: { questionId: question.id, ...hint },
     })
+    trackServerEvent(req, 'practice_action_used', { interviewId, props: { action: 'hint' } })
     return res.status(201).json(result)
   } catch (error) {
     if (claimed) {

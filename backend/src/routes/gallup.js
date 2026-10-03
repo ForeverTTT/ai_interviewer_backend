@@ -2,6 +2,7 @@ import express from 'express'
 import { requireAuth } from '../middleware/auth.js'
 import { supabase } from '../lib/supabase.js'
 import { checkTokens, deductTokens } from '../middleware/tokens.js'
+import { topGallupDomain, trackServerEvent } from '../lib/analytics.js'
 
 const router = express.Router()
 
@@ -73,7 +74,7 @@ router.get('/questions', async (req, res) => {
 })
 
 // POST /api/gallup/analyze - Generate DB-based report and save
-router.post('/analyze', requireAuth, (req, _, next) => { req.tokenCost = 100; next(); }, checkTokens, async (req, res) => {
+router.post('/analyze', requireAuth, (req, _, next) => { req.tokenCost = 100; req.tokenFeature = 'gallup'; next(); }, checkTokens, async (req, res) => {
   const { answers, results, language = 'zh', status } = req.body
 
   try {
@@ -129,7 +130,8 @@ router.post('/analyze', requireAuth, (req, _, next) => { req.tokenCost = 100; ne
 
     if (error) throw error
 
-    await deductTokens(req.user.id, 100)
+    await deductTokens(req.user.id, 100, { req, feature: 'gallup' })
+    trackServerEvent(req, 'gallup_completed', { props: { topDomain: topGallupDomain(results) } })
     res.json({ ...upsertData, tokensDeducted: 100 })
   } catch (error) {
     console.error('[Gallup Analyze Error]', error)
