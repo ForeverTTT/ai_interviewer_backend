@@ -8,6 +8,8 @@ import {
 } from 'lucide-react'
 import { getBackendBaseUrl } from '../lib/backendBase'
 import { authenticatedFetch } from '../lib/authenticatedFetch'
+import { normalizeCjkSpacing } from '../lib/textNormalization'
+import { BRAND_ASSETS } from '../assets/brandAssets'
 
 const EMPTY_FORM = {
   targetPosition: '', targetJobDescription: '', nextInterviewDate: '', targetOfferDate: '',
@@ -178,7 +180,7 @@ export default function OfferSprintPanel({ offerSprint, practiceStats, onOvervie
       window.localStorage.setItem(storageKey, '1')
       const notification = new window.Notification(t(`growthSprint.reminders.${reminder.reminder_type}.title`), {
         body: t(`growthSprint.reminders.${reminder.reminder_type}.body`, { position: plan.target_position }),
-        icon: '/landit-icon-light.svg',
+        icon: BRAND_ASSETS.appIcon,
       })
       notification.onclick = () => { window.focus(); notification.close() }
     })
@@ -465,7 +467,7 @@ export default function OfferSprintPanel({ offerSprint, practiceStats, onOvervie
                       <p className="text-[10px] font-medium uppercase tracking-wider text-brand-muted">{t('growthSprint.tasks.checklistReview')}</p>
                       <ul className="mt-1 space-y-0.5">
                         {reviewCards.map(card => (
-                          <li key={card.id} className="line-clamp-1 text-[11.5px] text-brand-ink">{card.isPinned ? '★ ' : '• '}{card.questionText}</li>
+                          <li key={card.id} className="line-clamp-1 text-[11.5px] text-brand-ink">{card.isPinned ? '★ ' : '• '}{normalizeCjkSpacing(card.questionText)}</li>
                         ))}
                       </ul>
                     </div>

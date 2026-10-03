@@ -65,7 +65,7 @@
 .fl-cookie-title-row h3 {
   margin: 0;
   color: #26252b;
-  font-family: "DM Sans", "PingFang SC", sans-serif;
+  font-family: "DM Sans", "Noto Sans SC", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", system-ui, sans-serif;
   font-size: 21px;
   font-weight: 850;
   letter-spacing: -0.02em;

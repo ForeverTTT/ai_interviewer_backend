@@ -12,4 +12,7 @@ export function normalizeCjkSpacing(value) {
     .replace(new RegExp(`([${cjk}])[ \\t]+([，。！？；：、,.!?;:）》】”’])`, 'gu'), '$1$2')
     .replace(new RegExp(`([（《【“‘])[ \\t]+(?=[${cjk}])`, 'gu'), '$1')
     .replace(new RegExp(`([，。！？；：、,.!?;:])[ \\t]+(?=[${cjk}])`, 'gu'), '$1')
+    // Quotes around an English term inside a Chinese sentence: `， “Squabble” 的` → `，“Squabble”的`
+    .replace(new RegExp(`([${cjk}，。！？；：、）》】])[ \\t]+(?=[（《【“‘])`, 'gu'), '$1')
+    .replace(new RegExp(`([”’])[ \\t]+(?=[${cjk}，。！？；：、])`, 'gu'), '$1')
 }

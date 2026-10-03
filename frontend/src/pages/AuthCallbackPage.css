@@ -13,7 +13,7 @@
     radial-gradient(circle at 88% 22%, rgb(143 219 216 / 0.34), transparent 32rem),
     var(--callback-paper);
   color: var(--callback-ink);
-  font-family: "DM Sans", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", system-ui, sans-serif;
+  font-family: "DM Sans", "Noto Sans SC", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", system-ui, sans-serif;
 }
 
 .fl-auth-callback *,

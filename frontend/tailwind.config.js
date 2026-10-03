@@ -53,10 +53,10 @@ export default {
         },
       },
       fontFamily: {
-        /* 正文 / 界面：DM Sans 与 LandIt 字标同源；中文走系统黑体，避免首屏下载大字库 */
-        sans: ['"DM Sans"', 'Inter', '"PingFang SC"', '"Hiragino Sans GB"', '"Microsoft YaHei"', '"Noto Sans SC"', 'system-ui', 'sans-serif'],
+        /* 正文 / 界面：与 landing 一致——拉丁字母用 DM Sans，中文用思源黑体（index.html 全站加载，按 unicode-range 分片下载），系统黑体兜底 */
+        sans: ['"DM Sans"', '"Noto Sans SC"', '"PingFang SC"', '"Hiragino Sans GB"', '"Microsoft YaHei"', 'system-ui', 'sans-serif'],
         /* 界面内的小标题 */
-        brand: ['"DM Sans"', '"Noto Sans SC"', '"PingFang SC"', '"Microsoft YaHei"', 'system-ui', 'sans-serif'],
+        brand: ['"DM Sans"', '"Noto Sans SC"', '"PingFang SC"', '"Hiragino Sans GB"', '"Microsoft YaHei"', 'system-ui', 'sans-serif'],
         /* 页面大标题：Fraunces 衬线，中文回退到思源宋体——编辑感、有温度，而不是又一个 SaaS 黑体 */
         display: ['Fraunces', '"Noto Serif SC"', '"Songti SC"', 'Georgia', 'serif'],
         serif: ['Fraunces', '"Noto Serif SC"', '"Songti SC"', 'Georgia', 'serif'],

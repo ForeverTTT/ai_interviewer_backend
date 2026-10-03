@@ -5,7 +5,7 @@
   --community-pink-soft: #f8e8e8;
   min-height: 100vh;
   color: rgb(var(--brand-ink));
-  font-family: "DM Sans", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", system-ui, sans-serif;
+  font-family: "DM Sans", "Noto Sans SC", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", system-ui, sans-serif;
   background: transparent;
 }
 
@@ -42,7 +42,7 @@
 .community-title {
   margin: 0;
   color: #45434b;
-  font-family: "DM Sans", "Yuanti SC", "STHupo", "HanziPen SC", "Hannotate SC", "PingFang SC", sans-serif;
+  font-family: "DM Sans", "Noto Sans SC", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", system-ui, sans-serif;
   font-size: clamp(32px, 3.8vw, 48px);
   font-weight: 900;
   letter-spacing: 0.02em;

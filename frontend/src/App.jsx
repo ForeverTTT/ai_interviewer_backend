@@ -10,6 +10,7 @@ import PageAtmosphere from './components/brand/PageAtmosphere'
 import AppShell from './components/app/AppShell'
 import { useAuth } from './hooks/useAuth'
 import { lazyWithReload } from './lib/lazyWithReload'
+import { BRAND_ASSETS } from './assets/brandAssets'
 
 const LandingPage = lazyWithReload(() => import('./pages/LandingPage'))
 const LoginPage = lazyWithReload(() => import('./pages/LoginPage'))
@@ -27,8 +28,7 @@ const ResumeTailorPage = lazyWithReload(() => import('./pages/ResumeTailorPage')
 function PageFallback() {
   return (
     <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-brand-paper text-brand-muted">
-      <img src="/landit-icon-light.svg" alt="" className="h-11 w-11 animate-pulse-soft rounded-xl dark:hidden" />
-      <img src="/landit-icon-dark.svg" alt="" className="hidden h-11 w-11 animate-pulse-soft rounded-xl dark:block" />
+      <img src={BRAND_ASSETS.appIcon} alt="" className="h-14 w-14 animate-pulse-soft object-contain" />
       <span role="status" aria-live="polite" className="text-[12.5px] tracking-wide">Loading…</span>
     </div>
   )

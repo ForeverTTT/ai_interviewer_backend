@@ -15,7 +15,7 @@
   overflow:hidden;
   background:radial-gradient(circle at 9% 14%,rgba(254,183,201,.38),transparent 30%),radial-gradient(circle at 84% 13%,rgba(143,219,216,.38),transparent 32%),radial-gradient(circle at 62% 88%,rgba(255,214,100,.15),transparent 28%),var(--login-paper);
   color:var(--login-ink);
-  font-family:"DM Sans", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", system-ui, sans-serif;
+  font-family:"DM Sans", "Noto Sans SC", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", system-ui, sans-serif;
 }
 
 .fl-login-page *, .fl-login-page *::before, .fl-login-page *::after { box-sizing:border-box; }
@@ -48,6 +48,7 @@
 .fl-login-mascot-top-right img { left:-100%; top:0; }
 .fl-login-mascot-bottom-left img { left:0; top:-100%; }
 .fl-login-mascot-bottom-right img { left:-100%; top:-100%; }
+.fl-login-mascot-single img { left:0; top:0; width:100%; height:100%; }
 .fl-login-team-member:hover .fl-login-mascot-crop { transform:translateY(-7px) scale(1.025); }
 
 .fl-login-form-panel { position:relative; min-height:calc(100svh - 56px); display:flex; flex-direction:column; padding:4px 0 20px; background:transparent; border:0; }

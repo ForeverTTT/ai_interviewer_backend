@@ -122,11 +122,19 @@
           "round": "Runde 2",
           "question": "Erzähl von einem Projekt, das du teamübergreifend vorangetrieben hast.",
           "answerLabel": "Deine Antwort",
-          "answer": "Ich habe Produkt und Operations an einen Tisch geholt, Anforderungen abgestimmt, und wir haben pünktlich geliefert.",
-          "gapLabel": "Größte Lücke",
-          "gap": "Beschreibt den Ablauf, nennt aber kein messbares Ergebnis.",
-          "tipLabel": "Verbesserungstipp",
-          "tip": "Mit STAR abschließen und Zahlen ergänzen.",
+          "answer": "Die Retention sank im letzten Quartal. Ich habe drei Meetings mit Produkt und Ops organisiert, wir haben das Onboarding überarbeitet und pünktlich geliefert.",
+          "gapLabel": "Gaps",
+          "gaps": [
+          "Nur „wir haben uns getroffen“ – **dein eigener Beitrag** fehlt",
+          "Der **Zielkonflikt** und wie du ihn gelöst hast, fehlt",
+          "Kein **messbares Ergebnis**: Die Retention-Veränderung fehlt"
+        ],
+          "tipLabel": "Tipp:",
+          "tips": [
+          "Nenne deinen Schritt: „Mit **Funnel-Daten** habe ich Ops überzeugt“",
+          "Erkläre die Abwägung: Ops wollte zuerst eine **Growth-Kampagne**",
+          "Schließe mit einer Zahl: „**7-Tage-Retention** 31 % → 35 %“"
+        ],
           "collect": "Frage speichern",
           "collected": "Gespeichert"
         }
@@ -1451,7 +1459,7 @@
     "readySub": "Die KI startet die Session.",
     "readyMeta": "{{lang}} Session · {{n}} Min",
     "startBtn": "Beitreten",
-    "voicePartnerName": "Übungspartner",
+    "coachName": "Interview-Coach",
     "lobbyTitle": "Kurz durchatmen. Wir stellen alles entspannt ein.",
     "lobbySub": "Die Kamera ist optional. Prüfe kurz das Mikrofon, dann helfe ich dir beim ersten Satz.",
     "sessionSummary": "Diese Übung",

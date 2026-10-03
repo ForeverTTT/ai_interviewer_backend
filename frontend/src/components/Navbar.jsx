@@ -6,29 +6,20 @@ import { useAuth } from '../hooks/useAuth'
 import { BRAND_ASSETS } from '../assets/brandAssets'
 import LanguageSwitcher from './LanguageSwitcher'
 import { AppThemeToggle } from './ThemeToggle'
-import { useTheme } from '../context/ThemeContext'
 import { useAccountStatus } from '../hooks/useAccountStatus'
 import { Menu, X, Zap, ChevronDown, LogOut, LayoutDashboard, UserCircle, Briefcase, BookOpen, FilePenLine, StickyNote, ArrowRight } from 'lucide-react'
 
 const DEFAULT_USER_AVATAR = BRAND_ASSETS.communityAvatar
 
-/** 品牌标志 + 字标，顶栏和页脚共用 */
+/** FlowLab 字标，顶栏和页脚共用；与登录后侧栏的字标同一张图、同一套样式（含深色底衬）。 */
 export function BrandLockup({ size = 'md' }) {
-  const { isDark } = useTheme()
-  const box = size === 'sm' ? 'h-8 w-8' : 'h-9 w-9'
-  const text = size === 'sm' ? 'text-[17px]' : 'text-[19px]'
   return (
-    <span className="group flex items-center gap-2.5">
-      <span className={`${box} grid shrink-0 place-items-center overflow-hidden rounded-[10px]`}>
-        <img
-          src={isDark ? '/landit-icon-dark.svg' : '/landit-icon-light.svg'}
-          alt="LandIt Logo"
-          className="h-full w-full object-contain transition-transform duration-500 ease-out-soft group-hover:-rotate-6 group-hover:scale-105"
-        />
-      </span>
-      <span className={`font-brand ${text} font-bold leading-none tracking-[-0.02em] text-brand-ink`}>
-        Land<span className="italic text-brand-ochre">It</span>
-      </span>
+    <span className="group flex items-center">
+      <img
+        src={BRAND_ASSETS.wordmark}
+        alt="FlowLab"
+        className={`flowlab-sidebar-brand-wordmark ${size === 'sm' ? '!w-[120px]' : ''}`}
+      />
     </span>
   )
 }
@@ -124,7 +115,7 @@ export default function Navbar() {
       <div
         className={`lk-liquid mx-auto flex h-[60px] max-w-[1320px] items-center justify-between gap-3 rounded-full pl-3 pr-2 transition-[background-color,box-shadow] duration-500 sm:pl-4 ${scrolled ? '!bg-brand-card/85' : ''}`}
       >
-        <Link to="/" className="shrink-0 rounded-full pr-2" aria-label="LandIt">
+        <Link to="/" className="shrink-0 rounded-full pr-2" aria-label="FlowLab 不卡壳实验室">
           <BrandLockup />
         </Link>
 
@@ -294,7 +285,7 @@ export default function Navbar() {
                 <Link
                   key={item.to}
                   to={item.to}
-                  className={`flex items-center justify-between rounded-2xl px-4 py-3 font-display text-[19px] font-semibold tracking-tight ${isActive(item.to) ? 'bg-brand-inset text-brand-ink' : 'text-brand-ink/85'}`}
+                  className={`flex items-center justify-between rounded-2xl px-4 py-3 font-brand text-[19px] font-semibold tracking-tight ${isActive(item.to) ? 'bg-brand-inset text-brand-ink' : 'text-brand-ink/85'}`}
                   onClick={() => setMobileOpen(false)}
                 >
                   {item.label}

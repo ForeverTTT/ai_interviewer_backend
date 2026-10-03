@@ -6,7 +6,7 @@ import { supabase } from '../lib/supabase'
 import { AlertCircle, ArrowLeft, CheckCircle2 } from 'lucide-react'
 import './AuthCallbackPage.css'
 
-const CALLBACK_MASCOT = BRAND_ASSETS.logoMascot
+const CALLBACK_MASCOT = BRAND_ASSETS.shellBaseIcon
 
 export default function AuthCallbackPage() {
   const { t } = useTranslation()

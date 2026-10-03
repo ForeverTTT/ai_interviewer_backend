@@ -12,6 +12,7 @@ import {
 import { getBackendBaseUrl } from '../lib/backendBase'
 import { authenticatedFetch } from '../lib/authenticatedFetch'
 import { createInterviewRequestId } from '../lib/interviewEvents'
+import { normalizeCjkSpacing } from '../lib/textNormalization'
 import './NotesPage.css'
 
 const REVIEW_MENTOR_WRITING = BRAND_ASSETS.reviewMentorWriting
@@ -34,6 +35,13 @@ function dayKey(value) {
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return ''
   return date.toISOString().slice(0, 10)
+}
+
+// Questions and answers come from speech transcription, which splits Chinese into
+// space-separated words ("除了技术 选型"). Clean them once on arrival.
+function tidyTranscriptText(item) {
+  if (!item) return item
+  return { ...item, question_text: normalizeCjkSpacing(item.question_text), answer_text: normalizeCjkSpacing(item.answer_text) }
 }
 
 export default function NotesPage() {
@@ -68,7 +76,7 @@ export default function NotesPage() {
       .then(async response => {
         if (!response.ok) throw new Error('load failed')
         const body = await response.json()
-        if (!cancelled) setCollections(body.collections || [])
+        if (!cancelled) setCollections((body.collections || []).map(tidyTranscriptText))
       })
       .catch(() => { if (!cancelled) setError(t('notes.loadFailed')) })
       .finally(() => { if (!cancelled) setLoading(false) })
@@ -105,7 +113,7 @@ export default function NotesPage() {
       })
       if (!response.ok) throw new Error('update failed')
       const body = await response.json()
-      setCollections(current => current.map(item => item.id === id ? body.collection : item))
+      setCollections(current => current.map(item => item.id === id ? tidyTranscriptText(body.collection) : item))
     } catch { setError(t('notes.saveFailed')) } finally { setBusyId(null) }
   }
 

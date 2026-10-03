@@ -14,6 +14,7 @@ import { supabase } from '../lib/supabase'
 import { getBackendBaseUrl } from '../lib/backendBase'
 import { authenticatedFetch } from '../lib/authenticatedFetch'
 import { createInterviewRequestId } from '../lib/interviewEvents'
+import { normalizeCjkSpacing } from '../lib/textNormalization'
 import OfferSprintPanel from '../components/OfferSprintPanel'
 import './DashboardPage.css'
 
@@ -185,7 +186,7 @@ function ReviewFlashcards({ collections, t }) {
                     <span className="grid h-9 w-9 place-items-center rounded-xl bg-brand-card font-display text-[13px] font-semibold tabular-nums text-brand-ink shadow-sm">Q{index + 1}</span>
                     <BookmarkCheck className="h-4 w-4 text-brand-muted" />
                   </span>
-                  <span className="mt-4 line-clamp-4 font-sans text-[16px] font-medium leading-[1.65] tracking-[-0.01em] text-brand-ink">{collection.question_text}</span>
+                  <span className="mt-4 line-clamp-4 font-sans text-[16px] font-medium leading-[1.65] tracking-[-0.01em] text-brand-ink">{normalizeCjkSpacing(collection.question_text)}</span>
                   <span className="mt-auto flex items-center justify-between gap-2 pt-3 text-[11.5px] text-brand-muted">
                     <span className="truncate">{collection.position}</span>
                     <span className="flex shrink-0 items-center gap-1 font-medium text-brand-ink"><RotateCcw className="h-3 w-3" />{t('notes.reveal')}</span>
@@ -193,7 +194,7 @@ function ReviewFlashcards({ collections, t }) {
                 </span>
                 <span className="absolute inset-0 flex flex-col rounded-[22px] border border-brand-ink/15 bg-brand-card p-5 shadow-sm [backface-visibility:hidden] [transform:rotateY(180deg)]">
                   <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-brand-muted">{t('notes.answer')}</span>
-                  <span className="mt-2 line-clamp-5 text-[13px] leading-relaxed text-brand-ink">{answer || '—'}</span>
+                  <span className="mt-2 line-clamp-5 text-[13px] leading-relaxed text-brand-ink">{normalizeCjkSpacing(answer) || '—'}</span>
                   <span className="mt-auto flex items-center justify-between gap-2 pt-3 text-[11.5px] text-brand-muted">
                     <span className="flex items-center gap-1"><Eye className="h-3 w-3" />{t('notes.hide')}</span>
                   </span>

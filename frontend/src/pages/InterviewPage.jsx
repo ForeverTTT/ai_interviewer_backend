@@ -21,9 +21,9 @@ import './InterviewPage.css'
 
 const CHARACTER_SHEET = BRAND_ASSETS.characterRoleBoard
 
-function VoicePartnerPortrait() {
+function InterviewCoachPortrait() {
   return (
-    <div className="interview-voice-partner" aria-hidden="true">
+    <div className="interview-coach-portrait" aria-hidden="true">
       <img src={CHARACTER_SHEET} alt="" />
     </div>
   )
@@ -674,9 +674,9 @@ export default function InterviewPage() {
               <div className="mx-auto flex min-h-full w-full max-w-6xl flex-col justify-center">
 
                 <header className="interview-lobby-intro">
-                  <VoicePartnerPortrait />
+                  <InterviewCoachPortrait />
                   <div className="interview-lobby-bubble">
-                    <span>{t('interview.voicePartnerName')}</span>
+                    <span>{t('interview.coachName')}</span>
                     <h2>{t('interview.lobbyTitle')}</h2>
                     <p>{t('interview.lobbySub')}</p>
                   </div>

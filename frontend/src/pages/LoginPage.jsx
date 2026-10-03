@@ -11,9 +11,10 @@ import './LoginPage.css'
 
 const CHARACTER_SHEET = BRAND_ASSETS.characterRoleBoard
 
+// The job detective has its own artwork; the others are still cut from the shared role board.
 const SHELL_TEAM = [
   { id: 'coach', crop: 'top-left' },
-  { id: 'practice', crop: 'bottom-left' },
+  { id: 'job', asset: BRAND_ASSETS.jobDetective },
   { id: 'resume', crop: 'top-right' },
   { id: 'review', crop: 'bottom-right' },
 ]
@@ -26,8 +27,8 @@ function TeamMascot({ member, index }) {
       animate={{ opacity: 1, y: 0, rotate: 0 }}
       transition={{ duration: 0.65, delay: 0.12 + index * 0.08, ease: [0.16, 1, 0.3, 1] }}
     >
-      <div className={`fl-login-mascot-crop fl-login-mascot-${member.crop}`} aria-hidden="true">
-        <img src={CHARACTER_SHEET} alt="" />
+      <div className={`fl-login-mascot-crop fl-login-mascot-${member.crop ?? 'single'}`} aria-hidden="true">
+        <img src={member.asset ?? CHARACTER_SHEET} alt="" />
       </div>
     </motion.div>
   )

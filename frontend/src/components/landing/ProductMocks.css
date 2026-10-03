@@ -116,12 +116,20 @@
 .fl-mock-card-head small { letter-spacing:.02em; }
 .fl-mock-question { margin:0; color:var(--mock-ink); font-size:14px; font-weight:800; line-height:1.45; }
 .fl-mock-answer, .fl-mock-gap, .fl-mock-tip { padding:8px 10px; border-radius:11px; }
+.fl-mock-gap ul, .fl-mock-tip ol { margin:5px 0 0; padding:0; list-style:none; display:grid; gap:4px; }
+.fl-mock-gap li, .fl-mock-tip li { color:#4b4a52; font-size:11px; line-height:1.55; }
+.fl-mock-gap li { position:relative; padding-left:12px; }
+.fl-mock-gap li::before { content:""; position:absolute; left:2px; top:.6em; width:5px; height:5px; border-radius:50%; background:#be503e; }
+.fl-mock-tip li { display:grid; grid-template-columns:15px minmax(0,1fr); gap:6px; }
+.fl-mock-tip li i { width:15px; height:15px; margin-top:1px; display:grid; place-items:center; border-radius:50%; background:#fff; color:#638f56; font-size:9px; font-style:normal; font-weight:800; box-shadow:inset 0 0 0 1px rgba(99,143,86,.25); }
+/* matches the report's keyword highlight inside the app shell (brand-ochre there = 247 117 169) */
+.fl-mock-em { padding:1px 3px; border-radius:3px; background:rgb(247 117 169 / .25); color:var(--mock-ink); font-weight:650; -webkit-box-decoration-break:clone; box-decoration-break:clone; }
 .fl-mock-answer { background:#f4f3ef; }
-.fl-mock-gap { background:#fdf0ed; }
+.fl-mock-gap { background:#faf2f1; box-shadow:inset 0 0 0 1px rgba(190,80,62,.08); }
 .fl-mock-gap small { color:#be503e; }
-.fl-mock-tip { background:#eef0fb; }
-.fl-mock-tip small { color:#5b64a0; }
-.fl-mock-answer p, .fl-mock-gap p, .fl-mock-tip p { margin:3px 0 0; color:#4b4a52; font-size:11px; line-height:1.5; }
+.fl-mock-tip { background:#f1f6ee; box-shadow:inset 0 0 0 1px rgba(99,143,86,.12); }
+.fl-mock-tip small { color:#4f7a43; }
+.fl-mock-answer p { margin:3px 0 0; color:#4b4a52; font-size:11px; line-height:1.5; }
 .fl-mock-collect { position:relative; display:grid; margin-top:auto; }
 .fl-mock-collect > span { grid-area:1 / 1; display:inline-flex; align-items:center; justify-content:center; gap:5px; padding:8px 10px; border-radius:999px; font-size:11px; font-weight:800; }
 .fl-mock-collect-idle { border:1px solid rgba(34,48,61,.18); color:var(--mock-ink); }

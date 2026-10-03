@@ -22,6 +22,15 @@ function splitKeywords(line) {
   ))
 }
 
+const asList = (value) => (Array.isArray(value) ? value : [])
+
+// Same `**keyword**` markup the real interview report uses for its highlights.
+function Emphasis({ text }) {
+  return String(text).split(/(\*\*[^*]+\*\*)/g).filter(Boolean).map((part, index) => (
+    part.startsWith('**') ? <strong key={index} className="fl-mock-em">{part.slice(2, -2)}</strong> : <span key={index}>{part}</span>
+  ))
+}
+
 function MockWindow({ title, mascot, className = '', children }) {
   const ref = useRef(null)
   const live = useInView(ref, { once: true, amount: 0.35 })
@@ -180,13 +189,22 @@ export function ReviewMock() {
             <small>{t('landingV2.how.mock.review.answerLabel')}</small>
             <p>{t('landingV2.how.mock.review.answer')}</p>
           </div>
+          {/* Mirrors the back of the real question card: bulleted gaps, numbered tips. */}
           <div className="fl-mock-gap" style={{ '--d': '1.2s' }}>
             <small>{t('landingV2.how.mock.review.gapLabel')}</small>
-            <p>{t('landingV2.how.mock.review.gap')}</p>
+            <ul>
+              {asList(t('landingV2.how.mock.review.gaps', { returnObjects: true })).map((item) => (
+                <li key={item}><Emphasis text={item} /></li>
+              ))}
+            </ul>
           </div>
           <div className="fl-mock-tip" style={{ '--d': '1.6s' }}>
             <small>{t('landingV2.how.mock.review.tipLabel')}</small>
-            <p>{t('landingV2.how.mock.review.tip')}</p>
+            <ol>
+              {asList(t('landingV2.how.mock.review.tips', { returnObjects: true })).map((item, index) => (
+                <li key={item}><i>{index + 1}</i><span><Emphasis text={item} /></span></li>
+              ))}
+            </ol>
           </div>
           <span className="fl-mock-collect">
             <span className="fl-mock-collect-idle"><Bookmark size={12} /> {t('landingV2.how.mock.review.collect')}</span>

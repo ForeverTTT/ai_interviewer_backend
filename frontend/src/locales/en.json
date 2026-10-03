@@ -122,11 +122,19 @@
           "round": "Round 2",
           "question": "Tell me about a time you drove a cross-team project.",
           "answerLabel": "Your answer",
-          "answer": "I set up meetings with product and ops, aligned on requirements, and we shipped on time.",
-          "gapLabel": "Key gap",
-          "gap": "Describes the process but gives no measurable result.",
-          "tipLabel": "Improvement tip",
-          "tip": "Close with STAR and add the numbers.",
+          "answer": "Retention dropped last quarter, so I set up three meetings with product and ops. We agreed to redesign onboarding first and shipped on time.",
+          "gapLabel": "Key Gaps Contrast",
+          "gaps": [
+          "Says “we met”, but not **your own key move**",
+          "Skips the **disagreement** and how you resolved it",
+          "No **measurable result**: the retention change is missing"
+        ],
+          "tipLabel": "Improvement Tip:",
+          "tips": [
+          "Name your move: “I used **funnel data** to get ops to fix onboarding first”",
+          "Explain the trade-off: ops wanted a **growth campaign** first",
+          "Close with a number: “**7-day retention** 31% → 35%”"
+        ],
           "collect": "Collect question",
           "collected": "Collected"
         }
@@ -1461,7 +1469,7 @@
     "readySub": "AI Interviewers will initiate the session and read out responses.",
     "readyMeta": "{{lang}} Session · {{n}} Min",
     "startBtn": "Join Interview",
-    "voicePartnerName": "Practice Partner",
+    "coachName": "Interview Coach",
     "lobbyTitle": "Take a breath. Let’s get your setup comfortable.",
     "lobbySub": "Camera is optional. Check that your mic can hear you, then I’ll help you say the first sentence.",
     "sessionSummary": "This session",

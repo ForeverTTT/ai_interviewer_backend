@@ -19,7 +19,7 @@ export default function Footer() {
       <div className="ui-container relative z-10 pb-10 pt-16">
         <div className="grid gap-12 md:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)] md:gap-16">
           <div className="max-w-md">
-            <Link to="/" className="inline-flex" aria-label="LandIt">
+            <Link to="/" className="inline-flex" aria-label="FlowLab 不卡壳实验室">
               <BrandLockup />
             </Link>
             <p className="mt-5 text-[13.5px] leading-relaxed text-brand-muted">
@@ -76,7 +76,7 @@ export default function Footer() {
         aria-hidden="true"
         className="pointer-events-none absolute -bottom-[0.28em] left-1/2 -translate-x-1/2 select-none whitespace-nowrap font-display text-[22vw] font-semibold italic leading-none tracking-[-0.04em] text-brand-ink/[0.035] md:text-[16vw]"
       >
-        LandIt
+        FlowLab
       </div>
     </footer>
   )
