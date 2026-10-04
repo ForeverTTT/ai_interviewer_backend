@@ -159,7 +159,7 @@
     "tech": {
       "eyebrow": "Kerntechnologie",
       "title": "Die KI-Architektur hinter FlowLab",
-      "copy": "FlowLab verbindet Multi-Agenten-Orchestrierung, überwachtes Feintuning, neuronale Sprache und realistische Interaktion zu einem stabilen, zusammenhängenden Bewerbungstraining, das kontinuierlich weiterentwickelt werden kann.",
+      "copy": "FlowLab verbindet Multi-Agenten-Orchestrierung, überwachtes Feintuning, Full-Duplex-Sprache in Echtzeit und realistische Interaktion zu einem stabilen, zusammenhängenden Bewerbungstraining, das kontinuierlich weiterentwickelt werden kann.",
       "items": {
         "agent": {
           "term": "Multi-Agent",
@@ -172,9 +172,9 @@
           "copy": "Die Modelle werden für den deutschen und europäischen Bewerbungskontext optimiert – einschließlich deutscher Ausdrucksweisen, Branchenterminologie und technischer Prüfungsformen. So orientieren sich Fragen, Nachfragen und Feedback stärker an realen Auswahlverfahren."
         },
         "voice": {
-          "term": "Neural TTS",
+          "term": "Full-Duplex Voice",
           "title": "Authentische Sprachpräsenz",
-          "copy": "Hochwertige neuronale Sprachsynthese bildet Sprechtempo, Pausen und Nachfragerhythmus realer Interviewer nach und macht Gesprächsdruck zu wiederholbarer Sprechpraxis."
+          "copy": "Full-Duplex-Sprache in Echtzeit macht das Gespräch mit dem KI-Interviewer so direkt wie ein echtes Telefonat: Sie können jederzeit unterbrechen oder einhaken, und der Interviewer fragt sofort zu Ihrer Antwort nach. So wird Gesprächsdruck zu wiederholbarer Sprechpraxis."
         },
         "simulation": {
           "term": "Realistic Simulation",
