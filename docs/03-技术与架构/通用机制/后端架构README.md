@@ -106,6 +106,7 @@ backend/
 │       ├── geminiText.js / geminiFallback.js / geminiLive.js  # 大模型调用与降级
 │       ├── ttsVertex.js          # Cloud TTS
 │       ├── liveTurnTiming.js     # Live 每轮延迟统计
+│       ├── analytics.js          # 产品埋点：事件白名单、analytics.* 日志
 │       └── observability.js      # Request ID、结构化日志、脱敏
 ├── data/
 │   ├── prompts/*.md              # 运行时 Prompt 模板（按固定文件名读取，不是说明文档）
@@ -152,6 +153,7 @@ backend/
  ├─ cors                       # 白名单：FRONTEND_URL + 本地 3000 / 3001 / 5173；暴露 X-Request-Id
  ├─ requestIdMiddleware        # 为每个请求分配或沿用 Request ID
  ├─ express.json               # 默认 10 MB；/api/profile/resume/parse-pdf 放宽到 17 MB
+ ├─ /api/ux-events            # 前端埋点，挂在全局限流之前，单独限流每 IP 每分钟 120 次
  ├─ 限流
  │    ├─ /api/*                # 每 IP 每 15 分钟 1000 次
  │    └─ /api/chat、/api/ai-assistant   # 额外：每小时 500 次
@@ -178,6 +180,8 @@ backend/
 | `/api/ai-assistant` | `routes/aiAssistant.js` | 3 | 按 JD 改写简历、生成求职信 | [简历优化](../简历优化.md) |
 | `/api/gallup` | `routes/gallup.js` | 4 | 优势测试题库、进度、结果与解读 | [优势测试](../优势测试.md) |
 | `/api/experiences` | `routes/experiences.js` | 4 | 面经列表（公开）、发布、删除 | [面经库](../面经库.md) |
+| `/api/ux-events` | `routes/uxEvents.js` | 1 | 接收前端埋点（可选鉴权） | [埋点与数据分析](埋点与数据分析.md) |
+| `/api/feedback` | `routes/feedback.js` | 1 | AI 结果的 👍/👎 反馈 | [埋点与数据分析](埋点与数据分析.md#6-用户反馈) |
 
 每个接口的方法、参数、鉴权、限流和扣费见 [API 参考](../../04-参考/API.md)。
 
@@ -269,6 +273,7 @@ Prompt 的完整对照、LangGraph 节点和路由见[agent与Prompt](../模拟�
 | 结构化日志 | `logStructured` | JSON 格式输出到 stdout，由 Cloud Logging 收集；带 requestId、方法、路径、用户 ID |
 | 敏感信息脱敏 | `observability.js` | 自动替换日志中的 Bearer token、`key` / `access_token` 查询参数、Google API Key、JWT |
 | 面试事件 | `lib/interviewEvents.js` | 面试关键节点写入 `interview_events` 表，便于还原单场面试的完整过程 |
+| 产品埋点 | `lib/analytics.js` | 业务结果和前端行为写成 `analytics.*` 日志，经 Log Sink 导出到 BigQuery，见[埋点与数据分析](埋点与数据分析.md) |
 | 健康检查 | `GET /api/health` | 返回提交、修订版本和部署时间，用来确认线上跑的是哪个版本 |
 
 线上问题的排查步骤见[故障排查](../../05-运维/故障排查.md)。
@@ -287,7 +292,7 @@ Prompt 的完整对照、LangGraph 节点和路由见[agent与Prompt](../模拟�
 
 | 类型 | 位置 | 运行方式 |
 |---|---|---|
-| 单元与行为测试 | `test/*.test.js` | `npm test`（`node --test`），覆盖会话存储、练习状态推进、成长中心、Offer 冲刺、面试官性格、Live 延迟统计、可观测性、运行时数据路径 |
+| 单元与行为测试 | `test/*.test.js` | `npm test`（`node --test`），覆盖会话存储、练习状态推进、成长中心、Offer 冲刺、面试官性格、Live 延迟统计、可观测性、产品埋点与反馈、运行时数据路径 |
 | 数据库事务化验收 | `test/sql/*.sql` | 在本地 Supabase 上执行，覆盖面试会话状态机和计费授权 |
 
 具体步骤与人工回归清单见[测试](../../02-开发指南/测试.md)。

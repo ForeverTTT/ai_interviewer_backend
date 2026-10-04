@@ -1770,7 +1770,8 @@
     "hide": "Hide",
     "cookie": {
       "title": "Cookie & Privacy Settings",
-      "desc": "We use cookies to provide a safer and better experience. By continuing to use our service, you agree to our data protection policy.",
+      "desc": "We use essential local storage to keep you signed in. With your consent, we also collect usage data (such as page views, clicks and time on page) to improve the product. We never record what you type. You can change your choice anytime in \"Cookie settings\".",
+      "manage": "Cookie settings",
       "accept": "Accept All",
       "settings": "Settings",
       "decline": "Decline",
@@ -2178,5 +2179,32 @@
       },
       "ownership": "Existing reports, history, collections, and the core free training loop remain accessible whether or not advanced capabilities arrive."
     }
+  },
+  "feedback": {
+    "helpful": "Helpful",
+    "notHelpful": "Not helpful",
+    "prompt": {
+      "interview_report": "Was this interview report helpful?",
+      "resume_tailor": "Is the tailored resume useful?",
+      "cover_letter": "Is this motivation letter useful?",
+      "resume_diagnose": "Was this resume review helpful?",
+      "gallup": "Was this strengths report helpful?"
+    },
+    "reasonsUp": "What worked well? (choose any)",
+    "reasonsDown": "What should be better? (choose any)",
+    "reason": {
+      "accurate": "Accurate for my situation",
+      "actionable": "Advice I can use right away",
+      "clear": "Clear and easy to follow",
+      "saves_time": "Saved me time",
+      "inaccurate": "Not accurate",
+      "too_generic": "Too generic",
+      "hard_to_understand": "Hard to understand",
+      "missing_info": "Missing what I needed",
+      "too_slow": "Took too long"
+    },
+    "submit": "Submit",
+    "skip": "Skip",
+    "thanks": "Thanks for your feedback!"
   }
 }

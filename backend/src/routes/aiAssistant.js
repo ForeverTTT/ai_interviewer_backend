@@ -4,6 +4,7 @@ import { loadPrompt, renderPrompt } from '../agents/utils.js'
 import { invokeGemini, stripJsonFence } from '../lib/geminiText.js'
 
 import { checkTokens, deductTokens } from '../middleware/tokens.js'
+import { trackServerEvent } from '../lib/analytics.js'
 
 const router = Router()
 
@@ -47,6 +48,7 @@ router.post('/analyze-job-description', requireAuth, async (req, res) => {
   if (jobDescription.length < 50) {
     return res.status(400).json({ error: 'Job Description must contain at least 50 characters' })
   }
+  trackServerEvent(req, 'jd_analyzed', { props: { jdLength: jobDescription.length } })
   return res.json(inferJobMetadataFallback(jobDescription))
 })
 
@@ -56,6 +58,7 @@ router.post('/analyze-job-description', requireAuth, async (req, res) => {
  */
 router.post('/tailor-resume', requireAuth, (req, _res, next) => {
   req.tokenCost = 100
+  req.tokenFeature = 'resume_tailor'
   next()
 }, checkTokens, async (req, res) => {
   const position = String(req.body?.position || '').trim().slice(0, 160)
@@ -88,7 +91,8 @@ matchedKeywords must be supported by both documents. missingKeywords must never 
     const parsed = JSON.parse(stripJsonFence(raw))
     const tailoredResume = String(parsed?.tailoredResume || '').trim()
     if (!tailoredResume) throw new Error('AI returned an empty tailored resume')
-    await deductTokens(req.user.id, 100)
+    await deductTokens(req.user.id, 100, { req, feature: 'resume_tailor' })
+    trackServerEvent(req, 'resume_tailored', { props: { hasPosition: Boolean(position) } })
     return res.json({
       tailoredResume,
       matchedKeywords: Array.isArray(parsed.matchedKeywords) ? parsed.matchedKeywords.map(String).slice(0, 40) : [],
@@ -107,6 +111,7 @@ matchedKeywords must be supported by both documents. missingKeywords must never 
  */
 router.post('/generate-motivation-letter', requireAuth, (req, res, next) => {
   req.tokenCost = 100
+  req.tokenFeature = 'cover_letter'
   next()
 }, checkTokens, async (req, res) => {
   const {
@@ -137,7 +142,10 @@ router.post('/generate-motivation-letter', requireAuth, (req, res, next) => {
     })
 
     // Deduct tokens
-    await deductTokens(req.user.id, 100)
+    await deductTokens(req.user.id, 100, { req, feature: 'cover_letter' })
+    trackServerEvent(req, 'cover_letter_generated', {
+      props: { targetLength: Math.max(0, Math.round(Number(targetLength) || 0)) },
+    })
 
     res.json({ text: text.trim() })
   } catch (err) {

@@ -25,6 +25,9 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
       - name: Build frontend
         working-directory: frontend
+        env:
+          # The preview- prefix lets analytics queries exclude preview traffic.
+          VITE_APP_VERSION: preview-${{ github.event.pull_request.head.sha }}
         run: npm ci && npm run build
       - uses: FirebaseExtended/action-hosting-deploy@v0
         with:

@@ -10,6 +10,7 @@ import {
 import { useAuth } from '../../hooks/useAuth'
 import { BRAND_ASSETS } from '../../assets/brandAssets'
 import { useAccountStatus } from '../../hooks/useAccountStatus'
+import { openCookieSettings } from '../CookieBanner'
 import LanguageSwitcher from '../LanguageSwitcher'
 import { AppThemeToggle } from '../ThemeToggle'
 
@@ -248,6 +249,14 @@ function SidebarContent({ collapsed, onToggleCollapse, onNavigate, account, vari
                 <span className={`h-1.5 w-1.5 rounded-full ${seeking ? 'bg-brand-success' : 'bg-brand-muted'}`} />
                 {seeking ? t('profile.statusSeeking') : t('profile.statusHired')}
               </span>
+            </button>
+            <button
+              type="button"
+              onClick={openCookieSettings}
+              data-track="cookie-settings"
+              className="mt-1 w-full rounded-xl px-3 py-1.5 text-left text-[11px] text-brand-muted transition-colors hover:bg-white/40 hover:text-brand-ink dark:hover:bg-white/[0.06]"
+            >
+              {t('common.cookie.manage')}
             </button>
           </>
         )}

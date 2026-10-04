@@ -1,5 +1,5 @@
-import { Suspense } from 'react'
-import { BrowserRouter, Routes, Route, Outlet } from 'react-router-dom'
+import { Suspense, useEffect } from 'react'
+import { BrowserRouter, Routes, Route, Outlet, useLocation } from 'react-router-dom'
 import { MotionConfig } from 'framer-motion'
 import { ThemeProvider } from './context/ThemeContext'
 import Navbar from './components/Navbar'
@@ -11,6 +11,8 @@ import AppShell from './components/app/AppShell'
 import { useAuth } from './hooks/useAuth'
 import { lazyWithReload } from './lib/lazyWithReload'
 import { BRAND_ASSETS } from './assets/brandAssets'
+import { trackPageView } from './lib/analytics'
+import { resetPageCapture } from './lib/autocapture'
 
 const LandingPage = lazyWithReload(() => import('./pages/LandingPage'))
 const LoginPage = lazyWithReload(() => import('./pages/LoginPage'))
@@ -58,8 +60,18 @@ function AdaptiveLayout({ children }) {
   return user ? <AppShell>{children}</AppShell> : <Layout>{children}</Layout>
 }
 
+/** 每次路由变化记录一次页面浏览（query 变化不算新页面）。未同意 Cookie 时不采集。 */
+function usePageTracking() {
+  const { pathname } = useLocation()
+  useEffect(() => {
+    resetPageCapture()
+    trackPageView(pathname)
+  }, [pathname])
+}
+
 /** ThemeProvider 放在带 Outlet 的布局内，保证与路由上下文一致且切换路由时不丢主题状态 */
 function AppThemeShell() {
+  usePageTracking()
   return (
     <ThemeProvider>
       {/* 尊重系统「减少动态效果」设置：framer-motion 的位移动画自动降级为淡入 */}

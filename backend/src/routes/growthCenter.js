@@ -2,6 +2,7 @@ import { Router } from 'express'
 import { requireAuth } from '../middleware/auth.js'
 import { supabase, supabaseForUser } from '../lib/supabase.js'
 import { normalizeRequestId } from '../lib/observability.js'
+import { trackServerEvent } from '../lib/analytics.js'
 import { normalizeInterviewerType } from '../config/interviewerTypes.js'
 import { buildCompetencyMatrix, applyInterviewAction } from '../lib/interviewLearning.js'
 import { aggregateCareerReadiness, summarizeTrainingEvents } from '../lib/growthCenter.js'
@@ -349,6 +350,13 @@ router.put('/offer-plan', requireAuth, async (req, res) => {
     const { data, error } = await dbFor(req).from('growth_offer_plans')
       .upsert(row, { onConflict: 'user_id' }).select('*').single()
     if (error) throw error
+    trackServerEvent(req, 'offer_plan_saved', {
+      props: {
+        weeklyTargetDays,
+        hasNextInterviewDate: Boolean(nextInterviewDate),
+        hasTargetOfferDate: Boolean(targetOfferDate),
+      },
+    })
     return res.json({ plan: data, emailConfigured })
   } catch (error) {
     console.error('[PUT /growth-center/offer-plan]', error)
@@ -562,11 +570,29 @@ router.post('/collections/:id/practice', requireAuth, async (req, res) => {
           rubric: {},
         },
       })
+      trackServerEvent(req, 'interview_started', {
+        interviewId: interview.id,
+        props: {
+          mode: 'practice',
+          source: 'collection',
+          interviewerType: normalizeInterviewerType(collection.interviewer_type),
+          difficulty: 'medium',
+          language: collection.language || 'English',
+          durationMin: 10,
+          roleTrack: 'work',
+          hasJobDescription: false,
+        },
+      })
+      trackServerEvent(req, 'tokens_spent', {
+        interviewId: interview.id,
+        props: { feature: 'interview', amount: Number(created?.tokensDeducted ?? 300) },
+      })
     }
     return res.status(created?.replay ? 200 : 201).json({ interviewId: interview.id, replay: created?.replay === true })
   } catch (error) {
     console.error('[POST /growth-center/collections/:id/practice]', error)
     if (error.code === 'P0001' && /insufficient tokens/i.test(error.message || '')) {
+      trackServerEvent(req, 'tokens_insufficient', { props: { feature: 'interview', required: 300 } })
       return res.status(403).json({ error: 'Insufficient tokens', code: 'INSUFFICIENT_TOKENS' })
     }
     return res.status(500).json({ error: 'Failed to start focused practice' })
@@ -591,6 +617,7 @@ router.post('/tasks/:taskId/complete', requireAuth, async (req, res) => {
       metadata: { taskId },
     }, { onConflict: 'user_id,dedupe_key' }).select('*').single()
     if (error) throw error
+    trackServerEvent(req, 'growth_task_completed', { interviewId, props: { linkedToInterview: Boolean(interviewId) } })
     return res.json({ event: data })
   } catch {
     return res.status(500).json({ error: 'Failed to complete growth task' })

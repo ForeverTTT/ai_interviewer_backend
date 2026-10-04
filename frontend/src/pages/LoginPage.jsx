@@ -7,6 +7,7 @@ import { ArrowLeft, ArrowRight } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
 import LanguageSwitcher from '../components/LanguageSwitcher'
 import { AppThemeToggle } from '../components/ThemeToggle'
+import { track } from '../lib/analytics'
 import './LoginPage.css'
 
 const CHARACTER_SHEET = BRAND_ASSETS.characterRoleBoard
@@ -73,6 +74,7 @@ export default function LoginPage() {
 
   const handleGoogleLogin = async () => {
     setLoginError('')
+    track('login_started', { provider: 'google' })
     try {
       await signInWithGoogle()
     } catch (error) {
@@ -83,6 +85,7 @@ export default function LoginPage() {
 
   const handleLinkedInLogin = async () => {
     setLoginError('')
+    track('login_started', { provider: 'linkedin' })
     try {
       await signInWithLinkedIn()
     } catch (error) {
@@ -94,8 +97,10 @@ export default function LoginPage() {
   const handleLocalLogin = async () => {
     setLoginError('')
     setLocalBusy(true)
+    track('login_started', { provider: 'local' })
     try {
       await signInLocal()
+      track('login_completed', { provider: 'local', isNewUser: false })
     } catch (error) {
       console.error('Local login error:', error)
       setLoginError(error?.message || t('login.localUnavailable'))

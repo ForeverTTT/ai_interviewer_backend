@@ -1,8 +1,9 @@
 import { supabase } from '../lib/supabase.js'
+import { trackServerEvent } from '../lib/analytics.js'
 
 /**
  * Middleware to check if user has enough tokens.
- * @param {number} cost - The number of tokens required.
+ * Reads req.tokenCost and req.tokenFeature (analytics label) set by the route.
  */
 export async function checkTokens(req, res, next) {
   const userId = req.user?.id
@@ -22,6 +23,11 @@ export async function checkTokens(req, res, next) {
 
     const currentTokens = profile.tokens ?? 1000
     if (currentTokens < cost) {
+      if (req.tokenFeature) {
+        trackServerEvent(req, 'tokens_insufficient', {
+          props: { feature: req.tokenFeature, required: cost, balance: currentTokens },
+        })
+      }
       return res.status(403).json({ 
         error: 'Insufficient tokens', 
         details: `This action requires ${cost} tokens, but you only have ${currentTokens}.`,
@@ -42,8 +48,9 @@ export async function checkTokens(req, res, next) {
  * Utility to deduct tokens from a user.
  * @param {string} userId - The user ID.
  * @param {number} amount - Amount to deduct.
+ * @param {{ req?: object, feature?: string }} [analytics] - Labels the tokens_spent event.
  */
-export async function deductTokens(userId, amount) {
+export async function deductTokens(userId, amount, { req, feature } = {}) {
   if (amount <= 0) return
   
   // Use a RPC or a simple update. 
@@ -61,6 +68,13 @@ export async function deductTokens(userId, amount) {
     const newTokens = Math.max(0, currentTokens - amount)
     
     await supabase.from('profiles').update({ tokens: newTokens }).eq('id', userId)
+    if (feature) trackServerEvent(req, 'tokens_spent', { userId, props: { feature, amount, balanceAfter: newTokens } })
+    return
+  }
+
+  if (feature) {
+    const balanceAfter = Number.isInteger(data) ? data : undefined
+    trackServerEvent(req, 'tokens_spent', { userId, props: { feature, amount, balanceAfter } })
   }
 }
 
@@ -68,8 +82,9 @@ export async function deductTokens(userId, amount) {
  * Utility to add tokens to a user.
  * @param {string} userId - The user ID.
  * @param {number} amount - Amount to add.
+ * @param {{ req?: object, feature?: string }} [analytics] - Labels the tokens_earned event.
  */
-export async function addTokens(userId, amount) {
+export async function addTokens(userId, amount, { req, feature } = {}) {
   if (amount <= 0) return
   
   const { data: profile } = await supabase.from('profiles').select('*').eq('id', userId).single()
@@ -77,4 +92,5 @@ export async function addTokens(userId, amount) {
   const newTokens = currentTokens + amount
   
   await supabase.from('profiles').update({ tokens: newTokens }).eq('id', userId)
+  if (feature) trackServerEvent(req, 'tokens_earned', { userId, props: { feature, amount } })
 }

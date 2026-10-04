@@ -11,6 +11,8 @@ import aiAssistantRouter from './routes/aiAssistant.js'
 import experiencesRouter from './routes/experiences.js'
 import interviewSessionsRouter from './routes/interviewSessions.js'
 import growthCenterRouter from './routes/growthCenter.js'
+import uxEventsRouter from './routes/uxEvents.js'
+import feedbackRouter from './routes/feedback.js'
 import { attachInterviewLiveSocket } from './live/interviewLiveSocket.js'
 import { errorSummary, logStructured, requestContext, requestIdMiddleware } from './lib/observability.js'
 import { getAllowedOrigins } from './lib/allowedOrigins.js'
@@ -66,6 +68,9 @@ app.use(requestIdMiddleware)
 app.use('/api/profile/resume/parse-pdf', express.json({ limit: '17mb' }))
 app.use(express.json({ limit: '10mb' }))
 app.use(express.urlencoded({ extended: true }))
+// Browser analytics batches have their own limiter so they never use up the
+// user's budget for real API calls.
+app.use('/api/ux-events', uxEventsRouter)
 app.use('/api/', globalLimiter) // Apply to all API routes
 app.use('/api/chat', strictLimiter) // Extra protection for AI chat
 app.use('/api/ai-assistant', strictLimiter) // Extra protection for Assistant
@@ -91,6 +96,7 @@ app.use('/api/profile', profileRouter)
 app.use('/api/gallup', gallupRouter)
 app.use('/api/ai-assistant', aiAssistantRouter)
 app.use('/api/experiences', experiencesRouter)
+app.use('/api/feedback', feedbackRouter)
 
 // 404 handler
 app.use((req, res) => {

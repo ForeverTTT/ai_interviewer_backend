@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next'
 import { AnimatePresence, motion } from 'framer-motion'
 import { Moon, Sun } from 'lucide-react'
+import { track } from '../lib/analytics'
 import { useTheme } from '../context/ThemeContext'
 
 /**
@@ -45,7 +46,11 @@ export function AppThemeToggle({ className = '', variant = 'default' }) {
   return (
     <ToggleButton
       dark={dark}
-      onClick={() => setAppTheme(dark ? 'light' : 'dark')}
+      onClick={() => {
+        const theme = dark ? 'light' : 'dark'
+        setAppTheme(theme)
+        track('theme_changed', { scope: 'app', theme })
+      }}
       label={t('common.themeToggle')}
       variant={variant}
       className={className}
@@ -62,7 +67,11 @@ export function InterviewThemeToggle({ className = '', variant = 'default' }) {
   return (
     <ToggleButton
       dark={dark}
-      onClick={() => setInterviewTheme(dark ? 'light' : 'dark')}
+      onClick={() => {
+        const theme = dark ? 'light' : 'dark'
+        setInterviewTheme(theme)
+        track('theme_changed', { scope: 'interview', theme })
+      }}
       label={t('common.interviewThemeToggle')}
       variant={variant}
       className={className}

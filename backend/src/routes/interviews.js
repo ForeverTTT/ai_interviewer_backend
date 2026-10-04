@@ -3,6 +3,7 @@ import { supabase, supabaseForUser } from '../lib/supabase.js'
 import { requireAuth } from '../middleware/auth.js'
 import { assertGeminiConfigured, invokeGemini, stripJsonFence } from '../lib/geminiText.js'
 import { recordInterviewEvent } from '../lib/interviewEvents.js'
+import { trackServerEvent } from '../lib/analytics.js'
 import { errorSummary, logStructured, normalizeRequestId, requestContext } from '../lib/observability.js'
 import { selectFinalizeMessages, shouldReuseFinalizedInterview } from '../lib/interviewFinalize.js'
 import { normalizeInterviewerStyle } from '../config/interviewerStyles.js'
@@ -492,6 +493,7 @@ router.post('/', requireAuth, async (req, res) => {
     if (error) {
       console.error('[POST /interviews]', error)
       if (error.code === 'P0001' && /insufficient tokens/i.test(error.message || '')) {
+        trackServerEvent(req, 'tokens_insufficient', { props: { feature: 'interview', required: 300 } })
         return res.status(403).json({ error: 'Insufficient tokens', code: 'INSUFFICIENT_TOKENS' })
       }
       const noCol = /column|does not exist|schema cache/i.test(String(error.message || error))
@@ -513,6 +515,23 @@ router.post('/', requireAuth, async (req, res) => {
         requestId: idempotencyKey,
         eventType: 'session_created',
         stage: 'created',
+      })
+      trackServerEvent(req, 'interview_started', {
+        interviewId: interview.id,
+        props: {
+          mode: normalizedMode,
+          source: 'setup',
+          interviewerType: normalizeInterviewerType(interviewerType),
+          difficulty: normalizedDifficulty,
+          language: String(language),
+          durationMin: normalizedDuration,
+          roleTrack: ['school', 'work'].includes(role_track) ? role_track : 'work',
+          hasJobDescription: normalizedJobDescription.length > 0,
+        },
+      })
+      trackServerEvent(req, 'tokens_spent', {
+        interviewId: interview.id,
+        props: { feature: 'interview', amount: Number(data?.tokensDeducted ?? 300) },
       })
     }
 
@@ -889,6 +908,26 @@ Return the JSON object now.`
       durationMs: Date.now() - finalizeStartedAt,
       messageCount: messages.length,
     })
+    const mode = iv.mode === 'practice' ? 'practice' : 'formal'
+    if (iv.status === 'completed' && iv.report_json) {
+      trackServerEvent(req, 'report_regenerated', {
+        interviewId: id,
+        props: { mode, latencyMs: Date.now() - finalizeStartedAt },
+      })
+    } else {
+      trackServerEvent(req, 'interview_completed', {
+        interviewId: id,
+        props: {
+          mode,
+          interviewerType: normalizeInterviewerType(iv.interviewer_type),
+          language: String(iv.language || ''),
+          durationMin: Number(iv.duration) || 0,
+          messageCount: messages.length,
+          latencyMs: Date.now() - finalizeStartedAt,
+          attempt: finalizeAttempt,
+        },
+      })
+    }
 
     return res.json({ interview: updated, requestId: req.requestId })
   } catch (err) {
@@ -1049,6 +1088,7 @@ router.post('/:id/report/translate', requireAuth, async (req, res) => {
         .eq('id', id)
         .eq('user_id', req.user.id)
       
+      trackServerEvent(req, 'report_translated', { interviewId: id, props: { targetLocale: uiLocale, cached: true } })
       return res.json({ interview: { ...iv, report_json: resultReport, report_ui_locale: uiLocale }, report: resultReport })
     }
 
@@ -1092,6 +1132,7 @@ router.post('/:id/report/translate', requireAuth, async (req, res) => {
     }
 
     backupUpdate(id, { report_json: nextReportJson, report_ui_locale: uiLocale })
+    trackServerEvent(req, 'report_translated', { interviewId: id, props: { targetLocale: uiLocale, cached: false } })
 
     return res.json({ interview: updated, report: nextReportJson })
   } catch (err) {

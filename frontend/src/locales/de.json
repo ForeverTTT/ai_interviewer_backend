@@ -1761,7 +1761,8 @@
     "hide": "Ausblenden",
     "cookie": {
       "title": "Cookie- & Privatsphäre-Einstellungen",
-      "desc": "Wir verwenden Cookies für ein besseres Erlebnis. Mit der weiteren Nutzung stimmen Sie unserer Datenschutzrichtlinie zu.",
+      "desc": "Wir nutzen notwendigen lokalen Speicher, damit du angemeldet bleibst. Mit deiner Einwilligung erfassen wir zusätzlich Nutzungsdaten (z. B. Seitenaufrufe, Klicks und Verweildauer), um das Produkt zu verbessern. Was du eingibst, wird nie erfasst. Du kannst deine Auswahl jederzeit unter „Cookie-Einstellungen“ ändern.",
+      "manage": "Cookie-Einstellungen",
       "accept": "Alle akzeptieren",
       "settings": "Einstellungen",
       "decline": "Ablehnen",
@@ -2168,5 +2169,32 @@
       },
       "ownership": "Bestehende Berichte, Verlauf, Sammlungen und der kostenlose Basiszyklus bleiben unabhängig von erweiterten Funktionen zugänglich."
     }
+  },
+  "feedback": {
+    "helpful": "Hilfreich",
+    "notHelpful": "Nicht hilfreich",
+    "prompt": {
+      "interview_report": "War dieser Interviewbericht hilfreich?",
+      "resume_tailor": "Ist der angepasste Lebenslauf nützlich?",
+      "cover_letter": "Ist dieses Anschreiben nützlich?",
+      "resume_diagnose": "War diese Lebenslauf-Analyse hilfreich?",
+      "gallup": "War dieser Stärkenbericht hilfreich?"
+    },
+    "reasonsUp": "Was war gut? (Mehrfachauswahl)",
+    "reasonsDown": "Was sollte besser sein? (Mehrfachauswahl)",
+    "reason": {
+      "accurate": "Passt genau zu meiner Situation",
+      "actionable": "Sofort umsetzbare Tipps",
+      "clear": "Klar und verständlich",
+      "saves_time": "Hat mir Zeit gespart",
+      "inaccurate": "Nicht zutreffend",
+      "too_generic": "Zu allgemein",
+      "hard_to_understand": "Schwer verständlich",
+      "missing_info": "Es fehlt, was ich brauche",
+      "too_slow": "Hat zu lange gedauert"
+    },
+    "submit": "Senden",
+    "skip": "Überspringen",
+    "thanks": "Danke für dein Feedback!"
   }
 }

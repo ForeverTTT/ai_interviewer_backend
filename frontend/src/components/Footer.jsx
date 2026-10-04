@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import { openCookieSettings } from './CookieBanner'
 import { useTranslation } from 'react-i18next'
 import { Mail, Globe2, Briefcase } from 'lucide-react'
 import { BrandLockup } from './Navbar'
@@ -63,7 +64,12 @@ export default function Footer() {
         </div>
 
         <div className="mt-14 flex flex-col items-center justify-between gap-3 border-t border-brand-line pt-6 sm:flex-row">
-          <p className="text-[11.5px] text-brand-muted">{t('footer.copyright')}</p>
+          <p className="flex items-center gap-3 text-[11.5px] text-brand-muted">
+            {t('footer.copyright')}
+            <button type="button" onClick={openCookieSettings} data-track="cookie-settings" className="lk-link hover:text-brand-ink">
+              {t('common.cookie.manage')}
+            </button>
+          </p>
           <p className="flex items-center gap-2 text-[11.5px] text-brand-muted">
             <span className="h-1.5 w-1.5 rounded-full bg-brand-ochre" aria-hidden="true" />
             {t('footer.powered')}

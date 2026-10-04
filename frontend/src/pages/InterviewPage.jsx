@@ -17,6 +17,7 @@ import {
   Play, ChevronDown, ChevronUp,
   Loader2, Video, VideoOff, Mic, FileText,
 } from 'lucide-react'
+import { track } from '../lib/analytics'
 import './InterviewPage.css'
 
 const CHARACTER_SHEET = BRAND_ASSETS.characterRoleBoard
@@ -198,6 +199,7 @@ export default function InterviewPage() {
   const finalizeCompletedRef = useRef(false)
   const autoFinalizeRequestedRef = useRef(false)
   const authTokenRef = useRef(null)
+  const pageOpenedAtRef = useRef(Date.now())
 
   useEffect(() => {
     let active = true
@@ -329,6 +331,7 @@ export default function InterviewPage() {
   useEffect(() => () => { try { window.speechSynthesis?.cancel() } catch { /* ignore */ } }, [])
 
   const handleStart = () => {
+    track('interview_lobby_started', { mode, cameraOn: Boolean(lobbyCameraOn) })
     stopMicMeter()
     // Keep the interview camera consistent with lobby selection.
     setInterviewCamOn(Boolean(lobbyCameraOn))
@@ -340,6 +343,7 @@ export default function InterviewPage() {
     setCameraError(null)
     setInterviewCamOn((prev) => {
       const next = !prev
+      track('interview_camera_toggled', { on: next })
       // If user turns camera on during interview but lobby camera is off,
       // reopen the same camera stream pipeline used in lobby.
       if (next && !lobbyCameraOn) setLobbyCameraOn(true)
@@ -364,10 +368,13 @@ export default function InterviewPage() {
   }, [timer.syncRemaining])
 
   useEffect(() => {
-    const handler = () => setShowEndModal(true)
+    const handler = () => {
+      track('interview_end_requested', { mode })
+      setShowEndModal(true)
+    }
     window.addEventListener('interview-end-request', handler)
     return () => window.removeEventListener('interview-end-request', handler)
-  }, [])
+  }, [mode])
 
   const finalizeAndGoReport = useCallback(async (trigger = 'manual') => {
     if (finalizeInFlightRef.current) return
@@ -384,6 +391,7 @@ export default function InterviewPage() {
     setFinalizing(!background)
     const requestId = createInterviewRequestId()
     const transcript = chatRef.current?.getTranscript?.() ?? []
+    track('interview_finalize_triggered', { mode, trigger, messageCount: transcript.length })
     let token = authTokenRef.current
     try {
       if (!token) {
@@ -525,7 +533,7 @@ export default function InterviewPage() {
       finalizeInFlightRef.current = false
       setFinalizing(false)
     }
-  }, [interviewId, navigate, t, language])
+  }, [interviewId, navigate, t, language, mode])
 
   const handlePracticeLimitReached = useCallback(() => {
     void finalizeAndGoReport('practice_limit')
@@ -556,6 +564,11 @@ export default function InterviewPage() {
       if (finalizeCompletedRef.current || finalizeInFlightRef.current) return
       const transcript = chatRef.current?.getTranscript?.() ?? []
       const requestId = createInterviewRequestId()
+      track('interview_abandoned', {
+        mode,
+        messageCount: transcript.length,
+        elapsedSec: (Date.now() - pageOpenedAtRef.current) / 1000,
+      })
       void recordInterviewClientEvent({
         interviewId,
         token: authTokenRef.current,

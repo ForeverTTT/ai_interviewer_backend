@@ -19,6 +19,7 @@ import {
 } from '../lib/interviewSessionStore.js'
 import { applyInterviewAction, completeFormalAnswerAfterDeadline, expireFormalInterviewIfDue } from '../lib/interviewLearning.js'
 import { recordInterviewEvent } from '../lib/interviewEvents.js'
+import { trackServerEvent } from '../lib/analytics.js'
 import { createLiveTurnTimer } from '../lib/liveTurnTiming.js'
 
 const LIVE_PATH = '/api/chat/live'
@@ -268,6 +269,16 @@ export function attachInterviewLiveSocket(server, { allowedOrigins = [] } = {}) 
                   })
                   inputTranscript = ''
                   outputTranscript = ''
+
+                  // Practice answers are submitted through the session API and
+                  // tracked there; formal answers only exist on this socket.
+                  if (completedInput && !practiceMode) {
+                    trackServerEvent(null, 'interview_answer_submitted', {
+                      userId: interviewUserId,
+                      interviewId,
+                      props: { mode: 'formal', channel: 'live' },
+                    })
+                  }
 
                   if (practiceMode) {
                     practiceSpeechAllowed = false
