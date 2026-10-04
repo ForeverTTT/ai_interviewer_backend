@@ -159,7 +159,7 @@
     "tech": {
       "eyebrow": "Core technology",
       "title": "The AI architecture behind FlowLab",
-      "copy": "FlowLab combines multi-agent orchestration, supervised fine-tuning, neural speech, and realistic interaction into a stable, connected job-search training experience that can keep improving over time.",
+      "copy": "FlowLab combines multi-agent orchestration, supervised fine-tuning, full-duplex real-time voice, and realistic interaction into a stable, connected job-search training experience that can keep improving over time.",
       "items": {
         "agent": {
           "term": "Multi-Agent",
@@ -172,9 +172,9 @@
           "copy": "Models are tuned for German and European hiring contexts, including German communication patterns, industry terminology, and technical assessment styles, so questions, follow-ups, and feedback better reflect real recruitment."
         },
         "voice": {
-          "term": "Neural TTS",
+          "term": "Full-Duplex Voice",
           "title": "High-Fidelity Interview Voice",
-          "copy": "High-fidelity neural speech synthesis recreates realistic interviewer pacing, pauses, and follow-up rhythm, turning interview pressure into repeatable speaking practice."
+          "copy": "The latest full-duplex real-time voice technology lets you talk with the AI interviewer like a live call: interrupt or jump in at any moment, and get follow-up questions on your answer right away, turning interview pressure into repeatable speaking practice."
         },
         "simulation": {
           "term": "Realistic Simulation",
