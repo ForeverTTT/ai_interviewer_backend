@@ -32,6 +32,9 @@
 
       * { box-sizing: border-box; }
 
+      /* Chinese system fonts draw Latin punctuation as full-width glyphs. */
+      [lang="en"] { font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif; }
+
       body {
         margin: 0;
         min-height: 100vh;
@@ -126,6 +129,7 @@
       <img class="wordmark" src="/brand/flowlab-wordmark.png" width="720" height="240" alt="FlowLab" />
       <h1>不卡壳实验室</h1>
       <p class="lead">AI 沉浸式面试，练到开口不卡壳。请选择你要面试的地区。</p>
+      <p class="lead" lang="en">AI mock interviews — choose where you're interviewing.</p>
 
       <div class="choices">
         <a class="choice" href="https://global.flowlab-career.com/" lang="en">
