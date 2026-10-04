@@ -56,13 +56,8 @@
 
       .wordmark { width: min(300px, 72vw); height: auto; display: block; margin: 0 auto; }
 
-      h1 {
-        margin: 28px 0 8px;
-        font-size: clamp(26px, 5vw, 36px);
-        line-height: 1.25;
-        font-weight: 700;
-        letter-spacing: 0.02em;
-      }
+      /* The wordmark is the page heading. */
+      h1 { margin: 0 0 20px; line-height: 0; }
 
       .lead { margin: 0 auto; max-width: 34em; color: var(--muted); font-size: 16px; }
 
@@ -126,9 +121,7 @@
   </head>
   <body>
     <main>
-      <img class="wordmark" src="/brand/flowlab-wordmark.png" width="720" height="240" alt="FlowLab" />
-      <h1>不卡壳实验室</h1>
-      <p class="lead">AI 沉浸式面试，练到开口不卡壳。请选择你要面试的地区。</p>
+      <h1><img class="wordmark" src="/brand/flowlab-wordmark.png" width="720" height="240" alt="FlowLab 不卡壳实验室" /></h1>
       <p class="lead" lang="en">AI mock interviews — choose where you're interviewing.</p>
 
       <div class="choices">
