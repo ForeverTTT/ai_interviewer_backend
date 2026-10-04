@@ -13,10 +13,11 @@ import interviewSessionsRouter from './routes/interviewSessions.js'
 import growthCenterRouter from './routes/growthCenter.js'
 import { attachInterviewLiveSocket } from './live/interviewLiveSocket.js'
 import { errorSummary, logStructured, requestContext, requestIdMiddleware } from './lib/observability.js'
+import { getAllowedOrigins } from './lib/allowedOrigins.js'
 
 const app = express()
 const PORT = process.env.PORT || 5000
-const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000'
+const ALLOWED_ORIGINS = getAllowedOrigins()
 
 // Trust proxy for Cloud Run / Load Balancer
 app.set('trust proxy', 1)
@@ -55,15 +56,7 @@ const strictLimiter = rateLimit({
 
 // Middleware
 app.use(cors({
-  origin: [
-    FRONTEND_URL,
-    'http://localhost:3000',
-    'http://127.0.0.1:3000',
-    'http://localhost:3001',
-    'http://127.0.0.1:3001',
-    'http://localhost:5173',
-    'http://127.0.0.1:5173',
-  ],
+  origin: ALLOWED_ORIGINS,
   credentials: true,
   exposedHeaders: ['X-Request-Id'],
 }))
@@ -125,5 +118,5 @@ const server = app.listen(PORT, () => {
 })
 
 attachInterviewLiveSocket(server, {
-  allowedOrigins: [FRONTEND_URL, 'http://localhost:3000', 'http://127.0.0.1:3000'],
+  allowedOrigins: ALLOWED_ORIGINS,
 })

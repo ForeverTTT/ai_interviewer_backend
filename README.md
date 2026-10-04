@@ -13,7 +13,7 @@
 
 <br/>
 
-[![立即体验](https://img.shields.io/badge/🥚_立即体验-FlowLab-F775A9?style=for-the-badge&labelColor=44434B)](https://aiinterviewer-491711-7b1cf.web.app) &nbsp; [![中英德](https://img.shields.io/badge/面试语言-中_·_EN_·_DE-10B48E?style=for-the-badge&labelColor=44434B)](#-功能一览) &nbsp; [![Gemini Live](https://img.shields.io/badge/实时语音-Gemini_Live-8FDBD8?style=for-the-badge&labelColor=44434B)](#-背后的技术) &nbsp; [![新用户](https://img.shields.io/badge/新用户-赠送_1000_能量-F5C85B?style=for-the-badge&labelColor=44434B)](#-能量值)
+[![立即体验](https://img.shields.io/badge/🥚_立即体验-FlowLab-F775A9?style=for-the-badge&labelColor=44434B)](https://global.flowlab-career.com) &nbsp; [![中英德](https://img.shields.io/badge/面试语言-中_·_EN_·_DE-10B48E?style=for-the-badge&labelColor=44434B)](#-功能一览) &nbsp; [![Gemini Live](https://img.shields.io/badge/实时语音-Gemini_Live-8FDBD8?style=for-the-badge&labelColor=44434B)](#-背后的技术) &nbsp; [![新用户](https://img.shields.io/badge/新用户-赠送_1000_能量-F5C85B?style=for-the-badge&labelColor=44434B)](#-能量值)
 
 [认识壳仔小队](#-认识壳仔小队) · [三步练到能上场](#-三步从一份-jd-练到能上场) · [功能一览](#-功能一览) · [背后的技术](#-背后的技术) · [开发者入口](#-开发者入口)
 
@@ -236,7 +236,7 @@ npm run dev
 
 **FlowLab 不卡壳实验室** — 壳仔陪练 · 破壳同学成长
 
-[🥚 免费开始第一轮](https://aiinterviewer-491711-7b1cf.web.app)
+[🥚 免费开始第一轮](https://global.flowlab-career.com)
 
 <sub>© 2026 不卡壳实验室 FlowLab · 首页展示的院校与企业标识仅为示例，不代表官方合作</sub>
 
