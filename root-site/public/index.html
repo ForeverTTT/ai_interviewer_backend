@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>不卡壳实验室 FlowLab — 面试不再卡壳</title>
+    <meta name="description" content="不卡壳实验室 FlowLab：AI 沉浸式面试练习。选择国际版（海外求职）或国内版（秋招、实习）。" />
+    <link rel="canonical" href="https://flowlab-career.com/" />
+    <link rel="icon" type="image/png" sizes="64x64" href="/brand/flowlab-shell-favicon-64.png" />
+    <link rel="apple-touch-icon" sizes="192x192" href="/brand/flowlab-shell-app-icon-192.png" />
+    <meta name="theme-color" content="#FFFAF1" />
+    <meta property="og:title" content="不卡壳实验室 FlowLab" />
+    <meta property="og:description" content="AI 沉浸式面试，练到开口不卡壳。" />
+    <meta property="og:image" content="https://flowlab-career.com/brand/flowlab-shell-wave.png" />
+    <style>
+      /* Same palette as the logged-in FlowLab shell. System fonts only:
+         Google Fonts does not load reliably from mainland China. */
+      :root {
+        color-scheme: light;
+        --paper: #FFFAF1;
+        --card: #FFFFFF;
+        --inset: #F7F6F1;
+        --ink: #44434B;
+        --muted: #6B6976;
+        --line: #E7E5DC;
+        --pink: #F775A9;
+        --pink-deep: #D95788;
+        --green: #10B48E;
+        --shadow: 67 69 78;
+        font-family: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", system-ui, -apple-system, "Segoe UI", sans-serif;
+      }
+
+      * { box-sizing: border-box; }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background: var(--paper);
+        color: var(--ink);
+        line-height: 1.6;
+        display: flex;
+        flex-direction: column;
+      }
+
+      main {
+        flex: 1;
+        width: 100%;
+        max-width: 880px;
+        margin: 0 auto;
+        padding: 56px 16px 40px;
+        text-align: center;
+      }
+
+      .wordmark { width: min(300px, 72vw); height: auto; display: block; margin: 0 auto; }
+
+      h1 {
+        margin: 28px 0 8px;
+        font-size: clamp(26px, 5vw, 36px);
+        line-height: 1.25;
+        font-weight: 700;
+        letter-spacing: 0.02em;
+      }
+
+      h1 span { display: inline-block; }
+
+      .lead { margin: 0 auto; max-width: 34em; color: var(--muted); font-size: 16px; }
+
+      .choices {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+        gap: 16px;
+        margin-top: 40px;
+        text-align: left;
+      }
+
+      .choice {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        padding: 24px;
+        border: 1px solid var(--line);
+        border-radius: 20px;
+        background: var(--card);
+        box-shadow: 0 1px 2px rgb(var(--shadow) / 0.06), 0 8px 24px rgb(var(--shadow) / 0.06);
+        color: inherit;
+        text-decoration: none;
+      }
+
+      a.choice { transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease; }
+      a.choice:hover { transform: translateY(-2px); border-color: var(--pink); box-shadow: 0 2px 4px rgb(var(--shadow) / 0.06), 0 14px 32px rgb(var(--shadow) / 0.1); }
+      a.choice:focus-visible { outline: 3px solid var(--pink); outline-offset: 3px; }
+
+      .choice.soon { background: var(--inset); box-shadow: none; }
+
+      .tag {
+        align-self: flex-start;
+        padding: 2px 10px;
+        border-radius: 999px;
+        font-size: 13px;
+        font-weight: 600;
+      }
+      .tag.live { background: rgb(16 180 142 / 0.12); color: #0A7D63; }
+      .tag.soon { background: var(--line); color: var(--muted); }
+
+      .choice h2 { margin: 0; font-size: 22px; line-height: 1.3; }
+      .choice h2 small { margin-left: 6px; font-size: 15px; font-weight: 500; color: var(--muted); }
+      .choice p { margin: 0; color: var(--muted); font-size: 15px; }
+
+      .cta {
+        margin-top: auto;
+        padding-top: 8px;
+        font-weight: 600;
+        color: var(--pink-deep);
+      }
+      .choice.soon .cta { color: var(--muted); font-weight: 500; }
+
+      .mascot { width: 88px; height: auto; display: block; margin: 40px auto 0; }
+
+      footer { padding: 24px 16px 32px; text-align: center; color: var(--muted); font-size: 13px; }
+
+      @media (prefers-reduced-motion: reduce) {
+        a.choice, a.choice:hover { transition: none; transform: none; }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <img class="wordmark" src="/brand/flowlab-wordmark.png" width="720" height="240" alt="FlowLab" />
+      <h1><span>不卡壳实验室</span> · <span>面试不再卡壳</span></h1>
+      <p class="lead">AI 沉浸式面试，练到开口不卡壳。请选择你要面试的地区。</p>
+
+      <div class="choices">
+        <a class="choice" href="https://global.flowlab-career.com/">
+          <span class="tag live">已开放</span>
+          <h2>Global<small>国际版</small></h2>
+          <p>在德国、欧洲等海外求职。用中文、英语或德语和 AI 面试官语音对练。</p>
+          <p lang="en">Interviewing abroad? Practise in English, German or Chinese.</p>
+          <span class="cta">进入 Global →</span>
+        </a>
+
+        <div class="choice soon" aria-disabled="true">
+          <span class="tag soon">即将上线</span>
+          <h2>国内版<small>China</small></h2>
+          <p>面向国内秋招、实习和回国求职的留学生，支持中英文面试。</p>
+          <span class="cta">敬请期待</span>
+        </div>
+      </div>
+
+      <img class="mascot" src="/brand/flowlab-shell-wave.png" width="360" height="360" alt="" />
+    </main>
+
+    <footer>© FlowLab 不卡壳实验室</footer>
+  </body>
+</html>

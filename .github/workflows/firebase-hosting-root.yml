@@ -1,0 +1,42 @@
+# Deploys the static entry page served on the root domain flowlab-career.com.
+# It is a separate Firebase Hosting site from the app, so the two never overwrite each other.
+name: Deploy root entry page to Firebase Hosting
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'root-site/**'
+      - '.github/workflows/firebase-hosting-root.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: firebase-hosting-root
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Deploy root entry page to Firebase Hosting live
+        uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: ${{ secrets.GITHUB_TOKEN }}
+          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_AIINTERVIEWER_491711_7B1CF }}
+          channelId: live
+          projectId: aiinterviewer-491711-7b1cf
+          entryPoint: root-site
+      - name: Verify live entry page
+        shell: bash
+        run: |
+          for attempt in $(seq 1 12); do
+            if curl --fail --silent --show-error --header 'Cache-Control: no-cache' 'https://flowlab-career.web.app/' | grep -q 'global.flowlab-career.com'; then
+              echo "Root entry page is live"
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "::error::flowlab-career.web.app does not serve the entry page"
+          exit 1
