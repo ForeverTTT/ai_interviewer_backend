@@ -9,14 +9,19 @@ const router = Router()
 // 求职信息是付费汇总表导入的数据，只给登录用户看
 router.use(requireAuth)
 
+/** 多选参数：逗号分隔，去重去空，最多 20 项，每项最长 40 字 */
+const listParam = z.string().max(1000).optional()
+  .transform(v => [...new Set((v || '').split(',').map(s => s.trim()).filter(Boolean))])
+  .refine(list => list.length <= 20 && list.every(s => s.length <= 40))
+
 export const jobQuerySchema = z.object({
   q: z.string().trim().max(60).optional(),
   category: z.string().max(40).optional(),
-  companyType: z.string().max(40).optional(),
-  fn: z.string().max(20).optional(),
-  industry: z.string().max(20).optional(),
-  year: z.string().max(20).optional(),
-  city: z.string().max(40).optional(),
+  companyType: listParam,
+  fn: listParam,
+  industry: listParam,
+  year: listParam,
+  city: listParam,
   open: z.enum(['true', 'false']).default('true'),
   page: z.coerce.number().int().min(1).max(500).default(1),
   pageSize: z.coerce.number().int().min(1).max(60).default(24),
@@ -25,6 +30,11 @@ export const jobQuerySchema = z.object({
 /** PostgREST 的 or() 语法里逗号、括号、通配符有特殊含义，搜索词里去掉 */
 export function sanitizeSearch(q) {
   return (q || '').replace(/[,()*%\\:"]/g, ' ').trim()
+}
+
+/** text[] 列的 ov（overlaps）过滤值：每项加引号，城市名里有空格 / 逗号也不会拆错 */
+export function pgArrayLiteral(values) {
+  return `{${values.map(v => `"${v.replace(/["\\]/g, '\\$&')}"`).join(',')}}`
 }
 
 function today() {
@@ -42,11 +52,12 @@ router.get('/', async (req, res) => {
       .select('*', { count: 'exact' })
 
     if (category) query = query.eq('category', category)
-    if (companyType) query = query.eq('company_type', companyType)
-    if (fn) query = query.contains('job_functions', [fn])
-    if (industry) query = query.contains('industry_keys', [industry])
-    if (year) query = query.contains('graduation_years', [year])
-    if (city) query = query.contains('locations', [city])
+    // 同一项里多选 = 任一满足（数组列用 overlaps），不同项之间 = 同时满足
+    if (companyType.length) query = query.in('company_type', companyType)
+    if (fn.length) query = query.filter('job_functions', 'ov', pgArrayLiteral(fn))
+    if (industry.length) query = query.filter('industry_keys', 'ov', pgArrayLiteral(industry))
+    if (year.length) query = query.filter('graduation_years', 'ov', pgArrayLiteral(year))
+    if (city.length) query = query.filter('locations', 'ov', pgArrayLiteral(city))
     if (open === 'true') query = query.or(`deadline_date.is.null,deadline_date.gte.${today()}`)
     const term = sanitizeSearch(q)
     if (term) query = query.or(`company.ilike.%${term}%,positions.ilike.%${term}%`)

@@ -1950,6 +1950,9 @@
     "industryLabel": "企业分类",
     "functionLabel": "岗位类别",
     "any": "不限",
+    "selectedCount": "已选 {{n}} 项",
+    "clear": "清空",
+    "noOptions": "暂无选项",
     "fn": {
       "tech": "技术",
       "product": "产品",

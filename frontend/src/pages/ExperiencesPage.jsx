@@ -779,8 +779,8 @@ export default function ExperiencesPage() {
   // 求职信息页「看面经」会带 ?q=公司名 跳过来
   const [search, setSearch] = useState(searchParams.get('q') || '')
   // 企业分类 / 岗位类别：后端按公司名、岗位名算好的 industry_keys / job_functions
-  const [industryFilter, setIndustryFilter] = useState('')
-  const [functionFilter, setFunctionFilter] = useState('')
+  const [industryFilter, setIndustryFilter] = useState([])
+  const [functionFilter, setFunctionFilter] = useState([])
   const [postModalOpen, setPostModalOpen] = useState(false)
   const [editingExp, setEditingExp] = useState(null)
 
@@ -934,8 +934,9 @@ export default function ExperiencesPage() {
 
   const filtered = useMemo(() => {
     let list = typeFiltered
-    if (industryFilter) list = list.filter(e => e.industry_keys?.includes(industryFilter))
-    if (functionFilter) list = list.filter(e => e.job_functions?.includes(functionFilter))
+    // 同一个下拉框里多选是「任一满足」，两个下拉框之间是「同时满足」
+    if (industryFilter.length) list = list.filter(e => e.industry_keys?.some(k => industryFilter.includes(k)))
+    if (functionFilter.length) list = list.filter(e => e.job_functions?.some(k => functionFilter.includes(k)))
 
     if (search.trim()) {
       const q = search.toLowerCase()
@@ -1075,7 +1076,7 @@ export default function ExperiencesPage() {
               <div className="mb-6 flex flex-wrap items-end gap-3">
                 <FilterSelect
                   label={t('taxonomy.industryLabel')}
-                  value={industryFilter}
+                  values={industryFilter}
                   onChange={setIndustryFilter}
                   options={tagOptions.industries}
                   allLabel={t('taxonomy.any')}
@@ -1083,7 +1084,7 @@ export default function ExperiencesPage() {
                 />
                 <FilterSelect
                   label={t('taxonomy.functionLabel')}
-                  value={functionFilter}
+                  values={functionFilter}
                   onChange={setFunctionFilter}
                   options={tagOptions.functions}
                   allLabel={t('taxonomy.any')}

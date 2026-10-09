@@ -1936,6 +1936,9 @@
     "industryLabel": "Branche",
     "functionLabel": "Berufsfeld",
     "any": "Alle",
+    "selectedCount": "{{n}} ausgewählt",
+    "clear": "Zurücksetzen",
+    "noOptions": "Keine Optionen",
     "fn": {
       "tech": "Technik",
       "product": "Produkt",

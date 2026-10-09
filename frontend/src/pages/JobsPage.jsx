@@ -235,7 +235,7 @@ function JobRow({ job, t }) {
 export default function JobsPage() {
   const { t } = useTranslation()
   const [facets, setFacets] = useState(null)
-  const [filters, setFilters] = useState({ category: '', industry: '', fn: '', companyType: '', year: '', city: '', open: true })
+  const [filters, setFilters] = useState({ category: '', industry: [], fn: [], companyType: [], year: [], city: [], open: true })
   const [searchInput, setSearchInput] = useState('')
   const [search, setSearch] = useState('')
   const [jobs, setJobs] = useState([])
@@ -273,8 +273,10 @@ export default function JobsPage() {
     const id = ++requestId.current
     const params = new URLSearchParams({ page: String(nextPage), pageSize: String(PAGE_SIZE), open: String(filters.open) })
     if (search) params.set('q', search)
-    for (const key of ['category', 'industry', 'fn', 'companyType', 'year', 'city']) {
-      if (filters[key]) params.set(key, filters[key])
+    if (filters.category) params.set('category', filters.category)
+    // 多选：逗号拼在一起，后端拆开按「任一满足」查
+    for (const key of ['industry', 'fn', 'companyType', 'year', 'city']) {
+      if (filters[key].length) params.set(key, filters[key].join(','))
     }
     if (nextPage === 1) setLoading(true)
     else setLoadingMore(true)
@@ -362,11 +364,11 @@ export default function JobsPage() {
 
         {facets && (
           <div className="mb-6 flex flex-wrap items-end gap-3">
-            <FilterSelect label={t('taxonomy.industryLabel')} value={filters.industry} onChange={v => setFilter('industry', v)} options={facets.industries || []} allLabel={t('jobs.any')} formatLabel={v => t(`taxonomy.ind.${v}`, v)} />
-            <FilterSelect label={t('taxonomy.functionLabel')} value={filters.fn} onChange={v => setFilter('fn', v)} options={facets.functions || []} allLabel={t('jobs.any')} formatLabel={v => t(`taxonomy.fn.${v}`, v)} />
-            <FilterSelect label={t('jobs.companyType')} value={filters.companyType} onChange={v => setFilter('companyType', v)} options={facets.companyTypes} allLabel={t('jobs.any')} />
-            <FilterSelect label={t('jobs.year')} value={filters.year} onChange={v => setFilter('year', v)} options={facets.years} allLabel={t('jobs.any')} />
-            <FilterSelect label={t('jobs.city')} value={filters.city} onChange={v => setFilter('city', v)} options={facets.cities} allLabel={t('jobs.any')} />
+            <FilterSelect label={t('taxonomy.industryLabel')} values={filters.industry} onChange={v => setFilter('industry', v)} options={facets.industries || []} allLabel={t('jobs.any')} formatLabel={v => t(`taxonomy.ind.${v}`, v)} />
+            <FilterSelect label={t('taxonomy.functionLabel')} values={filters.fn} onChange={v => setFilter('fn', v)} options={facets.functions || []} allLabel={t('jobs.any')} formatLabel={v => t(`taxonomy.fn.${v}`, v)} />
+            <FilterSelect label={t('jobs.companyType')} values={filters.companyType} onChange={v => setFilter('companyType', v)} options={facets.companyTypes} allLabel={t('jobs.any')} />
+            <FilterSelect label={t('jobs.year')} values={filters.year} onChange={v => setFilter('year', v)} options={facets.years} allLabel={t('jobs.any')} />
+            <FilterSelect label={t('jobs.city')} values={filters.city} onChange={v => setFilter('city', v)} options={facets.cities} allLabel={t('jobs.any')} />
             <div className="ml-auto flex items-center gap-3">
               {!loading && !error && (
                 <span className="text-[12.5px] font-semibold text-brand-muted">{t('jobs.resultCount', { n: total })}</span>

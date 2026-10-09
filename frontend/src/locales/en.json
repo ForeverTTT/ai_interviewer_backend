@@ -1946,6 +1946,9 @@
     "industryLabel": "Industry",
     "functionLabel": "Job function",
     "any": "Any",
+    "selectedCount": "{{n}} selected",
+    "clear": "Clear",
+    "noOptions": "No options",
     "fn": {
       "tech": "Engineering",
       "product": "Product",
