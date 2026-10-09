@@ -1923,6 +1923,8 @@
     "searchPlaceholder": "搜索公司或岗位...",
     "openOnly": "只看未截止",
     "allCategories": "全部",
+    "function": "岗位类别",
+    "allFunctions": "全部类别",
     "companyType": "企业类型",
     "year": "招聘届次",
     "city": "工作城市",
@@ -1938,7 +1940,20 @@
     "collapse": "收起",
     "daysLeft": "还剩 {{n}} 天截止",
     "updatedAt": "{{date}} 更新",
-    "loadMore": "加载更多（还有 {{n}} 个）"
+    "loadMore": "加载更多（还有 {{n}} 个）",
+    "fn": {
+      "tech": "技术",
+      "product": "产品",
+      "design": "设计",
+      "data": "数据分析",
+      "operations": "运营",
+      "marketing": "市场销售",
+      "finance": "金融财会",
+      "consulting": "咨询",
+      "functions": "职能",
+      "trainee": "管培生",
+      "other": "其他"
+    }
   },
   "notifications": {
     "title": "通知",

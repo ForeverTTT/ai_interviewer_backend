@@ -118,6 +118,30 @@ function pick(row, aliases) {
   return null
 }
 
+/**
+ * 岗位类别：按「招聘岗位」里的关键词归类，一条招聘可以同时属于多个类别。
+ * 存的是 key，前端按 jobs.fn.<key> 翻译。顺序就是前端筛选按钮的顺序。
+ * 设计类不用裸「设计」，免得把「IC 设计」「版图设计」归进来。
+ */
+export const JOB_FUNCTIONS = [
+  ['tech', /算法|开发|研发|测试|运维|架构|前端|后端|客户端|全栈|软件|硬件|芯片|嵌入式|程序|工程师|java|c\+\+|python|golang|大模型|机器学习|深度学习|数据挖掘|安全|电气|电子|通信|机械|自动化|半导体|\bic\b|电路|技术/i],
+  ['product', /产品经理|产品策划|产品助理|产品专员|产品岗|产品管培|策划|\bpm\b/i],
+  ['design', /设计师|\bui\b|\bux\b|交互设计|视觉设计|美术|原画|动画|插画|平面设计|建筑设计|工业设计/i],
+  ['data', /数据分析|商业分析|分析师|数据科学|\bbi\b/i],
+  ['operations', /运营|社群|内容|新媒体|增长|电商|电子商务|编辑/i],
+  ['marketing', /市场|销售|营销|品牌|公关|商务|\bbd\b|客户经理|渠道|广告|大客户/i],
+  ['finance', /投资|投行|行业研究|投研|证券|基金|风控|精算|审计|会计|财务|金融|银行|信贷|理财|税务/i],
+  ['consulting', /咨询|顾问/i],
+  ['functions', /人力|\bhr\b|招聘|行政|法务|法律|采购|供应链|物流|秘书|培训|党建|文秘/i],
+  ['trainee', /管培|管理培训生|储备干部|培训生/i],
+]
+
+export function classifyPositions(text) {
+  const value = String(text || '')
+  const matched = JOB_FUNCTIONS.filter(([, re]) => re.test(value)).map(([key]) => key)
+  return matched.length ? matched : (value ? ['other'] : [])
+}
+
 export function mapJobRow(row, { category, source }) {
   const company = pick(row, JOB_FIELD_ALIASES.company)
   if (!company) return null
@@ -141,6 +165,7 @@ export function mapJobRow(row, { category, source }) {
     graduation_years: splitMulti(pick(row, JOB_FIELD_ALIASES.graduation_years)),
     industries: splitMulti(pick(row, JOB_FIELD_ALIASES.industries)),
     positions,
+    job_functions: classifyPositions(positions),
     locations: splitMulti(pick(row, JOB_FIELD_ALIASES.locations)),
     deadline,
     deadline_date: parseDate(deadline),

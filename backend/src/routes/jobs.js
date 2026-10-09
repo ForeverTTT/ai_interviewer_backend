@@ -2,6 +2,7 @@ import { Router } from 'express'
 import { z } from 'zod'
 import { supabase } from '../lib/supabase.js'
 import { requireAuth } from '../middleware/auth.js'
+import { JOB_FUNCTIONS } from '../lib/feishuImport.js'
 
 const router = Router()
 
@@ -12,6 +13,7 @@ export const jobQuerySchema = z.object({
   q: z.string().trim().max(60).optional(),
   category: z.string().max(40).optional(),
   companyType: z.string().max(40).optional(),
+  fn: z.string().max(20).optional(),
   year: z.string().max(20).optional(),
   city: z.string().max(40).optional(),
   open: z.enum(['true', 'false']).default('true'),
@@ -31,7 +33,7 @@ function today() {
 router.get('/', async (req, res) => {
   const parsed = jobQuerySchema.safeParse(req.query)
   if (!parsed.success) return res.status(400).json({ error: 'Invalid query' })
-  const { q, category, companyType, year, city, open, page, pageSize } = parsed.data
+  const { q, category, companyType, fn, year, city, open, page, pageSize } = parsed.data
 
   try {
     let query = supabase
@@ -40,6 +42,7 @@ router.get('/', async (req, res) => {
 
     if (category) query = query.eq('category', category)
     if (companyType) query = query.eq('company_type', companyType)
+    if (fn) query = query.contains('job_functions', [fn])
     if (year) query = query.contains('graduation_years', [year])
     if (city) query = query.contains('locations', [city])
     if (open === 'true') query = query.or(`deadline_date.is.null,deadline_date.gte.${today()}`)
@@ -59,6 +62,8 @@ router.get('/', async (req, res) => {
     res.status(500).json({ error: 'Failed to load jobs' })
   }
 })
+
+const FUNCTION_ORDER = [...JOB_FUNCTIONS.map(([key]) => key), 'other']
 
 let facetCache = { at: 0, value: null }
 const FACET_TTL_MS = 10 * 60 * 1000
@@ -84,7 +89,7 @@ router.get('/facets', async (_req, res) => {
     for (let from = 0; ; from += 1000) {
       const { data, error } = await supabase
         .from('job_postings')
-        .select('category,company_type,graduation_years,locations,source,source_updated_at')
+        .select('category,company_type,job_functions,graduation_years,locations,source,source_updated_at')
         .range(from, from + 999)
       if (error) throw error
       rows.push(...data)
@@ -95,6 +100,9 @@ router.get('/facets', async (_req, res) => {
       total: rows.length,
       categories: countBy(rows, r => [r.category]),
       companyTypes: countBy(rows, r => [r.company_type]),
+      // 按 JOB_FUNCTIONS 的固定顺序，「其他」放最后
+      functions: countBy(rows, r => r.job_functions || [])
+        .sort((a, b) => FUNCTION_ORDER.indexOf(a.value) - FUNCTION_ORDER.indexOf(b.value)),
       years: countBy(rows, r => r.graduation_years || []).sort((a, b) => a.value.localeCompare(b.value)),
       cities: countBy(rows, r => r.locations || []).slice(0, 24),
       sources: countBy(rows, r => [r.source]).map(s => s.value),

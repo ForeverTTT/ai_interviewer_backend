@@ -1919,6 +1919,8 @@
     "searchPlaceholder": "Search company or role...",
     "openOnly": "Open only",
     "allCategories": "All",
+    "function": "Job function",
+    "allFunctions": "All functions",
     "companyType": "Company type",
     "year": "Graduating class",
     "city": "City",
@@ -1934,7 +1936,20 @@
     "collapse": "Show less",
     "daysLeft": "{{n}} days left",
     "updatedAt": "Updated {{date}}",
-    "loadMore": "Load more ({{n}} left)"
+    "loadMore": "Load more ({{n}} left)",
+    "fn": {
+      "tech": "Engineering",
+      "product": "Product",
+      "design": "Design",
+      "data": "Data & analytics",
+      "operations": "Operations",
+      "marketing": "Marketing & sales",
+      "finance": "Finance",
+      "consulting": "Consulting",
+      "functions": "Corporate functions",
+      "trainee": "Management trainee",
+      "other": "Other"
+    }
   },
   "notifications": {
     "title": "Notifications",

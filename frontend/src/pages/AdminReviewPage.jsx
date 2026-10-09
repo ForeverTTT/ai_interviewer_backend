@@ -84,8 +84,8 @@ function ReviewCard({ exp, status, busy, onReview, onDelete, t, locale }) {
           </div>
 
           <div>
-            <h3 className="font-brand text-[18px] font-semibold leading-tight tracking-[-0.01em] text-brand-ink">{exp.company}</h3>
-            <p className="mt-1 text-[13.5px] font-bold text-brand-muted">{exp.position}</p>
+            <h3 className="font-brand text-[18px] font-semibold leading-tight tracking-[-0.01em] text-brand-ink">{exp.position}</h3>
+            <p className="mt-1 text-[13.5px] font-bold text-brand-muted">{exp.company}</p>
           </div>
 
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[12.5px] text-brand-muted">

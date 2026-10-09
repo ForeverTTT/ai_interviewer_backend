@@ -59,6 +59,11 @@ function JobCard({ job, t }) {
             {job.company_type}
           </span>
         )}
+        {job.job_functions?.map(fn => (
+          <span key={fn} className="inline-flex items-center rounded-lg bg-brand-ink px-2.5 py-1 text-[11px] font-bold text-brand-on-ink">
+            {t(`jobs.fn.${fn}`, fn)}
+          </span>
+        ))}
         {job.graduation_years?.map(y => (
           <span key={y} className="inline-flex items-center rounded-lg border border-brand-line bg-brand-card px-2.5 py-1 text-[11px] font-bold text-brand-muted">
             {y}
@@ -170,7 +175,7 @@ function FilterSelect({ label, value, onChange, options, allLabel }) {
 export default function JobsPage() {
   const { t } = useTranslation()
   const [facets, setFacets] = useState(null)
-  const [filters, setFilters] = useState({ category: '', companyType: '', year: '', city: '', open: true })
+  const [filters, setFilters] = useState({ category: '', fn: '', companyType: '', year: '', city: '', open: true })
   const [searchInput, setSearchInput] = useState('')
   const [search, setSearch] = useState('')
   const [jobs, setJobs] = useState([])
@@ -186,7 +191,7 @@ export default function JobsPage() {
   }, [t])
 
   useEffect(() => {
-    authedFetch('/api/jobs/facets').then(setFacets).catch(() => setFacets({ categories: [], companyTypes: [], years: [], cities: [], sources: [] }))
+    authedFetch('/api/jobs/facets').then(setFacets).catch(() => setFacets({ categories: [], functions: [], companyTypes: [], years: [], cities: [], sources: [] }))
   }, [])
 
   useEffect(() => {
@@ -198,7 +203,7 @@ export default function JobsPage() {
     const id = ++requestId.current
     const params = new URLSearchParams({ page: String(nextPage), pageSize: String(PAGE_SIZE), open: String(filters.open) })
     if (search) params.set('q', search)
-    for (const key of ['category', 'companyType', 'year', 'city']) {
+    for (const key of ['category', 'fn', 'companyType', 'year', 'city']) {
       if (filters[key]) params.set(key, filters[key])
     }
     if (nextPage === 1) setLoading(true)
@@ -282,6 +287,26 @@ export default function JobsPage() {
                 <span className="community-filter-count">{tab.count}</span>
               </button>
             ))}
+          </div>
+        )}
+
+        {facets?.functions?.length > 0 && (
+          <div className="mb-5">
+            <p className="mb-2 ml-1 text-[12px] font-bold text-brand-muted">{t('jobs.function')}</p>
+            <div className="community-filters" role="group" aria-label={t('jobs.function')}>
+              {[{ value: '', label: t('jobs.allFunctions') }, ...facets.functions].map(item => (
+                <button
+                  key={item.value || 'all'}
+                  type="button"
+                  onClick={() => setFilter('fn', item.value)}
+                  aria-pressed={filters.fn === item.value}
+                  className={`community-filter ${filters.fn === item.value ? 'is-active' : ''}`}
+                >
+                  {item.label || t(`jobs.fn.${item.value}`, item.value)}
+                  {item.count != null && <span className="community-filter-count">{item.count}</span>}
+                </button>
+              ))}
+            </div>
           </div>
         )}
 
