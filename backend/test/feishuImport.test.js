@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 
 import {
   parseCsv, splitMulti, parseDate, mapJobRow, unmappedHeaders,
-  mapExperienceCsvRows, mapExperienceJson, experienceType, classifyPositions,
+  mapExperienceCsvRows, mapExperienceJson, experienceType,
 } from '../src/lib/feishuImport.js'
 import { jobQuerySchema, sanitizeSearch } from '../src/routes/jobs.js'
 
@@ -41,6 +41,7 @@ test('maps a job row to a stable record and skips rows without a company', () =>
   assert.deepEqual(job.graduation_years, ['2027届', '2026届'])
   assert.deepEqual(job.locations, ['北京', '上海'])
   assert.deepEqual(job.job_functions, ['tech', 'product'])
+  assert.deepEqual(job.industry_keys, ['internet'])
   assert.equal(job.deadline_date, '2026-11-15')
   assert.equal(job.apply_url, 'https://jobs.example.com/a?x=1')
   assert.equal(job.notes, null, '"/" means empty')
@@ -103,16 +104,4 @@ test('maps free-text experience types onto internship / campus / experienced', (
   assert.equal(experienceType('社招'), 'experienced')
   assert.equal(experienceType('秋招'), 'campus')
   assert.equal(experienceType(undefined), 'campus')
-})
-
-test('classifies positions into job functions by keyword', () => {
-  assert.deepEqual(classifyPositions('算法工程师,产品经理,数据分析师'), ['tech', 'product', 'data'])
-  assert.deepEqual(classifyPositions('游戏策划,发行运营,美术'), ['product', 'design', 'operations'])
-  assert.deepEqual(classifyPositions('管培生,金融科技岗'), ['finance', 'trainee'])
-  assert.deepEqual(classifyPositions('机器人算法研究员'), ['tech'], 'a research scientist is not a finance role')
-  assert.deepEqual(classifyPositions('IC设计,版图设计'), ['tech'], 'chip design is not visual design')
-  assert.deepEqual(classifyPositions('HR 招聘专员'), ['functions'])
-  assert.deepEqual(classifyPositions('Clinical Logistics'), ['other'], 'short keywords only match whole words')
-  assert.deepEqual(classifyPositions('未告知岗位名'), ['other'])
-  assert.deepEqual(classifyPositions(''), [])
 })

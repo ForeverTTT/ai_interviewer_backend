@@ -1919,8 +1919,6 @@
     "searchPlaceholder": "Search company or role...",
     "openOnly": "Open only",
     "allCategories": "All",
-    "function": "Job function",
-    "allFunctions": "All functions",
     "viewLabel": "View",
     "viewCard": "Cards",
     "viewList": "List",
@@ -1942,7 +1940,12 @@
     "collapse": "Show less",
     "daysLeft": "{{n}} days left",
     "updatedAt": "Updated {{date}}",
-    "loadMore": "Load more ({{n}} left)",
+    "loadMore": "Load more ({{n}} left)"
+  },
+  "taxonomy": {
+    "industryLabel": "Industry",
+    "functionLabel": "Job function",
+    "any": "Any",
     "fn": {
       "tech": "Engineering",
       "product": "Product",
@@ -1954,6 +1957,23 @@
       "consulting": "Consulting",
       "functions": "Corporate functions",
       "trainee": "Management trainee",
+      "other": "Other"
+    },
+    "ind": {
+      "internet": "Internet",
+      "auto": "Automotive",
+      "semiconductor": "Electronics & semiconductors",
+      "finance": "Finance",
+      "consumer": "Consumer & retail",
+      "manufacturing": "Manufacturing",
+      "energy": "Energy",
+      "consulting": "Consulting",
+      "healthcare": "Healthcare & pharma",
+      "education": "Education",
+      "realestate": "Real estate & construction",
+      "media": "Media",
+      "logistics": "Transport & logistics",
+      "public": "Public sector",
       "other": "Other"
     }
   },

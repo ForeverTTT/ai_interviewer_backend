@@ -10,6 +10,7 @@ import { getBackendBaseUrl } from '../lib/backendBase'
 import { supabase } from '../lib/supabase'
 import { track } from '../lib/analytics'
 import { BRAND_ASSETS } from '../assets/brandAssets'
+import FilterSelect from '../components/FilterSelect'
 import './CommunityPages.css'
 
 const PAGE_SIZE = 24
@@ -88,12 +89,12 @@ function JobCard({ job, t }) {
         )}
         {job.job_functions?.slice(0, MAX_CARD_FUNCTIONS).map(fn => (
           <span key={fn} className="inline-flex items-center rounded-lg bg-brand-ink px-2.5 py-1 text-[11px] font-bold text-brand-on-ink">
-            {t(`jobs.fn.${fn}`, fn)}
+            {t(`taxonomy.fn.${fn}`, fn)}
           </span>
         ))}
         {job.job_functions?.length > MAX_CARD_FUNCTIONS && (
           <span
-            title={job.job_functions.slice(MAX_CARD_FUNCTIONS).map(fn => t(`jobs.fn.${fn}`, fn)).join(' · ')}
+            title={job.job_functions.slice(MAX_CARD_FUNCTIONS).map(fn => t(`taxonomy.fn.${fn}`, fn)).join(' · ')}
             className="inline-flex items-center rounded-lg bg-brand-ink/80 px-2 py-1 text-[11px] font-bold text-brand-on-ink"
           >
             +{job.job_functions.length - MAX_CARD_FUNCTIONS}
@@ -194,7 +195,7 @@ function JobRow({ job, t }) {
         <p className="truncate text-[13.5px] text-brand-ink" title={job.positions || ''}>{job.positions}</p>
         {job.job_functions?.length > 0 && (
           <p className="mt-0.5 truncate text-[12px] text-brand-muted">
-            {job.job_functions.map(fn => t(`jobs.fn.${fn}`, fn)).join(' · ')}
+            {job.job_functions.map(fn => t(`taxonomy.fn.${fn}`, fn)).join(' · ')}
           </p>
         )}
       </div>
@@ -231,28 +232,10 @@ function JobRow({ job, t }) {
   )
 }
 
-function FilterSelect({ label, value, onChange, options, allLabel, formatLabel = v => v }) {
-  return (
-    <label className="flex min-w-0 flex-col gap-1.5">
-      <span className="ml-1 text-[12px] font-bold text-brand-muted">{label}</span>
-      <select
-        value={value}
-        onChange={e => onChange(e.target.value)}
-        className="h-[42px] min-w-[140px] rounded-full border border-brand-line bg-brand-card px-4 text-[13px] font-semibold text-brand-ink focus:border-brand-ink focus:outline-none"
-      >
-        <option value="">{allLabel}</option>
-        {options.map(o => (
-          <option key={o.value} value={o.value}>{formatLabel(o.value)}（{o.count}）</option>
-        ))}
-      </select>
-    </label>
-  )
-}
-
 export default function JobsPage() {
   const { t } = useTranslation()
   const [facets, setFacets] = useState(null)
-  const [filters, setFilters] = useState({ category: '', fn: '', companyType: '', year: '', city: '', open: true })
+  const [filters, setFilters] = useState({ category: '', industry: '', fn: '', companyType: '', year: '', city: '', open: true })
   const [searchInput, setSearchInput] = useState('')
   const [search, setSearch] = useState('')
   const [jobs, setJobs] = useState([])
@@ -278,7 +261,7 @@ export default function JobsPage() {
   }, [t])
 
   useEffect(() => {
-    authedFetch('/api/jobs/facets').then(setFacets).catch(() => setFacets({ categories: [], functions: [], companyTypes: [], years: [], cities: [], sources: [] }))
+    authedFetch('/api/jobs/facets').then(setFacets).catch(() => setFacets({ categories: [], industries: [], functions: [], companyTypes: [], years: [], cities: [], sources: [] }))
   }, [])
 
   useEffect(() => {
@@ -290,7 +273,7 @@ export default function JobsPage() {
     const id = ++requestId.current
     const params = new URLSearchParams({ page: String(nextPage), pageSize: String(PAGE_SIZE), open: String(filters.open) })
     if (search) params.set('q', search)
-    for (const key of ['category', 'fn', 'companyType', 'year', 'city']) {
+    for (const key of ['category', 'industry', 'fn', 'companyType', 'year', 'city']) {
       if (filters[key]) params.set(key, filters[key])
     }
     if (nextPage === 1) setLoading(true)
@@ -379,7 +362,8 @@ export default function JobsPage() {
 
         {facets && (
           <div className="mb-6 flex flex-wrap items-end gap-3">
-            <FilterSelect label={t('jobs.function')} value={filters.fn} onChange={v => setFilter('fn', v)} options={facets.functions || []} allLabel={t('jobs.any')} formatLabel={v => t(`jobs.fn.${v}`, v)} />
+            <FilterSelect label={t('taxonomy.industryLabel')} value={filters.industry} onChange={v => setFilter('industry', v)} options={facets.industries || []} allLabel={t('jobs.any')} formatLabel={v => t(`taxonomy.ind.${v}`, v)} />
+            <FilterSelect label={t('taxonomy.functionLabel')} value={filters.fn} onChange={v => setFilter('fn', v)} options={facets.functions || []} allLabel={t('jobs.any')} formatLabel={v => t(`taxonomy.fn.${v}`, v)} />
             <FilterSelect label={t('jobs.companyType')} value={filters.companyType} onChange={v => setFilter('companyType', v)} options={facets.companyTypes} allLabel={t('jobs.any')} />
             <FilterSelect label={t('jobs.year')} value={filters.year} onChange={v => setFilter('year', v)} options={facets.years} allLabel={t('jobs.any')} />
             <FilterSelect label={t('jobs.city')} value={filters.city} onChange={v => setFilter('city', v)} options={facets.cities} allLabel={t('jobs.any')} />

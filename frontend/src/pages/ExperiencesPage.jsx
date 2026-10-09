@@ -9,6 +9,7 @@ import { authenticatedFetch } from '../lib/authenticatedFetch'
 import { roundSummary } from '../lib/experienceRounds'
 import { EXPERIENCE_TYPES, experienceType } from '../lib/experienceTypes'
 import { useAuth } from '../hooks/useAuth'
+import FilterSelect from '../components/FilterSelect'
 import './CommunityPages.css'
 import {
   Search, Building2, MapPin,
@@ -777,6 +778,9 @@ export default function ExperiencesPage() {
   const [filter, setFilter] = useState(searchParams.get('mine') === 'true' ? 'mine' : 'all')
   // 求职信息页「看面经」会带 ?q=公司名 跳过来
   const [search, setSearch] = useState(searchParams.get('q') || '')
+  // 企业分类 / 岗位类别：后端按公司名、岗位名算好的 industry_keys / job_functions
+  const [industryFilter, setIndustryFilter] = useState('')
+  const [functionFilter, setFunctionFilter] = useState('')
   const [postModalOpen, setPostModalOpen] = useState(false)
   const [editingExp, setEditingExp] = useState(null)
 
@@ -905,11 +909,33 @@ export default function ExperiencesPage() {
     }
   }
 
-  const filtered = useMemo(() => {
-    let list = filter === 'mine' ? myExperiences : experiences
+  // 类型标签（全部 / 实习 …）筛完的列表，下拉框的数量按它算
+  const typeFiltered = useMemo(() => {
+    const list = filter === 'mine' ? myExperiences : experiences
     if (EXPERIENCE_TYPES.some(type => type.value === filter)) {
-      list = list.filter(e => experienceType(e.type)?.value === filter)
+      return list.filter(e => experienceType(e.type)?.value === filter)
     }
+    return list
+  }, [experiences, myExperiences, filter])
+
+  const tagOptions = useMemo(() => {
+    const count = (field) => {
+      const counts = new Map()
+      for (const e of typeFiltered) {
+        for (const key of e[field] || []) counts.set(key, (counts.get(key) || 0) + 1)
+      }
+      // 「其他」放最后，其余按数量
+      return [...counts.entries()]
+        .map(([value, n]) => ({ value, count: n }))
+        .sort((a, b) => (a.value === 'other') - (b.value === 'other') || b.count - a.count)
+    }
+    return { industries: count('industry_keys'), functions: count('job_functions') }
+  }, [typeFiltered])
+
+  const filtered = useMemo(() => {
+    let list = typeFiltered
+    if (industryFilter) list = list.filter(e => e.industry_keys?.includes(industryFilter))
+    if (functionFilter) list = list.filter(e => e.job_functions?.includes(functionFilter))
 
     if (search.trim()) {
       const q = search.toLowerCase()
@@ -936,7 +962,7 @@ export default function ExperiencesPage() {
       })
     }
     return list
-  }, [experiences, myExperiences, filter, search])
+  }, [typeFiltered, industryFilter, functionFilter, search])
 
   const stats = useMemo(() => {
     const byType = Object.fromEntries(EXPERIENCE_TYPES.map(type => [
@@ -1044,6 +1070,30 @@ export default function ExperiencesPage() {
                   ))}
                 </div>
             </motion.div>
+
+            {(tagOptions.industries.length > 0 || tagOptions.functions.length > 0) && (
+              <div className="mb-6 flex flex-wrap items-end gap-3">
+                <FilterSelect
+                  label={t('taxonomy.industryLabel')}
+                  value={industryFilter}
+                  onChange={setIndustryFilter}
+                  options={tagOptions.industries}
+                  allLabel={t('taxonomy.any')}
+                  formatLabel={v => t(`taxonomy.ind.${v}`, v)}
+                />
+                <FilterSelect
+                  label={t('taxonomy.functionLabel')}
+                  value={functionFilter}
+                  onChange={setFunctionFilter}
+                  options={tagOptions.functions}
+                  allLabel={t('taxonomy.any')}
+                  formatLabel={v => t(`taxonomy.fn.${v}`, v)}
+                />
+                <span className="mb-3 ml-auto text-[12.5px] font-semibold text-brand-muted">
+                  {t('jobs.resultCount', { n: filtered.length })}
+                </span>
+              </div>
+            )}
 
               <div className="experience-grid min-w-0">
                 {filtered.length === 0 ? (

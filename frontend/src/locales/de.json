@@ -1909,8 +1909,6 @@
     "searchPlaceholder": "Unternehmen oder Rolle suchen...",
     "openOnly": "Nur offene",
     "allCategories": "Alle",
-    "function": "Berufsfeld",
-    "allFunctions": "Alle Berufsfelder",
     "viewLabel": "Ansicht",
     "viewCard": "Karten",
     "viewList": "Liste",
@@ -1932,7 +1930,12 @@
     "collapse": "Weniger",
     "daysLeft": "Noch {{n}} Tage",
     "updatedAt": "Aktualisiert {{date}}",
-    "loadMore": "Mehr laden (noch {{n}})",
+    "loadMore": "Mehr laden (noch {{n}})"
+  },
+  "taxonomy": {
+    "industryLabel": "Branche",
+    "functionLabel": "Berufsfeld",
+    "any": "Alle",
     "fn": {
       "tech": "Technik",
       "product": "Produkt",
@@ -1944,6 +1947,23 @@
       "consulting": "Beratung",
       "functions": "Unternehmensfunktionen",
       "trainee": "Traineeprogramm",
+      "other": "Sonstige"
+    },
+    "ind": {
+      "internet": "Internet",
+      "auto": "Automobil",
+      "semiconductor": "Elektronik & Halbleiter",
+      "finance": "Finanzen",
+      "consumer": "Konsumgüter & Handel",
+      "manufacturing": "Industrie",
+      "energy": "Energie",
+      "consulting": "Beratung",
+      "healthcare": "Gesundheit & Pharma",
+      "education": "Bildung",
+      "realestate": "Immobilien & Bau",
+      "media": "Medien",
+      "logistics": "Verkehr & Logistik",
+      "public": "Öffentlicher Sektor",
       "other": "Sonstige"
     }
   },
