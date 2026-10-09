@@ -102,6 +102,7 @@ const SERVER_EVENTS = {
   }),
   experience_shared: z.object({
     type: text(50),
+    visibility: z.enum(['private', 'public']).optional(),
   }),
   experience_deleted: z.object({}),
   offer_plan_saved: z.object({

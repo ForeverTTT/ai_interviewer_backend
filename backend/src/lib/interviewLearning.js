@@ -110,10 +110,16 @@ function tokenize(value) {
   return new Set(String(value || '').toLowerCase().match(/[\p{L}\p{N}+#.]{2,}/gu) || [])
 }
 
+// Authors' own answers are for human readers; question generation only needs the questions.
+function roundsWithoutAnswers(rounds) {
+  return Array.isArray(rounds) ? rounds.map(({ answers: _answers, ...round }) => round) : rounds
+}
+
 export function rankExperienceDocuments({ position, jobDescription, interviewerType = 'mixed', rows, limit = 4 }) {
   const query = tokenize(`${position || ''} ${jobDescription || ''}`)
   const type = normalizeInterviewerType(interviewerType)
   const scored = (Array.isArray(rows) ? rows : [])
+    .map(row => ({ ...row, rounds: roundsWithoutAnswers(row.rounds) }))
     .map(row => {
       const text = `${row.position || ''} ${row.company || ''} ${JSON.stringify(row.rounds || [])} ${row.reflection || ''}`
       const lowerText = text.toLowerCase()
@@ -145,6 +151,8 @@ export async function retrieveExperienceContext(db, config, limit = 4) {
   const { data, error } = await db
     .from('interview_experiences')
     .select('id,company,position,rounds,reflection,language,created_at')
+    .eq('visibility', 'public')
+    .eq('review_status', 'approved')
     .order('created_at', { ascending: false })
     .limit(100)
   if (error) throw error

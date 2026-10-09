@@ -27,6 +27,7 @@ const ProfilePage = lazyWithReload(() => import('./pages/ProfilePage'))
 const GallupTestPage = lazyWithReload(() => import('./pages/GallupTestPage'))
 const ExperiencesPage = lazyWithReload(() => import('./pages/ExperiencesPage'))
 const ResumeTailorPage = lazyWithReload(() => import('./pages/ResumeTailorPage'))
+const AdminReviewPage = lazyWithReload(() => import('./pages/AdminReviewPage'))
 
 function PageFallback() {
   return (
@@ -181,6 +182,15 @@ export default function App() {
             <AdaptiveLayout>
               <ExperiencesPage />
             </AdaptiveLayout>
+          } />
+
+          {/* Admin-only; the page and the API both check ADMIN_EMAILS */}
+          <Route path="/admin/experiences" element={
+            <ProtectedRoute>
+              <AppShell>
+                <AdminReviewPage />
+              </AppShell>
+            </ProtectedRoute>
           } />
           </Route>
         </Routes>

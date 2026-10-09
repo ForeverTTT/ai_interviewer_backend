@@ -5,56 +5,69 @@ import { useSearchParams } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { getBackendBaseUrl } from '../lib/backendBase'
 import { supabase } from '../lib/supabase'
+import { authenticatedFetch } from '../lib/authenticatedFetch'
+import { roundSummary } from '../lib/experienceRounds'
+import { EXPERIENCE_TYPES, experienceType } from '../lib/experienceTypes'
 import { useAuth } from '../hooks/useAuth'
 import './CommunityPages.css'
 import {
-  Search, Building2, GraduationCap, Briefcase, MapPin,
+  Search, Building2, MapPin,
   Clock, ChevronDown, ChevronUp, MessageSquareQuote,
-  CheckCircle2, XCircle, Globe2, Loader2,
-  Trash2, Plus, X, Send, BrainCircuit, Zap, AlertTriangle
+  Globe2, Loader2,
+  Trash2, Plus, X, Send, Zap, AlertTriangle, Lock, Library, Pencil, Layers
 } from 'lucide-react'
 
 const COMMUNITY_EGG = BRAND_ASSETS.communityAvatar
 
-function ResultBadge({ result, t }) {
-  if (!result) return null
-  const lower = result.toLowerCase()
-  if (lower.includes('offer') || lower.includes('admitted') || lower.includes('pass')) {
-    return (
-      <span className="inline-flex items-center gap-1.5 rounded-full border border-brand-success/30 bg-brand-success/[0.10] px-3 py-1 text-[12px] font-bold text-brand-success">
-        <CheckCircle2 className="w-3.5 h-3.5" />
-        {t('exp.resultPass')}
-      </span>
-    )
-  }
-  if (lower.includes('reject') || lower.includes('fail')) {
-    return (
-      <span className="inline-flex items-center gap-1.5 rounded-full border border-brand-danger/30 bg-brand-danger/[0.08] px-3 py-1 text-[12px] font-bold text-brand-danger">
-        <XCircle className="w-3.5 h-3.5" />
-        {t('exp.resultFail')}
-      </span>
-    )
-  }
+function TypeBadge({ type, t }) {
+  const meta = experienceType(type)
+  if (!meta) return null
+  const Icon = meta.icon
   return (
-    <span className="inline-flex items-center gap-1.5 rounded-full border border-brand-line bg-brand-inset px-3 py-1 text-[12px] font-bold text-brand-muted">
-      {result}
+    <span className="inline-flex items-center gap-1 rounded-lg border border-brand-line bg-brand-inset px-2.5 py-1 text-[11px] font-bold text-brand-ink">
+      <Icon className="w-3 h-3" />
+      {t(meta.labelKey)}
     </span>
   )
 }
 
-function TypeBadge({ type, t }) {
-  if (type === 'school') {
+function RoundBadge({ rounds }) {
+  const summary = roundSummary(rounds)
+  if (!summary) return null
+  return (
+    <span className="inline-flex items-center gap-1 rounded-lg border border-brand-line bg-brand-inset px-2.5 py-1 text-[11px] font-bold text-brand-ink">
+      <Layers className="w-3 h-3" />
+      {summary}
+    </span>
+  )
+}
+
+const REVIEW_STATUS_STYLES = {
+  pending: 'border-brand-ochre/40 bg-brand-ochre/[0.10] text-brand-ink',
+  approved: 'border-brand-success/30 bg-brand-success/[0.10] text-brand-success',
+  rejected: 'border-brand-danger/30 bg-brand-danger/[0.08] text-brand-danger',
+}
+
+function ReviewStatusBadge({ exp, t }) {
+  if (exp.visibility !== 'public') {
     return (
-      <span className="inline-flex items-center gap-1 rounded-lg border border-brand-line bg-brand-inset px-2.5 py-1 text-[11px] font-medium text-brand-muted">
-        <GraduationCap className="w-3 h-3" />
-        {t('exp.tagSchool')}
+      <span className="inline-flex items-center gap-1 rounded-lg border border-brand-line bg-brand-inset px-2.5 py-1 text-[11px] font-bold text-brand-muted">
+        <Lock className="w-3 h-3" />
+        {t('exp.statusPrivate')}
       </span>
     )
   }
+  const style = REVIEW_STATUS_STYLES[exp.review_status]
+  if (!style) return null
+  const label = {
+    pending: t('exp.statusPending'),
+    approved: t('exp.statusApproved'),
+    rejected: t('exp.statusRejected'),
+  }[exp.review_status]
   return (
-    <span className="inline-flex items-center gap-1 rounded-lg border border-brand-line bg-brand-inset px-2.5 py-1 text-[11px] font-bold text-brand-ink">
-      <Briefcase className="w-3 h-3" />
-      {t('exp.tagWork')}
+    <span className={`inline-flex items-center gap-1 rounded-lg border px-2.5 py-1 text-[11px] font-bold ${style}`}>
+      <Library className="w-3 h-3" />
+      {label}
     </span>
   )
 }
@@ -139,7 +152,7 @@ function CustomDropdown({ label, value, options, onChange, t }) {
   )
 }
 
-function DeleteConfirmModal({ isOpen, onClose, onConfirm }) {
+function DeleteConfirmModal({ isOpen, onClose, onConfirm, rewardGranted }) {
   if (!isOpen) return null
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4" onClick={onClose}>
@@ -164,12 +177,14 @@ function DeleteConfirmModal({ isOpen, onClose, onConfirm }) {
           <h3 className="font-brand text-[17px] font-semibold tracking-[-0.01em] text-brand-ink">
             确定要删除这条面经吗？
           </h3>
-          <p className="mt-2.5 flex items-center gap-1.5 text-[13px] text-brand-muted">
-            删除后能量值
-            <span className="inline-flex items-center gap-0.5 font-semibold text-brand-danger">
-              <Zap className="w-3.5 h-3.5" />-200
-            </span>
-          </p>
+          {rewardGranted && (
+            <p className="mt-2.5 flex items-center gap-1.5 text-[13px] text-brand-muted">
+              删除后能量值
+              <span className="inline-flex items-center gap-0.5 font-semibold text-brand-danger">
+                <Zap className="w-3.5 h-3.5" />-200
+              </span>
+            </p>
+          )}
         </div>
         <div className="flex border-t border-brand-line">
           <button
@@ -191,10 +206,26 @@ function DeleteConfirmModal({ isOpen, onClose, onConfirm }) {
   )
 }
 
-const ExperienceCard = forwardRef(function ExperienceCard({ exp, t, user, onDelete }, ref) {
+const ExperienceCard = forwardRef(function ExperienceCard({ exp, t, user, onDelete, onSubmitToLibrary, onEdit }, ref) {
   const [expanded, setExpanded] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
+  const [submitError, setSubmitError] = useState('')
   const isOwner = user && exp.user_id === user.id
+  // Published posts can only be removed by an admin.
+  const canDelete = isOwner && exp.review_status !== 'approved'
+
+  const handleSubmitToLibrary = async () => {
+    setSubmitting(true)
+    setSubmitError('')
+    try {
+      await onSubmitToLibrary(exp.id)
+    } catch {
+      setSubmitError(t('exp.submitToLibraryFailed'))
+    } finally {
+      setSubmitting(false)
+    }
+  }
 
   return (
     <motion.div
@@ -205,7 +236,7 @@ const ExperienceCard = forwardRef(function ExperienceCard({ exp, t, user, onDele
       exit={{ opacity: 0, y: -8 }}
       className={`experience-card group relative overflow-hidden ${expanded ? 'experience-card--expanded' : ''}`}
     >
-      {isOwner && (
+      {canDelete && (
         <>
           <button
             onClick={(e) => {
@@ -220,6 +251,7 @@ const ExperienceCard = forwardRef(function ExperienceCard({ exp, t, user, onDele
             {showDeleteConfirm && (
               <DeleteConfirmModal
                 isOpen={showDeleteConfirm}
+                rewardGranted={exp.reward_granted}
                 onClose={() => setShowDeleteConfirm(false)}
                 onConfirm={() => {
                   setShowDeleteConfirm(false)
@@ -239,7 +271,8 @@ const ExperienceCard = forwardRef(function ExperienceCard({ exp, t, user, onDele
           <div className="flex-1 min-w-0 space-y-3">
             <div className="flex flex-wrap items-center gap-2">
               <TypeBadge type={exp.type} t={t} />
-              <ResultBadge result={exp.result} t={t} />
+              <RoundBadge rounds={exp.rounds} />
+              {isOwner && <ReviewStatusBadge exp={exp} t={t} />}
               {exp.salary && (
                 <span className="inline-flex items-center gap-1.5 rounded-lg border border-brand-line bg-brand-card px-2.5 py-1 text-[11px] font-bold text-brand-ink">
                   <span className="h-1.5 w-1.5 rounded-full bg-brand-ink" aria-hidden="true" />
@@ -296,6 +329,49 @@ const ExperienceCard = forwardRef(function ExperienceCard({ exp, t, user, onDele
         </div>
       </button>
 
+      {isOwner && exp.visibility === 'private' && (
+        <div className="-mt-2 flex flex-wrap items-center gap-x-3 gap-y-2 px-6 pb-5 sm:px-7">
+          <button
+            type="button"
+            onClick={handleSubmitToLibrary}
+            disabled={submitting}
+            className="inline-flex items-center gap-1.5 rounded-lg bg-brand-ink px-3 py-1.5 text-[12px] font-bold text-brand-on-ink transition-opacity hover:opacity-90 disabled:opacity-50"
+          >
+            {submitting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Library className="h-3.5 w-3.5" />}
+            {t('exp.submitToLibrary')}
+          </button>
+          <button
+            type="button"
+            onClick={() => onEdit(exp)}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-brand-line px-3 py-1.5 text-[12px] font-bold text-brand-ink transition-colors hover:bg-brand-inset"
+          >
+            <Pencil className="h-3.5 w-3.5" />
+            {t('exp.edit')}
+          </button>
+          <span className="text-[11.5px] text-brand-muted">{t('exp.submitToLibraryHint')}</span>
+          {submitError && <span className="w-full text-[12px] font-bold text-brand-danger">{submitError}</span>}
+        </div>
+      )}
+
+      {isOwner && exp.visibility === 'public' && exp.review_status === 'rejected' && (
+        <div className="-mt-2 space-y-3 px-6 pb-5 sm:px-7">
+          {exp.review_note && (
+            <p className="rounded-xl border border-brand-danger/25 bg-brand-danger/[0.06] px-4 py-2.5 text-[12.5px] text-brand-ink">
+              <span className="font-bold text-brand-danger">{t('exp.rejectReason')}</span>
+              {exp.review_note}
+            </p>
+          )}
+          <button
+            type="button"
+            onClick={() => onEdit(exp)}
+            className="inline-flex items-center gap-1.5 rounded-lg bg-brand-ink px-3 py-1.5 text-[12px] font-bold text-brand-on-ink transition-opacity hover:opacity-90"
+          >
+            <Pencil className="h-3.5 w-3.5" />
+            {t('exp.editAndResubmit')}
+          </button>
+        </div>
+      )}
+
       <AnimatePresence>
         {expanded && (
           <motion.div
@@ -310,23 +386,26 @@ const ExperienceCard = forwardRef(function ExperienceCard({ exp, t, user, onDele
 
               {exp.rounds?.map((round, ri) => (
                 <div key={ri} className="space-y-4">
-                  <div className="flex items-center gap-3">
-                    <span className="grid h-7 w-7 place-items-center rounded-lg bg-brand-ink text-[12px] font-semibold text-brand-on-ink">
-                      {round.round}
-                    </span>
-                    <div>
-                      <h4 className="text-[13.5px] font-semibold text-brand-ink">
-                        {round.format}
-                      </h4>
-                      {round.duration_min && (
-                        <span className="text-[11px] text-brand-muted">
-                          {round.duration_min} min
-                        </span>
-                      )}
+                  {/* Single-round posts show the round as a badge in the header instead. */}
+                  {exp.rounds.length > 1 && (
+                    <div className="flex items-center gap-3">
+                      <span className="grid h-7 w-7 place-items-center rounded-lg bg-brand-ink text-[12px] font-semibold text-brand-on-ink">
+                        {round.round}
+                      </span>
+                      <div>
+                        <h4 className="text-[13.5px] font-semibold text-brand-ink">
+                          {round.format}
+                        </h4>
+                        {round.duration_min && (
+                          <span className="text-[11px] text-brand-muted">
+                            {round.duration_min} min
+                          </span>
+                        )}
+                      </div>
                     </div>
-                  </div>
+                  )}
 
-                  <div className="space-y-2 pl-10">
+                  <div className={`space-y-2 ${exp.rounds.length > 1 ? 'pl-10' : ''}`}>
                     <p className="mb-2 text-[12.5px] font-bold text-brand-ink">
                       {t('exp.questionsTitle')}
                     </p>
@@ -338,9 +417,21 @@ const ExperienceCard = forwardRef(function ExperienceCard({ exp, t, user, onDele
                         <span className="mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-md border border-brand-line bg-brand-card text-[11px] font-semibold text-brand-ink">
                           {qi + 1}
                         </span>
-                        <p className="text-[13.5px] leading-relaxed text-brand-ink">
-                          {q}
-                        </p>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-[13.5px] leading-relaxed text-brand-ink">
+                            {q}
+                          </p>
+                          {round.answers?.[qi] && (
+                            <div className="mt-2 border-l-2 border-brand-line pl-3">
+                              <p className="text-[11px] font-bold text-brand-muted">
+                                {isOwner ? t('exp.myAnswer') : t('exp.authorAnswer')}
+                              </p>
+                              <p className="mt-0.5 whitespace-pre-line text-[13px] leading-relaxed text-brand-ink">
+                                {round.answers[qi]}
+                              </p>
+                            </div>
+                          )}
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -370,18 +461,55 @@ const ExperienceCard = forwardRef(function ExperienceCard({ exp, t, user, onDele
   )
 })
 
-function PostModal({ isOpen, onClose, t, onPost, user }) {
-  const [formData, setFormData] = useState({
-    type: 'work',
+// A post now describes a single round. Older multi-round posts are merged into one
+// when edited so no question or answer is lost (answers stay aligned by index).
+function singleRound(rounds) {
+  const list = Array.isArray(rounds) && rounds.length ? rounds : [{}]
+  const questions = []
+  const answers = []
+  for (const r of list) {
+    (r.questions || []).forEach((q, i) => {
+      questions.push(q)
+      answers.push(r.answers?.[i] || '')
+    })
+  }
+  return {
+    round: 1,
+    format: list.map(r => r.format).filter(Boolean).join(' / '),
+    duration_min: list[0].duration_min ?? 30,
+    questions: questions.length ? questions : [''],
+    answers,
+  }
+}
+
+function PostModal({ isOpen, onClose, t, onPost, user, initial = null }) {
+  // Edit mode: start from the existing post. Rounds are deep-copied because the
+  // handlers below mutate question arrays in place. A rejected post is being
+  // fixed for resubmission, so it stays pointed at the library.
+  const [formData, setFormData] = useState(() => initial ? {
+    // Legacy types ('work' / 'school') are not selectable; fall back to the first type.
+    type: EXPERIENCE_TYPES.some(type => type.value === initial.type) ? initial.type : EXPERIENCE_TYPES[0].value,
+    company: initial.company || '',
+    position: initial.position || '',
+    location: initial.location || '',
+    department: initial.department || '',
+    date: initial.date || new Date().toISOString().slice(0, 7),
+    language: initial.language || '',
+    salary: initial.salary || '',
+    reflection: initial.reflection || '',
+    visibility: initial.visibility === 'public' ? 'public' : 'private',
+    rounds: [singleRound(initial.rounds)],
+  } : {
+    type: EXPERIENCE_TYPES[0].value,
     company: '',
     position: '',
     location: '',
     department: '',
     date: new Date().toISOString().slice(0, 7),
     language: 'English',
-    result: 'Passed',
     salary: '',
     reflection: '',
+    visibility: 'public',
     rounds: [{ round: 1, format: '', duration_min: 30, questions: [''] }]
   })
   const [loading, setLoading] = useState(false)
@@ -389,14 +517,8 @@ function PostModal({ isOpen, onClose, t, onPost, user }) {
 
   if (!isOpen) return null
 
-  const addRound = () => {
-    setFormData({ ...formData, rounds: [...formData.rounds, { round: formData.rounds.length + 1, format: '', duration_min: 30, questions: [''] }] })
-  }
-
-  const removeRound = (i) => {
-    const nr = formData.rounds.filter((_, idx) => idx !== i).map((r, idx) => ({ ...r, round: idx + 1 }))
-    setFormData({ ...formData, rounds: nr })
-  }
+  // One post = one interview round, stored as rounds[0].
+  const round = formData.rounds[0]
 
   const updateRound = (i, field, value) => {
     const nr = [...formData.rounds]
@@ -413,6 +535,15 @@ function PostModal({ isOpen, onClose, t, onPost, user }) {
   const updateQuestion = (ri, qi, val) => {
     const nr = [...formData.rounds]
     nr[ri].questions[qi] = val
+    setFormData({ ...formData, rounds: nr })
+  }
+
+  // answers[qi] is the (optional) answer to questions[qi]
+  const updateAnswer = (ri, qi, val) => {
+    const nr = [...formData.rounds]
+    const answers = [...(nr[ri].answers || [])]
+    answers[qi] = val
+    nr[ri] = { ...nr[ri], answers: Array.from(answers, a => a || '') }
     setFormData({ ...formData, rounds: nr })
   }
 
@@ -446,54 +577,54 @@ function PostModal({ isOpen, onClose, t, onPost, user }) {
       >
         <div className="sticky top-0 z-10 flex items-center justify-between border-b border-brand-line bg-brand-card/85 px-8 py-6 backdrop-blur-md">
           <div>
-            <h2 className="font-brand text-[21px] font-semibold tracking-[-0.01em] text-brand-ink">{t('exp.postTitle')}</h2>
-            <p className="mt-1 text-[12.5px] text-brand-muted">{t('exp.postSubtitle')}</p>
+            <h2 className="font-brand text-[21px] font-semibold tracking-[-0.01em] text-brand-ink">{initial ? t('exp.editTitle') : t('exp.postTitle')}</h2>
+            <p className="mt-1 text-[12.5px] text-brand-muted">{initial?.review_note ? `${t('exp.rejectReason')}${initial.review_note}` : t('exp.postSubtitle')}</p>
           </div>
           <button onClick={onClose} className="rounded-xl p-2 transition-colors hover:bg-brand-inset">
             <X className="h-5 w-5 text-brand-muted" />
           </button>
         </div>
 
-        <div className="mx-8 mt-6 flex items-center justify-between rounded-2xl border border-brand-line bg-brand-inset p-4">
-          <div className="flex items-center gap-3">
-            <div className="rounded-xl border border-brand-line bg-brand-inset p-2 text-brand-ink">
-              <BrainCircuit className="w-4 h-4" />
-            </div>
-            <div className="flex flex-col">
-              <span className="text-[13.5px] font-semibold text-brand-ink">{t('profile.tokenRewardContribution')}</span>
-              <p className="text-[11px] text-brand-muted">Community Reward: +200 Energy</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="mx-8 mt-3 flex items-center gap-2.5 rounded-xl border border-brand-line bg-brand-card px-4 py-2.5">
-          <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-brand-ink" />
-          <span className="text-[12.5px] font-bold text-brand-ink">{t('exp.dailyLimitHint')}</span>
-        </div>
-
         <form onSubmit={handleSubmit} className="p-8 space-y-8">
-          <div className="grid grid-cols-2 gap-4">
-            <CustomDropdown
-              label={t('exp.labelType')}
-              value={formData.type}
-              onChange={val => setFormData({...formData, type: val})}
-              t={t}
-              options={[
-                { value: 'work', label: t('exp.filterWork'), icon: Briefcase },
-                { value: 'school', label: t('exp.filterSchool'), icon: GraduationCap }
-              ]}
-            />
-            <CustomDropdown
-              label={t('exp.labelResult')}
-              value={formData.result}
-              onChange={val => setFormData({...formData, result: val})}
-              t={t}
-              options={[
-                { value: 'Passed', label: t('exp.resultPass'), icon: CheckCircle2 },
-                { value: 'Failed', label: t('exp.resultFail'), icon: XCircle }
-              ]}
-            />
+          <div>
+            <p className="mb-2 ml-1 text-[12.5px] font-bold text-brand-ink">{t('exp.visibilityLabel')}</p>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2" role="radiogroup" aria-label={t('exp.visibilityLabel')}>
+              {[
+                { value: 'private', icon: Lock, label: t('exp.visibilityPrivate'), desc: t('exp.visibilityPrivateDesc') },
+                { value: 'public', icon: Library, label: t('exp.visibilityPublic'), desc: t('exp.visibilityPublicDesc') },
+              ].map(({ value, icon: Icon, label, desc }) => {
+                const active = formData.visibility === value
+                return (
+                  <button
+                    key={value}
+                    type="button"
+                    role="radio"
+                    aria-checked={active}
+                    onClick={() => setFormData({ ...formData, visibility: value })}
+                    className={`flex items-start gap-3 rounded-2xl border p-4 text-left transition-colors ${
+                      active ? 'border-brand-ink bg-brand-inset ring-1 ring-brand-ink' : 'border-brand-line hover:border-brand-muted/40'
+                    }`}
+                  >
+                    <div className={`rounded-xl p-2 ${active ? 'bg-brand-ink text-brand-on-ink' : 'border border-brand-line bg-brand-inset text-brand-muted'}`}>
+                      <Icon className="w-4 h-4" />
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="text-[13.5px] font-semibold text-brand-ink">{label}</span>
+                      <span className="mt-0.5 text-[11.5px] leading-snug text-brand-muted">{desc}</span>
+                    </div>
+                  </button>
+                )
+              })}
+            </div>
           </div>
+
+          <CustomDropdown
+            label={t('exp.labelType')}
+            value={formData.type}
+            onChange={val => setFormData({...formData, type: val})}
+            t={t}
+            options={EXPERIENCE_TYPES.map(type => ({ value: type.value, label: t(type.labelKey), icon: type.icon }))}
+          />
 
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
@@ -526,6 +657,25 @@ function PostModal({ isOpen, onClose, t, onPost, user }) {
                 className="w-full rounded-xl border border-brand-line bg-brand-inset px-5 py-3.5 text-[13.5px] font-bold text-brand-ink transition-colors placeholder:text-brand-muted/70 focus:border-brand-ink focus:outline-none"
               />
             </div>
+            <div className="grid grid-cols-[2fr_1fr] gap-4">
+              <label className="flex w-full items-center gap-3 rounded-xl border border-brand-line bg-brand-inset px-5 transition-colors focus-within:border-brand-ink">
+                <span className="shrink-0 text-[13px] font-bold text-brand-muted">{t('exp.labelRounds')}</span>
+                <input
+                  value={round.format}
+                  onChange={e => updateRound(0, 'format', e.target.value)}
+                  placeholder={t('exp.phRoundsFormat')}
+                  className="min-w-0 flex-1 bg-transparent py-3.5 text-[13.5px] font-bold text-brand-ink placeholder:text-brand-muted/70 focus:outline-none"
+                />
+              </label>
+              <input
+                type="number"
+                min="0"
+                value={round.duration_min ?? ''}
+                onChange={e => updateRound(0, 'duration_min', e.target.value === '' ? null : parseInt(e.target.value))}
+                placeholder={t('exp.phRoundsDuration')}
+                className="w-full rounded-xl border border-brand-line bg-brand-inset px-5 py-3.5 text-[13.5px] font-bold text-brand-ink transition-colors placeholder:text-brand-muted/70 focus:border-brand-ink focus:outline-none"
+              />
+            </div>
           </div>
 
           <div className="grid grid-cols-3 gap-4">
@@ -549,54 +699,26 @@ function PostModal({ isOpen, onClose, t, onPost, user }) {
             />
           </div>
 
-          <div className="space-y-6">
-            <div className="flex items-center justify-between">
-              <h4 className="ml-1 text-[12.5px] font-bold text-brand-ink">{t('exp.labelRounds')}</h4>
-              <button
-                type="button"
-                onClick={addRound}
-                className="flex items-center gap-1.5 rounded-lg bg-brand-ink px-3 py-1.5 text-[11px] font-bold text-brand-on-ink transition-transform duration-200 hover:-translate-y-0.5"
-              >
-                <Plus className="w-3 h-3" /> {t('exp.btnPulseRound')}
-              </button>
-            </div>
-
-            {formData.rounds.map((r, ri) => (
-              <div key={ri} className="space-y-4 rounded-[20px] border border-brand-line p-6">
-                <div className="flex items-center justify-between text-[12.5px] font-bold text-brand-ink">
-                  <span>{t('exp.roundLabel', { n: r.round })}</span>
-                  {ri > 0 && <button onClick={() => removeRound(ri)} type="button" className="text-brand-danger transition-colors hover:underline">{t('exp.labelRemove')}</button>}
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <input
-                    value={r.format}
-                    onChange={e => updateRound(ri, 'format', e.target.value)}
-                    placeholder={t('exp.phRoundsFormat')}
-                    className="w-full rounded-xl border border-brand-line bg-brand-inset px-4 py-3 text-[12.5px] font-bold text-brand-ink placeholder:text-brand-muted/70"
-                  />
-                  <input
-                    type="number"
-                    value={r.duration_min}
-                    onChange={e => updateRound(ri, 'duration_min', parseInt(e.target.value))}
-                    placeholder={t('exp.phRoundsDuration')}
-                    className="w-full rounded-xl border border-brand-line bg-brand-inset px-4 py-3 text-[12.5px] font-bold text-brand-ink placeholder:text-brand-muted/70"
-                  />
-                </div>
-                <div className="space-y-3">
-                   {r.questions.map((q, qi) => (
-                     <div key={qi} className="flex gap-2">
-                        <input
-                          value={q}
-                          onChange={e => updateQuestion(ri, qi, e.target.value)}
-                          placeholder={`${t('exp.phRoundsQuestion')} ${qi + 1}`}
-                          className="flex-1 rounded-xl border border-brand-line bg-brand-inset px-4 py-3 text-[12.5px] font-bold text-brand-ink placeholder:text-brand-muted/70"
-                        />
-                     </div>
-                   ))}
-                   <button type="button" onClick={() => addQuestion(ri)} className="text-[12px] font-semibold text-brand-ink hover:underline">+ {t('exp.btnPulseQuestion')}</button>
-                </div>
+          <div className="space-y-3">
+            <h4 className="ml-1 text-[12.5px] font-bold text-brand-ink">{t('exp.questionsTitle')}</h4>
+            {round.questions.map((q, qi) => (
+              <div key={qi} className="space-y-2">
+                <input
+                  value={q}
+                  onChange={e => updateQuestion(0, qi, e.target.value)}
+                  placeholder={`${t('exp.phRoundsQuestion')} ${qi + 1}`}
+                  className="w-full rounded-xl border border-brand-line bg-brand-inset px-4 py-3 text-[12.5px] font-bold text-brand-ink placeholder:text-brand-muted/70"
+                />
+                <textarea
+                  value={round.answers?.[qi] || ''}
+                  onChange={e => updateAnswer(0, qi, e.target.value)}
+                  placeholder={t('exp.phAnswer')}
+                  rows={2}
+                  className="w-full rounded-xl border border-dashed border-brand-line bg-brand-card px-4 py-2.5 text-[12.5px] text-brand-ink placeholder:text-brand-muted/70 focus:border-brand-ink focus:outline-none"
+                />
               </div>
             ))}
+            <button type="button" onClick={() => addQuestion(0)} className="text-[12px] font-semibold text-brand-ink hover:underline">+ {t('exp.btnPulseQuestion')}</button>
           </div>
 
           <div className="space-y-2">
@@ -634,7 +756,9 @@ function PostModal({ isOpen, onClose, t, onPost, user }) {
             className="flex w-full items-center justify-center gap-2 rounded-[20px] bg-brand-ink py-4 text-[15px] font-semibold text-brand-on-ink transition-opacity duration-200 hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
           >
             {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-            {t('exp.submit')}
+            {formData.visibility === 'public'
+              ? (initial?.review_status === 'rejected' ? t('exp.resubmit') : t('exp.submitPublic'))
+              : t('exp.submitPrivate')}
           </button>
         </form>
       </motion.div>
@@ -647,11 +771,13 @@ export default function ExperiencesPage() {
   const { user } = useAuth()
   const [searchParams, setSearchParams] = useSearchParams()
   const [experiences, setExperiences] = useState([])
+  const [myExperiences, setMyExperiences] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [filter, setFilter] = useState(searchParams.get('mine') === 'true' ? 'mine' : 'all')
   const [search, setSearch] = useState('')
   const [postModalOpen, setPostModalOpen] = useState(false)
+  const [editingExp, setEditingExp] = useState(null)
 
   // Sync filter with URL parameter if it changes from Navbar
   useEffect(() => {
@@ -666,15 +792,30 @@ export default function ExperiencesPage() {
     document.title = filter === 'mine' ? t('nav.myExperiences') : t('meta.title')
   }, [t, filter])
 
+  // The library only returns approved public posts; the author's own private /
+  // pending / rejected posts come from /mine.
+  const fetchMyExperiences = async () => {
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session?.access_token) {
+      setMyExperiences([])
+      return
+    }
+    const res = await fetch(`${getBackendBaseUrl()}/api/experiences/mine`, {
+      headers: { Authorization: `Bearer ${session.access_token}` }
+    })
+    if (!res.ok) throw new Error('Failed')
+    const data = await res.json()
+    setMyExperiences(data.experiences || [])
+  }
+
   const fetchExperiences = async () => {
     setLoading(true)
     try {
-      const backendUrl = getBackendBaseUrl()
-      const url = `${backendUrl}/api/experiences`
-      const res = await fetch(url)
+      const res = await fetch(`${getBackendBaseUrl()}/api/experiences`)
       if (!res.ok) throw new Error('Failed')
       const data = await res.json()
       setExperiences(data.experiences || [])
+      await fetchMyExperiences()
     } catch {
       setError(true)
     } finally {
@@ -684,9 +825,10 @@ export default function ExperiencesPage() {
 
   useEffect(() => {
     fetchExperiences()
-  }, [])
+  }, [user?.id])
 
-  const handlePost = async (formData) => {
+  // editingId: save changes to an existing private / rejected post instead of creating one.
+  const handlePost = async (formData, editingId = null) => {
     const backendUrl = getBackendBaseUrl()
     const { data: { session } } = await supabase.auth.getSession()
     if (!session?.access_token) throw new Error('No valid session found. Please log in again.')
@@ -705,12 +847,14 @@ export default function ExperiencesPage() {
       rounds: (formData.rounds || []).map(r => ({
         ...r,
         format: sanitize(r.format),
-        questions: (r.questions || []).map(sanitize)
+        questions: (r.questions || []).map(sanitize),
+        // Keep answers index-aligned with questions; empty string = no answer.
+        answers: (r.questions || []).map((_, i) => sanitize(r.answers?.[i] || ''))
       }))
     }
 
-    const res = await fetch(`${backendUrl}/api/experiences`, {
-      method: 'POST',
+    const res = await fetch(`${backendUrl}/api/experiences${editingId ? `/${editingId}` : ''}`, {
+      method: editingId ? 'PUT' : 'POST',
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${session.access_token}`
@@ -720,14 +864,19 @@ export default function ExperiencesPage() {
 
     if (!res.ok) {
       const errBody = await res.json().catch(() => ({}))
-      if (errBody.error === 'DAILY_LIMIT') {
-        throw new Error(t('exp.dailyLimitReached'))
-      }
       throw new Error(errBody.error || `Server returned ${res.status}: ${res.statusText}`)
     }
 
-    // Refresh
+    // Refresh and show the new post (with its review status) under 我的面经
     await fetchExperiences()
+    setFilter('mine')
+  }
+
+  const handleSubmitToLibrary = async (id) => {
+    const res = await authenticatedFetch(`${getBackendBaseUrl()}/api/experiences/${id}/submit`, { method: 'POST' })
+    if (!res.ok) throw new Error(`Submit failed with status ${res.status}`)
+    const updated = await res.json()
+    setMyExperiences(prev => prev.map(e => (e.id === id ? updated : e)))
   }
 
   const handleDelete = async (id) => {
@@ -747,6 +896,7 @@ export default function ExperiencesPage() {
       }
 
       setExperiences(prev => prev.filter(e => e.id !== id))
+      setMyExperiences(prev => prev.filter(e => e.id !== id))
       // Let Navbar / other token UI re-sync immediately after server-side -200.
       window.dispatchEvent(new Event('tokensChanged'))
     } catch (err) {
@@ -755,10 +905,10 @@ export default function ExperiencesPage() {
   }
 
   const filtered = useMemo(() => {
-    let list = experiences
-    if (filter === 'work') list = list.filter(e => e.type === 'work')
-    else if (filter === 'school') list = list.filter(e => e.type === 'school')
-    else if (filter === 'mine') list = list.filter(e => user && e.user_id === user.id)
+    let list = filter === 'mine' ? myExperiences : experiences
+    if (EXPERIENCE_TYPES.some(type => type.value === filter)) {
+      list = list.filter(e => experienceType(e.type)?.value === filter)
+    }
 
     if (search.trim()) {
       const q = search.toLowerCase()
@@ -772,7 +922,8 @@ export default function ExperiencesPage() {
         const inRounds = e.rounds?.some(r => {
           const format = (r.format || '').toLowerCase()
           const questions = r.questions?.some(qu => (qu || '').toLowerCase().includes(q))
-          return format.includes(q) || questions
+          const answers = r.answers?.some(a => (a || '').toLowerCase().includes(q))
+          return format.includes(q) || questions || answers
         })
 
         return company.includes(q) ||
@@ -784,20 +935,19 @@ export default function ExperiencesPage() {
       })
     }
     return list
-  }, [experiences, filter, search])
+  }, [experiences, myExperiences, filter, search])
 
   const stats = useMemo(() => {
-    const total = experiences.length
-    const work = experiences.filter(e => e.type === 'work').length
-    const school = experiences.filter(e => e.type === 'school').length
-    const mine = experiences.filter(e => user && e.user_id === user.id).length
-    return { total, work, school, mine }
-  }, [experiences, user])
+    const byType = Object.fromEntries(EXPERIENCE_TYPES.map(type => [
+      type.value,
+      experiences.filter(e => experienceType(e.type)?.value === type.value).length,
+    ]))
+    return { total: experiences.length, byType, mine: myExperiences.length }
+  }, [experiences, myExperiences])
 
   const filterTabs = [
     { key: 'all', label: t('exp.filterAll'), count: stats.total },
-    { key: 'work', label: t('exp.filterWork'), count: stats.work },
-    { key: 'school', label: t('exp.filterSchool'), count: stats.school },
+    ...EXPERIENCE_TYPES.map(type => ({ key: type.value, label: t(type.labelKey), count: stats.byType[type.value] })),
   ]
 
   if (user) {
@@ -922,6 +1072,8 @@ export default function ExperiencesPage() {
                           t={t}
                           user={user}
                           onDelete={handleDelete}
+                          onSubmitToLibrary={handleSubmitToLibrary}
+                          onEdit={setEditingExp}
                         />
                       ))}
                     </AnimatePresence>
@@ -935,6 +1087,17 @@ export default function ExperiencesPage() {
                   onClose={() => setPostModalOpen(false)}
                   t={t}
                   onPost={handlePost}
+                  user={user}
+                />
+              )}
+              {editingExp && (
+                <PostModal
+                  key={editingExp.id}
+                  isOpen
+                  initial={editingExp}
+                  onClose={() => setEditingExp(null)}
+                  t={t}
+                  onPost={(formData) => handlePost(formData, editingExp.id)}
                   user={user}
                 />
               )}

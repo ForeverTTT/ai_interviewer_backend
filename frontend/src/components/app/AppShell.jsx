@@ -5,14 +5,16 @@ import { AnimatePresence, motion } from 'framer-motion'
 import {
   LayoutDashboard, Mic, StickyNote, FilePenLine, UserCircle, Compass,
   BookOpen, BookMarked, Zap, LogOut, Briefcase, PanelLeftClose, PanelLeftOpen,
-  Menu, X, ChevronRight, Mail,
+  Menu, X, ChevronRight, Mail, ShieldCheck,
 } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
+import { useIsAdmin } from '../../hooks/useIsAdmin'
 import { BRAND_ASSETS } from '../../assets/brandAssets'
 import { useAccountStatus } from '../../hooks/useAccountStatus'
 import { openCookieSettings } from '../CookieBanner'
 import LanguageSwitcher from '../LanguageSwitcher'
 import { AppThemeToggle } from '../ThemeToggle'
+import NotificationBell from './NotificationBell'
 
 /**
  * 站内工作台外壳（登录后的页面）。
@@ -59,6 +61,8 @@ function readCollapsed() {
 
 function useNavGroups() {
   const { t } = useTranslation()
+  const { user } = useAuth()
+  const isAdmin = useIsAdmin(user)
   return useMemo(() => [
     {
       id: 'practice',
@@ -86,7 +90,15 @@ function useNavGroups() {
         { to: '/experiences?mine=true', label: t('nav.myExperiences'), icon: BookMarked, dot: 'bg-[#DDAA46]' },
       ],
     },
-  ], [t])
+    // 只有 ADMIN_EMAILS 里的账号能看到
+    ...(isAdmin ? [{
+      id: 'admin',
+      label: t('nav.groupAdmin'),
+      items: [
+        { to: '/admin/experiences', label: t('nav.adminReview'), icon: ShieldCheck, dot: 'bg-[#33466D]' },
+      ],
+    }] : []),
+  ], [t, isAdmin])
 }
 
 function isItemActive(item, location) {
@@ -360,6 +372,7 @@ export default function AppShell({ children }) {
             <Zap className="h-3 w-3 fill-brand-ochre text-brand-ochre" />
             {account.tokens}
           </span>
+          <NotificationBell />
           <LanguageSwitcher variant="nav" />
           <AppThemeToggle variant="nav" />
         </div>
