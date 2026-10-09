@@ -3,7 +3,7 @@ import { useNavigate, useLocation, Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { BRAND_ASSETS } from '../assets/brandAssets'
 import { motion } from 'framer-motion'
-import { ArrowLeft, ArrowRight } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Mail } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
 import LanguageSwitcher from '../components/LanguageSwitcher'
 import { AppThemeToggle } from '../components/ThemeToggle'
@@ -54,11 +54,163 @@ function LinkedInIcon() {
   )
 }
 
+const MIN_PASSWORD_LENGTH = 8
+
+// Supabase error codes we can explain better than its English message.
+const EMAIL_ERROR_KEYS = {
+  invalid_credentials: 'login.emailErrors.invalidCredentials',
+  email_not_confirmed: 'login.emailErrors.notConfirmed',
+  user_already_exists: 'login.emailErrors.alreadyRegistered',
+  email_exists: 'login.emailErrors.alreadyRegistered',
+  weak_password: 'login.emailErrors.weakPassword',
+  over_email_send_rate_limit: 'login.emailErrors.rateLimited',
+  over_request_rate_limit: 'login.emailErrors.rateLimited',
+  email_provider_disabled: 'login.emailErrors.disabled',
+  signup_disabled: 'login.emailErrors.disabled',
+}
+
+function EmailForm({ mode, onModeChange, onBack, signInWithEmail, signUpWithEmail, sendPasswordReset }) {
+  const { t } = useTranslation()
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  const [notice, setNotice] = useState('')
+
+  const switchMode = (next) => {
+    setError('')
+    setNotice('')
+    setPassword('')
+    onModeChange(next)
+  }
+
+  const handleSubmit = async (event) => {
+    event.preventDefault()
+    setError('')
+    setNotice('')
+    const address = email.trim()
+    if (mode === 'signup' && password.length < MIN_PASSWORD_LENGTH) {
+      setError(t('login.emailErrors.weakPassword'))
+      return
+    }
+
+    setBusy(true)
+    try {
+      if (mode === 'signin') {
+        await signInWithEmail(address, password)
+        track('login_completed', { provider: 'email', isNewUser: false })
+      } else if (mode === 'signup') {
+        const { needsConfirmation } = await signUpWithEmail(address, password)
+        if (needsConfirmation) {
+          setNotice(t('login.emailCheckInbox', { email: address }))
+          setPassword('')
+        } else {
+          track('login_completed', { provider: 'email', isNewUser: true })
+        }
+      } else {
+        await sendPasswordReset(address)
+        setNotice(t('login.emailResetSent', { email: address }))
+      }
+    } catch (err) {
+      console.error('Email auth error:', err)
+      const key = EMAIL_ERROR_KEYS[err?.code]
+      track('login_failed', { reason: `email_${err?.code || 'unknown'}` })
+      setError(key ? t(key) : err?.message || t('login.emailErrors.unavailable'))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const submitLabel = {
+    signin: t('login.emailSignInSubmit'),
+    signup: t('login.emailSignUpSubmit'),
+    reset: t('login.emailResetSubmit'),
+  }[mode]
+
+  return (
+    <form className="fl-login-email-form" onSubmit={handleSubmit}>
+      <p className="fl-login-email-title">{t(`login.emailTitle.${mode}`)}</p>
+
+      <label className="fl-login-field">
+        <span>{t('login.emailLabel')}</span>
+        <input
+          type="email"
+          name="email"
+          autoComplete="email"
+          required
+          autoFocus
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder="you@example.com"
+        />
+      </label>
+
+      {mode !== 'reset' && (
+        <label className="fl-login-field">
+          <span className="fl-login-field-head">
+            {t('login.passwordLabel')}
+            {mode === 'signin' && (
+              <button type="button" className="fl-login-link" onClick={() => switchMode('reset')}>
+                {t('login.emailForgot')}
+              </button>
+            )}
+          </span>
+          <input
+            type="password"
+            name="password"
+            autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
+            required
+            minLength={mode === 'signup' ? MIN_PASSWORD_LENGTH : undefined}
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder={mode === 'signup' ? t('login.passwordHint', { count: MIN_PASSWORD_LENGTH }) : ''}
+          />
+        </label>
+      )}
+
+      <button type="submit" disabled={busy} className="fl-login-submit">
+        {busy ? t('login.emailBusy') : submitLabel}
+        {!busy && <ArrowRight size={17} />}
+      </button>
+
+      {error && <p role="alert" className="fl-login-error">{error}</p>}
+      {notice && <p role="status" className="fl-login-notice">{notice}</p>}
+
+      <div className="fl-login-email-links">
+        {mode === 'signin' && (
+          <button type="button" className="fl-login-link" onClick={() => switchMode('signup')}>
+            {t('login.emailSwitchToSignUp')}
+          </button>
+        )}
+        {mode !== 'signin' && (
+          <button type="button" className="fl-login-link" onClick={() => switchMode('signin')}>
+            {t('login.emailSwitchToSignIn')}
+          </button>
+        )}
+        <button type="button" className="fl-login-link fl-login-link-muted" onClick={onBack}>
+          <ArrowLeft size={13} /> {t('login.emailOtherMethods')}
+        </button>
+      </div>
+    </form>
+  )
+}
+
 export default function LoginPage() {
   const { t, i18n } = useTranslation()
-  const { user, loading, signInWithGoogle, signInWithLinkedIn, signInLocal } = useAuth()
+  const {
+    user,
+    loading,
+    signInWithGoogle,
+    signInWithLinkedIn,
+    signInWithEmail,
+    signUpWithEmail,
+    sendPasswordReset,
+    signInLocal,
+  } = useAuth()
   const [loginError, setLoginError] = useState('')
   const [localBusy, setLocalBusy] = useState(false)
+  // null shows the provider buttons; otherwise 'signin' | 'signup' | 'reset'.
+  const [emailMode, setEmailMode] = useState(null)
   const isLocalSupabase = import.meta.env.VITE_LOCAL_SUPABASE === 'true'
   const navigate = useNavigate()
   const location = useLocation()
@@ -92,6 +244,12 @@ export default function LoginPage() {
       console.error('LinkedIn login error:', error)
       setLoginError(error?.message || t('login.linkedinUnavailable'))
     }
+  }
+
+  const handleEmailOption = () => {
+    setLoginError('')
+    track('login_started', { provider: 'email' })
+    setEmailMode('signin')
   }
 
   const handleLocalLogin = async () => {
@@ -137,27 +295,42 @@ export default function LoginPage() {
         <motion.div className="fl-login-card" initial={{ opacity: 0, y: 22 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.75, delay: 0.08, ease: [0.16, 1, 0.3, 1] }}>
           <p>{t('login.intro')}</p>
 
-          <div className="fl-login-options">
-            {isLocalSupabase ? (
-              <button type="button" onClick={handleLocalLogin} disabled={localBusy} className="fl-login-option fl-login-option-local">
-                <span><span className="fl-login-local-icon">F</span>{localBusy ? t('login.localLoading') : t('login.localContinue')}</span>
+          {emailMode ? (
+            <EmailForm
+              mode={emailMode}
+              onModeChange={setEmailMode}
+              onBack={() => setEmailMode(null)}
+              signInWithEmail={signInWithEmail}
+              signUpWithEmail={signUpWithEmail}
+              sendPasswordReset={sendPasswordReset}
+            />
+          ) : (
+            <div className="fl-login-options">
+              {isLocalSupabase ? (
+                <button type="button" onClick={handleLocalLogin} disabled={localBusy} className="fl-login-option fl-login-option-local">
+                  <span><span className="fl-login-local-icon">F</span>{localBusy ? t('login.localLoading') : t('login.localContinue')}</span>
+                  <ArrowRight size={18} />
+                </button>
+              ) : (
+                <>
+                  <button type="button" onClick={handleGoogleLogin} className="fl-login-option fl-login-option-google">
+                    <span><GoogleIcon />{t('login.google')}</span>
+                    <ArrowRight size={18} />
+                  </button>
+                  <button type="button" onClick={handleLinkedInLogin} className="fl-login-option fl-login-option-linkedin">
+                    <span><LinkedInIcon />{t('login.linkedin')}</span>
+                    <ArrowRight size={18} />
+                  </button>
+                </>
+              )}
+              <button type="button" onClick={handleEmailOption} className="fl-login-option fl-login-option-email">
+                <span><Mail className="fl-login-mail-icon" />{t('login.email')}</span>
                 <ArrowRight size={18} />
               </button>
-            ) : (
-              <>
-                <button type="button" onClick={handleGoogleLogin} className="fl-login-option fl-login-option-google">
-                  <span><GoogleIcon />{t('login.google')}</span>
-                  <ArrowRight size={18} />
-                </button>
-                <button type="button" onClick={handleLinkedInLogin} className="fl-login-option fl-login-option-linkedin">
-                  <span><LinkedInIcon />{t('login.linkedin')}</span>
-                  <ArrowRight size={18} />
-                </button>
-              </>
-            )}
-          </div>
+            </div>
+          )}
 
-          {loginError && <p role="alert" className="fl-login-error">{loginError}</p>}
+          {loginError && !emailMode && <p role="alert" className="fl-login-error">{loginError}</p>}
           <p className="fl-login-terms">{t('login.terms')}</p>
         </motion.div>
       </section>

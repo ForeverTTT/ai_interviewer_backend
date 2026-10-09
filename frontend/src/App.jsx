@@ -22,6 +22,7 @@ const DashboardPage = lazyWithReload(() => import('./pages/DashboardPage'))
 const NotesPage = lazyWithReload(() => import('./pages/NotesPage'))
 const InterviewReportPage = lazyWithReload(() => import('./pages/InterviewReportPage'))
 const AuthCallbackPage = lazyWithReload(() => import('./pages/AuthCallbackPage'))
+const ResetPasswordPage = lazyWithReload(() => import('./pages/ResetPasswordPage'))
 const ProfilePage = lazyWithReload(() => import('./pages/ProfilePage'))
 const GallupTestPage = lazyWithReload(() => import('./pages/GallupTestPage'))
 const ExperiencesPage = lazyWithReload(() => import('./pages/ExperiencesPage'))
@@ -99,6 +100,7 @@ export default function App() {
 
           {/* OAuth callback — must NOT be wrapped in ProtectedRoute */}
           <Route path="/auth/callback" element={<AuthCallbackPage />} />
+          <Route path="/auth/reset-password" element={<ResetPasswordPage />} />
 
           <Route path="/setup" element={
             <ProtectedRoute>
