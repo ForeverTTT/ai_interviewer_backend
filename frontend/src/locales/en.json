@@ -519,6 +519,34 @@
     "subtitle": "Login to unlock AI-powered interview training",
     "google": "Login with Google",
     "linkedin": "Login with LinkedIn",
+    "email": "Continue with email",
+    "emailTitle": {
+      "signin": "Sign in with email",
+      "signup": "Create your account",
+      "reset": "Reset your password"
+    },
+    "emailLabel": "Email",
+    "passwordLabel": "Password",
+    "passwordHint": "At least {{count}} characters",
+    "emailSignInSubmit": "Sign in",
+    "emailSignUpSubmit": "Create account",
+    "emailResetSubmit": "Send reset link",
+    "emailBusy": "Just a moment…",
+    "emailForgot": "Forgot password?",
+    "emailSwitchToSignUp": "No account yet? Sign up",
+    "emailSwitchToSignIn": "Already have an account? Sign in",
+    "emailOtherMethods": "Other sign-in options",
+    "emailCheckInbox": "Almost there! We sent a confirmation link to {{email}}. Open it to finish signing up.",
+    "emailResetSent": "If {{email}} has an account, a reset link is on its way. Check your inbox (and spam).",
+    "emailErrors": {
+      "invalidCredentials": "Wrong email or password.",
+      "notConfirmed": "Please confirm your email first — check your inbox for the link.",
+      "alreadyRegistered": "This email is already registered. Sign in instead, or reset your password.",
+      "weakPassword": "Password must be at least 8 characters.",
+      "rateLimited": "Too many attempts. Please wait a minute and try again.",
+      "disabled": "Email sign-in is not available right now.",
+      "unavailable": "Email sign-in is temporarily unavailable."
+    },
     "divider": "Secure · Fast · Free",
     "feat1": "Latest models tailored to your specific role",
     "feat2": "German/English + Advanced Voice training",
@@ -1752,6 +1780,19 @@
     "debug": "Debug Info",
     "exchangeFail": "Auth exchange failed: ",
     "timeout": "Login timed out. Check Supabase Redirect URLs."
+  },
+  "resetPassword": {
+    "metaTitle": "Reset password — FlowLab",
+    "title": "Set a new password",
+    "newPassword": "New password",
+    "confirmPassword": "Confirm new password",
+    "submit": "Save new password",
+    "checking": "Checking your reset link…",
+    "invalidLink": "This reset link is invalid or has expired. Request a new one from the sign-in page.",
+    "mismatch": "The two passwords don't match.",
+    "samePassword": "The new password must be different from the old one.",
+    "success": "Password updated! Taking you in…",
+    "backToLogin": "Back to sign in"
   },
   "protected": {
     "loading": "Loading..."

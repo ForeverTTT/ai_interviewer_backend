@@ -49,6 +49,40 @@ export function useAuth() {
     if (error) throw error
   }
 
+  const signInWithEmail = async (email, password) => {
+    const { error } = await supabase.auth.signInWithPassword({ email, password })
+    if (error) throw error
+  }
+
+  // Resolves to { needsConfirmation } — hosted Supabase emails a confirmation
+  // link that lands on /auth/callback; local Supabase signs in immediately.
+  const signUpWithEmail = async (email, password) => {
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
+    })
+    if (error) throw error
+    // With confirmations on, Supabase hides existing accounts behind a fake
+    // user that has no identities instead of returning an error.
+    if (data.user && data.user.identities?.length === 0) {
+      throw Object.assign(new Error('User already registered'), { code: 'user_already_exists' })
+    }
+    return { needsConfirmation: !data.session }
+  }
+
+  const sendPasswordReset = async (email) => {
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/auth/reset-password`,
+    })
+    if (error) throw error
+  }
+
+  const updatePassword = async (password) => {
+    const { error } = await supabase.auth.updateUser({ password })
+    if (error) throw error
+  }
+
   const signInLocal = async () => {
     if (import.meta.env.VITE_LOCAL_SUPABASE !== 'true') {
       throw new Error('Local authentication is disabled')
@@ -82,5 +116,16 @@ export function useAuth() {
     if (error) throw error
   }
 
-  return { user, loading, signInWithGoogle, signInWithLinkedIn, signInLocal, signOut }
+  return {
+    user,
+    loading,
+    signInWithGoogle,
+    signInWithLinkedIn,
+    signInWithEmail,
+    signUpWithEmail,
+    sendPasswordReset,
+    updatePassword,
+    signInLocal,
+    signOut,
+  }
 }

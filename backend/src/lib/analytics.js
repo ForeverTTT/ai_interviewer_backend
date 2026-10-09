@@ -222,7 +222,7 @@ const CLIENT_EVENTS = {
   }),
   consent_granted: z.object({}),
   login_started: z.object({
-    provider: z.enum(['google', 'linkedin', 'local']),
+    provider: z.enum(['google', 'linkedin', 'email', 'local']),
   }),
   login_completed: z.object({
     provider: text(30).optional(),

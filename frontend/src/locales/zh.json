@@ -519,6 +519,34 @@
     "subtitle": "登录开启 AI 赋能的德国面试训练",
     "google": "使用 Google 账号登录",
     "linkedin": "使用 LinkedIn 账号登录",
+    "email": "使用邮箱登录",
+    "emailTitle": {
+      "signin": "邮箱登录",
+      "signup": "注册新账号",
+      "reset": "重置密码"
+    },
+    "emailLabel": "邮箱",
+    "passwordLabel": "密码",
+    "passwordHint": "至少 {{count}} 位",
+    "emailSignInSubmit": "登录",
+    "emailSignUpSubmit": "注册",
+    "emailResetSubmit": "发送重置链接",
+    "emailBusy": "请稍候…",
+    "emailForgot": "忘记密码？",
+    "emailSwitchToSignUp": "还没有账号？去注册",
+    "emailSwitchToSignIn": "已有账号？去登录",
+    "emailOtherMethods": "其他登录方式",
+    "emailCheckInbox": "就差一步！确认链接已发送到 {{email}}，点开链接即可完成注册。",
+    "emailResetSent": "如果 {{email}} 已注册，重置链接已经发出，请查收邮箱（也看看垃圾邮件）。",
+    "emailErrors": {
+      "invalidCredentials": "邮箱或密码不正确。",
+      "notConfirmed": "邮箱还未验证，请先点开邮件里的确认链接。",
+      "alreadyRegistered": "这个邮箱已经注册过了，请直接登录或重置密码。",
+      "weakPassword": "密码至少需要 8 位。",
+      "rateLimited": "操作太频繁了，请稍等一分钟再试。",
+      "disabled": "邮箱登录暂未开放。",
+      "unavailable": "邮箱登录暂时不可用。"
+    },
     "divider": "安全 · 快捷 · 免费",
     "feat1": "最新大模型驱动，题目深度贴合你的岗位",
     "feat2": "德/英双语 + 先进语音对练",
@@ -1756,6 +1784,19 @@
     "debug": "调试信息（给开发者看）",
     "exchangeFail": "认证交换失败: ",
     "timeout": "登录超时。请确认 Supabase 控制台已添加以下 Redirect URL：\n"
+  },
+  "resetPassword": {
+    "metaTitle": "重置密码 — FlowLab",
+    "title": "设置新密码",
+    "newPassword": "新密码",
+    "confirmPassword": "再次输入新密码",
+    "submit": "保存新密码",
+    "checking": "正在验证重置链接…",
+    "invalidLink": "重置链接无效或已过期，请回到登录页重新申请。",
+    "mismatch": "两次输入的密码不一致。",
+    "samePassword": "新密码不能和旧密码相同。",
+    "success": "密码已更新，正在进入…",
+    "backToLogin": "返回登录"
   },
   "protected": {
     "loading": "加载中..."

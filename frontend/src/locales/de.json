@@ -519,6 +519,34 @@
     "subtitle": "Anmelden für KI-gestütztes Training",
     "google": "Login mit Google",
     "linkedin": "Login mit LinkedIn",
+    "email": "Mit E-Mail fortfahren",
+    "emailTitle": {
+      "signin": "Mit E-Mail anmelden",
+      "signup": "Konto erstellen",
+      "reset": "Passwort zurücksetzen"
+    },
+    "emailLabel": "E-Mail",
+    "passwordLabel": "Passwort",
+    "passwordHint": "Mindestens {{count}} Zeichen",
+    "emailSignInSubmit": "Anmelden",
+    "emailSignUpSubmit": "Konto erstellen",
+    "emailResetSubmit": "Link senden",
+    "emailBusy": "Einen Moment…",
+    "emailForgot": "Passwort vergessen?",
+    "emailSwitchToSignUp": "Noch kein Konto? Registrieren",
+    "emailSwitchToSignIn": "Schon ein Konto? Anmelden",
+    "emailOtherMethods": "Andere Anmeldeoptionen",
+    "emailCheckInbox": "Fast geschafft! Wir haben einen Bestätigungslink an {{email}} gesendet. Öffne ihn, um die Registrierung abzuschließen.",
+    "emailResetSent": "Falls für {{email}} ein Konto existiert, ist ein Link zum Zurücksetzen unterwegs. Prüfe dein Postfach (auch den Spam-Ordner).",
+    "emailErrors": {
+      "invalidCredentials": "E-Mail oder Passwort ist falsch.",
+      "notConfirmed": "Bitte bestätige zuerst deine E-Mail-Adresse über den Link im Postfach.",
+      "alreadyRegistered": "Diese E-Mail ist bereits registriert. Melde dich an oder setze dein Passwort zurück.",
+      "weakPassword": "Das Passwort muss mindestens 8 Zeichen haben.",
+      "rateLimited": "Zu viele Versuche. Bitte warte eine Minute.",
+      "disabled": "Die E-Mail-Anmeldung ist derzeit nicht verfügbar.",
+      "unavailable": "Die E-Mail-Anmeldung ist vorübergehend nicht verfügbar."
+    },
     "divider": "Sicher · Schnell · Gratis",
     "feat1": "Modelle auf Ihre Rolle zugeschnitten",
     "feat2": "Deutsch/Englisch + Voice Training",
@@ -1742,6 +1770,19 @@
     "debug": "Debug",
     "exchangeFail": "Exchange failed: ",
     "timeout": "Timeout. Check Supabase Redirect URLs."
+  },
+  "resetPassword": {
+    "metaTitle": "Passwort zurücksetzen — FlowLab",
+    "title": "Neues Passwort festlegen",
+    "newPassword": "Neues Passwort",
+    "confirmPassword": "Neues Passwort bestätigen",
+    "submit": "Neues Passwort speichern",
+    "checking": "Link wird geprüft…",
+    "invalidLink": "Dieser Link ist ungültig oder abgelaufen. Fordere auf der Anmeldeseite einen neuen an.",
+    "mismatch": "Die Passwörter stimmen nicht überein.",
+    "samePassword": "Das neue Passwort muss sich vom alten unterscheiden.",
+    "success": "Passwort aktualisiert! Du wirst weitergeleitet…",
+    "backToLogin": "Zurück zur Anmeldung"
   },
   "protected": {
     "loading": "Lädt..."
