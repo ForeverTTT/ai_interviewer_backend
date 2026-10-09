@@ -56,6 +56,9 @@ function DeadlineBadge({ job, t }) {
   )
 }
 
+// 卡片上最多显示几个岗位类别，多的折成 +N，避免标签换行太多
+const MAX_CARD_FUNCTIONS = 3
+
 function JobCard({ job, t }) {
   const [expanded, setExpanded] = useState(false)
   const positions = job.positions || ''
@@ -68,17 +71,34 @@ function JobCard({ job, t }) {
       animate={{ opacity: 1, y: 0 }}
       className="experience-card flex flex-col gap-4 p-6"
     >
+      <div className="min-w-0">
+        <h3 className="font-brand text-[17px] font-semibold leading-tight tracking-[-0.01em] text-brand-ink sm:text-[19px]">
+          {job.company}
+        </h3>
+        {job.industries?.length > 0 && (
+          <p className="mt-1 text-[12px] text-brand-muted">{job.industries.join(' · ')}</p>
+        )}
+      </div>
+
       <div className="flex flex-wrap items-center gap-2">
         {job.company_type && (
           <span className="inline-flex items-center rounded-lg border border-brand-line bg-brand-inset px-2.5 py-1 text-[11px] font-bold text-brand-ink">
             {job.company_type}
           </span>
         )}
-        {job.job_functions?.map(fn => (
+        {job.job_functions?.slice(0, MAX_CARD_FUNCTIONS).map(fn => (
           <span key={fn} className="inline-flex items-center rounded-lg bg-brand-ink px-2.5 py-1 text-[11px] font-bold text-brand-on-ink">
             {t(`jobs.fn.${fn}`, fn)}
           </span>
         ))}
+        {job.job_functions?.length > MAX_CARD_FUNCTIONS && (
+          <span
+            title={job.job_functions.slice(MAX_CARD_FUNCTIONS).map(fn => t(`jobs.fn.${fn}`, fn)).join(' · ')}
+            className="inline-flex items-center rounded-lg bg-brand-ink/80 px-2 py-1 text-[11px] font-bold text-brand-on-ink"
+          >
+            +{job.job_functions.length - MAX_CARD_FUNCTIONS}
+          </span>
+        )}
         {job.graduation_years?.map(y => (
           <span key={y} className="inline-flex items-center rounded-lg border border-brand-line bg-brand-card px-2.5 py-1 text-[11px] font-bold text-brand-muted">
             {y}
@@ -89,15 +109,6 @@ function JobCard({ job, t }) {
             <PenLine className="h-3 w-3" />
             {job.written_test}
           </span>
-        )}
-      </div>
-
-      <div className="min-w-0">
-        <h3 className="font-brand text-[17px] font-semibold leading-tight tracking-[-0.01em] text-brand-ink sm:text-[19px]">
-          {job.company}
-        </h3>
-        {job.industries?.length > 0 && (
-          <p className="mt-1 text-[12px] text-brand-muted">{job.industries.join(' · ')}</p>
         )}
       </div>
 
@@ -423,7 +434,7 @@ export default function JobsPage() {
                 {jobs.map(job => <JobRow key={job.id} job={job} t={t} />)}
               </div>
             ) : (
-              <div className="experience-grid min-w-0">
+              <div className="experience-grid job-grid min-w-0">
                 {jobs.map(job => <JobCard key={job.id} job={job} t={t} />)}
               </div>
             )}
