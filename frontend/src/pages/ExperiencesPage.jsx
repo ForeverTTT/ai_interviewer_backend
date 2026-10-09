@@ -283,10 +283,10 @@ const ExperienceCard = forwardRef(function ExperienceCard({ exp, t, user, onDele
 
             <div>
               <h3 className="font-brand text-[17px] font-semibold leading-tight tracking-[-0.01em] text-brand-ink sm:text-[19px]">
-                {exp.company}
+                {exp.position}
               </h3>
               <p className="mt-1 text-[13.5px] font-bold text-brand-muted">
-                {exp.position}
+                {exp.company}
               </p>
             </div>
 
