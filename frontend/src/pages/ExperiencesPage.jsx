@@ -775,7 +775,8 @@ export default function ExperiencesPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [filter, setFilter] = useState(searchParams.get('mine') === 'true' ? 'mine' : 'all')
-  const [search, setSearch] = useState('')
+  // 求职信息页「看面经」会带 ?q=公司名 跳过来
+  const [search, setSearch] = useState(searchParams.get('q') || '')
   const [postModalOpen, setPostModalOpen] = useState(false)
   const [editingExp, setEditingExp] = useState(null)
 
