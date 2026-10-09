@@ -9,6 +9,8 @@ import profileRouter from './routes/profile.js'
 import gallupRouter from './routes/gallup.js'
 import aiAssistantRouter from './routes/aiAssistant.js'
 import experiencesRouter from './routes/experiences.js'
+import adminRouter from './routes/admin.js'
+import notificationsRouter from './routes/notifications.js'
 import interviewSessionsRouter from './routes/interviewSessions.js'
 import growthCenterRouter from './routes/growthCenter.js'
 import uxEventsRouter from './routes/uxEvents.js'
@@ -96,6 +98,8 @@ app.use('/api/profile', profileRouter)
 app.use('/api/gallup', gallupRouter)
 app.use('/api/ai-assistant', aiAssistantRouter)
 app.use('/api/experiences', experiencesRouter)
+app.use('/api/admin', adminRouter)
+app.use('/api/notifications', notificationsRouter)
 app.use('/api/feedback', feedbackRouter)
 
 // 404 handler
