@@ -1908,7 +1908,35 @@
     "resubmit": "Resubmit for Review",
     "rejectReason": "Reason: ",
     "securityNotice": "Secured via Encrypted Transfer · Input Sanitization Active",
-    "securityTip": "Your experience is shared anonymously or via nickname. Our system filters sensitive data to keep you safe."
+    "securityTip": "Your experience is shared anonymously or via nickname. Our system filters sensitive data to keep you safe.",
+    "identityLabel": "Post as",
+    "identityNickname": "My nickname",
+    "identityAnonymous": "Anonymous",
+    "identityShownAs": "Shown as \"{{name}}\"",
+    "identityNicknameEmpty": "No nickname yet, set one below"
+  },
+  "nickname": {
+    "label": "Community nickname",
+    "placeholder": "2–20 characters, unique",
+    "hint": "Shown on experiences you post under your nickname. No emails, links or phone numbers.",
+    "available": "This nickname is available",
+    "save": "Save",
+    "saving": "Saving…",
+    "cancel": "Cancel",
+    "profileLabel": "Community nickname",
+    "notSet": "Not set",
+    "edit": "Edit",
+    "set": "Set",
+    "errors": {
+      "NICKNAME_LENGTH": "Nicknames need 2–20 characters",
+      "NICKNAME_CONTACT": "Nicknames cannot contain emails, links or phone numbers",
+      "NICKNAME_CHARS": "Use letters, numbers, spaces and _ - · . only",
+      "NICKNAME_RESERVED": "This nickname is not available, please pick another",
+      "NICKNAME_TAKEN": "This nickname is already taken",
+      "NICKNAME_REQUIRED": "Set a nickname first, or post anonymously",
+      "CHECK_FAILED": "Could not check the nickname, please try again",
+      "SAVE_FAILED": "Could not save, please try again"
+    }
   },
   "jobs": {
     "title": "Job Board",

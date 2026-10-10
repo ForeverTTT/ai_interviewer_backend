@@ -6,6 +6,7 @@ import { assertGeminiConfigured, invokeGemini, stripJsonFence } from '../lib/gem
 import { validate } from '../middleware/validate.js'
 import { checkTokens, deductTokens, addTokens } from '../middleware/tokens.js'
 import { trackServerEvent } from '../lib/analytics.js'
+import { validateNickname } from '../lib/nickname.js'
 
 const router = Router()
 
@@ -272,6 +273,7 @@ router.get('/', requireAuth, async (req, res) => {
       resumeUpdatedAt: row.resume_updated_at ?? null,
       avatarId: row.avatar_id ?? null,
       tokens: row.tokens ?? 1000,
+      nickname: row.nickname ?? null,
     })
   } catch (err) {
     console.error('[GET /profile]', err)
@@ -330,6 +332,63 @@ router.put('/', requireAuth, validate(profileUpdateSchema), async (req, res) => 
   } catch (err) {
     console.error('[PUT /profile]', err)
     return res.status(500).json({ error: 'Failed to save profile' })
+  }
+})
+
+const nicknameSchema = z.object({
+  // null 清空昵称；清空后只能匿名发布面经
+  nickname: z.string().max(100).nullable(),
+})
+
+/** 昵称是否被别人占用（不区分大小写） */
+async function nicknameTaken(nickname, userId) {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('id')
+    // ilike 里 _ 和 % 是通配符（昵称允许下划线），要转义成字面字符
+    .ilike('nickname', nickname.replace(/[\\%_]/g, c => '\\' + c))
+    .neq('id', userId)
+    .limit(1)
+  if (error) throw error
+  return data.length > 0
+}
+
+/** GET /api/profile/nickname/check?name= — 输入时提示格式问题或已被占用 */
+router.get('/nickname/check', requireAuth, async (req, res) => {
+  const result = validateNickname(req.query.name)
+  if (!result.ok) return res.json({ available: false, code: result.code })
+  try {
+    const taken = await nicknameTaken(result.value, req.user.id)
+    return res.json(taken ? { available: false, code: 'NICKNAME_TAKEN' } : { available: true, nickname: result.value })
+  } catch (err) {
+    console.error('[GET /profile/nickname/check]', err)
+    return res.status(500).json({ error: 'Failed to check nickname' })
+  }
+})
+
+/**
+ * PUT /api/profile/nickname — 设置 / 清空公开昵称。
+ * 用 service role 写：profiles 的列级权限不让用户直接改这一列，格式和唯一性都在这里把关。
+ */
+router.put('/nickname', requireAuth, validate(nicknameSchema), async (req, res) => {
+  try {
+    await ensureProfileRow(req.user.id, dbFor(req))
+    let nickname = null
+    if (req.body.nickname !== null) {
+      const result = validateNickname(req.body.nickname)
+      if (!result.ok) return res.status(400).json({ error: result.code })
+      if (await nicknameTaken(result.value, req.user.id)) return res.status(409).json({ error: 'NICKNAME_TAKEN' })
+      nickname = result.value
+    }
+
+    const { error } = await supabase.from('profiles').update({ nickname }).eq('id', req.user.id)
+    // 两个人同时抢同一个昵称时，唯一索引兜底
+    if (error?.code === '23505') return res.status(409).json({ error: 'NICKNAME_TAKEN' })
+    if (error) throw error
+    return res.json({ nickname })
+  } catch (err) {
+    console.error('[PUT /profile/nickname]', err)
+    return res.status(500).json({ error: 'Failed to save nickname' })
   }
 })
 

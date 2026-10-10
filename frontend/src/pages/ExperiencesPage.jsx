@@ -9,13 +9,15 @@ import { authenticatedFetch } from '../lib/authenticatedFetch'
 import { roundSummary } from '../lib/experienceRounds'
 import { EXPERIENCE_TYPES, experienceType } from '../lib/experienceTypes'
 import { useAuth } from '../hooks/useAuth'
+import { useNickname } from '../hooks/useNickname'
+import NicknameField from '../components/NicknameField'
 import FilterSelect from '../components/FilterSelect'
 import './CommunityPages.css'
 import {
   Search, Building2, MapPin,
   Clock, ChevronDown, ChevronUp, MessageSquareQuote,
   Globe2, Loader2,
-  Trash2, Plus, X, Send, Zap, AlertTriangle, Lock, Library, Pencil, Layers
+  Trash2, Plus, X, Send, Zap, AlertTriangle, Lock, Library, Pencil, Layers, UserRound, EyeOff
 } from 'lucide-react'
 
 const COMMUNITY_EGG = BRAND_ASSETS.communityAvatar
@@ -483,7 +485,7 @@ function singleRound(rounds) {
   }
 }
 
-function PostModal({ isOpen, onClose, t, onPost, user, initial = null }) {
+function PostModal({ isOpen, onClose, t, onPost, user, initial = null, nickname = null, onNicknameSaved }) {
   // Edit mode: start from the existing post. Rounds are deep-copied because the
   // handlers below mutate question arrays in place. A rejected post is being
   // fixed for resubmission, so it stays pointed at the library.
@@ -499,6 +501,7 @@ function PostModal({ isOpen, onClose, t, onPost, user, initial = null }) {
     salary: initial.salary || '',
     reflection: initial.reflection || '',
     visibility: initial.visibility === 'public' ? 'public' : 'private',
+    anonymous: !!initial.anonymous,
     rounds: [singleRound(initial.rounds)],
   } : {
     type: EXPERIENCE_TYPES[0].value,
@@ -511,6 +514,8 @@ function PostModal({ isOpen, onClose, t, onPost, user, initial = null }) {
     salary: '',
     reflection: '',
     visibility: 'public',
+    // 默认用昵称发布；没设昵称时表单里可以当场设置
+    anonymous: false,
     rounds: [{ round: 1, format: '', duration_min: 30, questions: [''] }]
   })
   const [loading, setLoading] = useState(false)
@@ -548,8 +553,15 @@ function PostModal({ isOpen, onClose, t, onPost, user, initial = null }) {
     setFormData({ ...formData, rounds: nr })
   }
 
+  // 旧面经作者没设昵称时，编辑可以保留原来的署名
+  const needsNickname = !formData.anonymous && !nickname && !initial?.publisher
+
   const handleSubmit = async (e) => {
     e.preventDefault()
+    if (needsNickname) {
+      setSubmitError(t('nickname.errors.NICKNAME_REQUIRED'))
+      return
+    }
     setLoading(true)
     setSubmitError('')
     try {
@@ -617,6 +629,52 @@ function PostModal({ isOpen, onClose, t, onPost, user, initial = null }) {
                 )
               })}
             </div>
+          </div>
+
+          <div>
+            <p className="mb-2 ml-1 text-[12.5px] font-bold text-brand-ink">{t('exp.identityLabel')}</p>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2" role="radiogroup" aria-label={t('exp.identityLabel')}>
+              {[
+                {
+                  anonymous: false,
+                  icon: UserRound,
+                  label: t('exp.identityNickname'),
+                  desc: nickname
+                    ? t('exp.identityShownAs', { name: nickname })
+                    : initial?.publisher
+                      ? t('exp.identityShownAs', { name: initial.publisher })
+                      : t('exp.identityNicknameEmpty'),
+                },
+                { anonymous: true, icon: EyeOff, label: t('exp.identityAnonymous'), desc: t('exp.identityShownAs', { name: '匿名荷包蛋' }) },
+              ].map(({ anonymous, icon: Icon, label, desc }) => {
+                const active = formData.anonymous === anonymous
+                return (
+                  <button
+                    key={label}
+                    type="button"
+                    role="radio"
+                    aria-checked={active}
+                    onClick={() => setFormData({ ...formData, anonymous })}
+                    className={`flex items-start gap-3 rounded-2xl border p-4 text-left transition-colors ${
+                      active ? 'border-brand-ink bg-brand-inset ring-1 ring-brand-ink' : 'border-brand-line hover:border-brand-muted/40'
+                    }`}
+                  >
+                    <div className={`rounded-xl p-2 ${active ? 'bg-brand-ink text-brand-on-ink' : 'border border-brand-line bg-brand-inset text-brand-muted'}`}>
+                      <Icon className="w-4 h-4" />
+                    </div>
+                    <div className="flex min-w-0 flex-col">
+                      <span className="text-[13.5px] font-semibold text-brand-ink">{label}</span>
+                      <span className="mt-0.5 truncate text-[11.5px] leading-snug text-brand-muted">{desc}</span>
+                    </div>
+                  </button>
+                )
+              })}
+            </div>
+            {needsNickname && (
+              <div className="mt-3 rounded-2xl border border-brand-line bg-brand-inset/60 p-4">
+                <NicknameField onSaved={(saved) => onNicknameSaved?.(saved)} />
+              </div>
+            )}
           </div>
 
           <CustomDropdown
@@ -770,6 +828,7 @@ function PostModal({ isOpen, onClose, t, onPost, user, initial = null }) {
 export default function ExperiencesPage() {
   const { t } = useTranslation()
   const { user } = useAuth()
+  const { nickname, setNickname } = useNickname()
   const [searchParams, setSearchParams] = useSearchParams()
   const [experiences, setExperiences] = useState([])
   const [myExperiences, setMyExperiences] = useState([])
@@ -869,6 +928,7 @@ export default function ExperiencesPage() {
 
     if (!res.ok) {
       const errBody = await res.json().catch(() => ({}))
+      if (errBody.error?.startsWith('NICKNAME_')) throw new Error(t(`nickname.errors.${errBody.error}`))
       throw new Error(errBody.error || `Server returned ${res.status}: ${res.statusText}`)
     }
 
@@ -1139,6 +1199,8 @@ export default function ExperiencesPage() {
                   onClose={() => setPostModalOpen(false)}
                   t={t}
                   onPost={handlePost}
+                  nickname={nickname}
+                  onNicknameSaved={setNickname}
                   user={user}
                 />
               )}
@@ -1150,6 +1212,8 @@ export default function ExperiencesPage() {
                   onClose={() => setEditingExp(null)}
                   t={t}
                   onPost={(formData) => handlePost(formData, editingExp.id)}
+                  nickname={nickname}
+                  onNicknameSaved={setNickname}
                   user={user}
                 />
               )}

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
+import CommunityNickname from '../components/CommunityNickname'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { BRAND_ASSETS } from '../assets/brandAssets'
@@ -1322,6 +1323,10 @@ function ResumeMasterView({
             </div>
           )}
           {timeStr && hasBaseResume && <p>{t('profile.masterUpdated', { time: timeStr })}</p>}
+          {/* 社区昵称不依赖简历，没做简历的用户也要能设置 */}
+          <div className="mt-4">
+            <CommunityNickname />
+          </div>
           <div className="mt-5 flex flex-wrap gap-2.5">
             <Link to="/profile/edit" className="profile-tailor-primary inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-[13px] font-semibold">
               <Pencil className="h-4 w-4" />{hasData ? t('profile.masterEdit') : t('profile.masterCreate')}
