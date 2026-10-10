@@ -79,6 +79,7 @@ export default function Navbar() {
     { to: '/setup', label: t('nav.startInterview'), auth: true },
     { to: '/resume-tailor', label: t('nav.resumeTailor'), auth: true },
     { to: '/experiences', label: t('nav.experiences') },
+    { to: '/jobs', label: t('nav.jobs'), auth: true },
     { to: '/gallup', label: t('nav.gallup'), auth: true },
     { to: '/dashboard', label: t('nav.history'), auth: true },
   ].filter(item => !item.auth || user)

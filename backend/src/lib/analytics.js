@@ -241,6 +241,10 @@ const CLIENT_EVENTS = {
     scope: z.enum(['app', 'interview']),
     theme: z.enum(['light', 'dark']),
   }),
+  job_apply_clicked: z.object({
+    category: text(40).optional(),
+    companyType: text(40).optional(),
+  }),
   setup_submitted: z.object({
     mode: optionalMode,
     interviewerType: text(40).optional(),

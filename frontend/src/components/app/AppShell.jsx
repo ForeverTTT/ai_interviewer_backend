@@ -34,7 +34,7 @@ const BRAND_ICON = BRAND_ASSETS.shellBaseIcon
 
 function workspaceRole(pathname) {
   if (pathname === '/dashboard' || pathname === '/notes' || /^\/interview\/[^/]+\/report$/.test(pathname)) return 'review'
-  if (pathname === '/gallup' || pathname === '/experiences') return 'community'
+  if (pathname === '/gallup' || pathname === '/experiences' || pathname === '/jobs') return 'community'
   if (pathname === '/resume-tailor' || pathname === '/profile' || pathname === '/profile/edit') return 'resume'
   if (pathname === '/setup') return 'coach'
   return 'practice'
@@ -86,6 +86,7 @@ function useNavGroups() {
       label: t('nav.groupCommunity'),
       items: [
         { to: '/gallup', label: t('nav.gallup'), icon: Compass, dot: 'bg-[#DDAA46]' },
+        { to: '/jobs', label: t('nav.jobs'), icon: Briefcase, dot: 'bg-[#DDAA46]' },
         { to: '/experiences', label: t('nav.experiences'), icon: BookOpen, dot: 'bg-[#DDAA46]' },
         { to: '/experiences?mine=true', label: t('nav.myExperiences'), icon: BookMarked, dot: 'bg-[#DDAA46]' },
       ],

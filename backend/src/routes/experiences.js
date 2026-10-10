@@ -4,6 +4,7 @@ import { supabase, supabaseForUser } from '../lib/supabase.js'
 import { validate } from '../middleware/validate.js'
 import { deductTokens } from '../middleware/tokens.js'
 import { trackServerEvent } from '../lib/analytics.js'
+import { normalizeCompany, tagExperience } from '../lib/jobTaxonomy.js'
 
 const router = Router()
 
@@ -32,6 +33,46 @@ const experienceSchema = z.object({
 
 const EXPERIENCE_REWARD = 200
 
+let companyIndustryCache = { at: 0, value: new Map() }
+const COMPANY_INDUSTRY_TTL_MS = 10 * 60 * 1000
+
+/**
+ * Company name -> industry keys, taken from job_postings, so an experience at a
+ * company that is on the job board gets the same industry. Cached for 10 minutes.
+ * Failures (e.g. the job_postings migration has not run yet) fall back to
+ * keyword rules on the company name instead of breaking the library.
+ */
+async function loadCompanyIndustries() {
+  if (Date.now() - companyIndustryCache.at < COMPANY_INDUSTRY_TTL_MS) return companyIndustryCache.value
+  const map = new Map()
+  try {
+    for (let from = 0; ; from += 1000) {
+      const { data, error } = await supabase
+        .from('job_postings')
+        .select('company,industry_keys')
+        .range(from, from + 999)
+      if (error) throw error
+      for (const row of data) {
+        const key = normalizeCompany(row.company)
+        const merged = new Set([...(map.get(key) || []), ...(row.industry_keys || [])])
+        if (merged.size > 1) merged.delete('other')
+        map.set(key, [...merged])
+      }
+      if (data.length < 1000) break
+    }
+  } catch (err) {
+    console.error('[Experiences] Company industry lookup failed:', err.message)
+  }
+  companyIndustryCache = { at: Date.now(), value: map }
+  return map
+}
+
+/** Adds job_functions / industry_keys (computed, not stored) for the library filters. */
+async function withTags(rows) {
+  const companies = await loadCompanyIndustries()
+  return (rows || []).map(row => tagExperience(row, companies))
+}
+
 /**
  * GET LIBRARY EXPERIENCES (public + approved only)
  */
@@ -48,7 +89,7 @@ router.get('/', async (_req, res) => {
 
     res.json({
       total: count || 0,
-      experiences: data || [],
+      experiences: await withTags(data),
     })
   } catch (err) {
     console.error('[Experiences] Database load error:', err)
@@ -76,7 +117,7 @@ router.get('/mine', async (req, res) => {
       .order('created_at', { ascending: false })
 
     if (error) throw error
-    res.json({ experiences: data || [] })
+    res.json({ experiences: await withTags(data) })
   } catch (err) {
     console.error('[Experiences] Mine error:', err)
     res.status(500).json({ error: err.message || 'Failed to load your experiences' })

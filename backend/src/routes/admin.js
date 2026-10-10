@@ -127,18 +127,21 @@ router.delete('/experiences/:id', requireAdmin, async (req, res) => {
     if (error) throw error
     if (!data) return res.status(404).json({ error: 'Experience not found' })
 
-    const { error: notifyError } = await supabase.from('user_notifications').insert({
-      user_id: data.user_id,
-      type: 'experience_deleted',
-      payload: {
-        experience_id: data.id,
-        company: data.company,
-        position: data.position,
-        previous_status: data.review_status,
-      },
-    })
-    // The post is already gone; a failed notification should not report the delete as failed.
-    if (notifyError) console.error('[Admin] Delete notification error:', notifyError)
+    // Imported posts (scripts/importExperiences.js) have no author to notify.
+    if (data.user_id) {
+      const { error: notifyError } = await supabase.from('user_notifications').insert({
+        user_id: data.user_id,
+        type: 'experience_deleted',
+        payload: {
+          experience_id: data.id,
+          company: data.company,
+          position: data.position,
+          previous_status: data.review_status,
+        },
+      })
+      // The post is already gone; a failed notification should not report the delete as failed.
+      if (notifyError) console.error('[Admin] Delete notification error:', notifyError)
+    }
 
     console.log(`[Admin] ${req.user.email} deleted experience ${data.id} (${data.review_status})`)
     res.json({ success: true, previousStatus: data.review_status })

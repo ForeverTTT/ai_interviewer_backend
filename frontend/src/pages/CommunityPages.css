@@ -201,6 +201,11 @@
   grid-column: 1 / -1;
 }
 
+/* 求职信息卡片：同一行等高，操作按钮贴底（JobCard 里用 mt-auto） */
+.job-grid {
+  align-items: stretch;
+}
+
 .experience-author {
   display: inline-flex;
   align-items: center;
