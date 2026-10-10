@@ -96,6 +96,9 @@ test('job query schema applies defaults and bounds', () => {
   assert.equal(q.page, 1)
   assert.equal(q.open, 'true')
   assert.equal(jobQuerySchema.safeParse({ pageSize: '500' }).success, false)
+  assert.equal(q.sort, 'updated')
+  assert.equal(jobQuerySchema.parse({ sort: 'deadline_asc' }).sort, 'deadline_asc')
+  assert.equal(jobQuerySchema.safeParse({ sort: 'company' }).success, false, 'only known sort orders')
   assert.equal(sanitizeSearch('a,b(c)*%'), 'a b c')
 })
 

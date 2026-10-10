@@ -5,6 +5,7 @@ import { motion } from 'framer-motion'
 import {
   Search, MapPin, Clock, GraduationCap, ExternalLink, Loader2,
   BookOpen, PenLine, ChevronDown, CalendarClock, LayoutGrid, List,
+  ArrowUp, ArrowDown, ArrowUpDown,
 } from 'lucide-react'
 import { getBackendBaseUrl } from '../lib/backendBase'
 import { supabase } from '../lib/supabase'
@@ -52,7 +53,8 @@ function DeadlineBadge({ job, t }) {
   return (
     <span className={`flex items-center gap-1 ${urgent ? 'font-bold text-brand-danger' : expired ? 'text-brand-muted line-through' : ''}`}>
       <CalendarClock className="h-3.5 w-3.5" />
-      {urgent ? t('jobs.daysLeft', { n: daysLeft }) : job.deadline}
+      {/* 原表日期写法不统一（2027/10/08、2027-9-30 …），有解析出的日期就统一显示 */}
+      {urgent ? t('jobs.daysLeft', { n: daysLeft }) : (job.deadline_date || job.deadline)}
     </span>
   )
 }
@@ -235,7 +237,7 @@ function JobRow({ job, t }) {
 export default function JobsPage() {
   const { t } = useTranslation()
   const [facets, setFacets] = useState(null)
-  const [filters, setFilters] = useState({ category: '', industry: [], fn: [], companyType: [], year: [], city: [], open: true })
+  const [filters, setFilters] = useState({ category: '', industry: [], fn: [], companyType: [], year: [], city: [], open: true, sort: 'updated' })
   const [searchInput, setSearchInput] = useState('')
   const [search, setSearch] = useState('')
   const [jobs, setJobs] = useState([])
@@ -271,7 +273,7 @@ export default function JobsPage() {
 
   const load = useCallback(async (nextPage) => {
     const id = ++requestId.current
-    const params = new URLSearchParams({ page: String(nextPage), pageSize: String(PAGE_SIZE), open: String(filters.open) })
+    const params = new URLSearchParams({ page: String(nextPage), pageSize: String(PAGE_SIZE), open: String(filters.open), sort: filters.sort })
     if (search) params.set('q', search)
     if (filters.category) params.set('category', filters.category)
     // 多选：逗号拼在一起，后端拆开按「任一满足」查
@@ -373,6 +375,16 @@ export default function JobsPage() {
               {!loading && !error && (
                 <span className="text-[12.5px] font-semibold text-brand-muted">{t('jobs.resultCount', { n: total })}</span>
               )}
+              <select
+                value={filters.sort}
+                onChange={e => setFilter('sort', e.target.value)}
+                aria-label={t('jobs.sortLabel')}
+                className="h-[36px] rounded-full border border-brand-line bg-brand-card px-3 text-[12px] font-bold text-brand-ink focus:border-brand-ink focus:outline-none"
+              >
+                <option value="updated">{t('jobs.sortUpdated')}</option>
+                <option value="deadline_asc">{t('jobs.sortDeadlineAsc')}</option>
+                <option value="deadline_desc">{t('jobs.sortDeadlineDesc')}</option>
+              </select>
               <div className="flex rounded-full border border-brand-line bg-brand-card p-1" role="group" aria-label={t('jobs.viewLabel')}>
                 {[['card', LayoutGrid, t('jobs.viewCard')], ['list', List, t('jobs.viewList')]].map(([key, Icon, label]) => (
                   <button
@@ -414,7 +426,17 @@ export default function JobsPage() {
                   <span>{t('jobs.colCompany')}</span>
                   <span>{t('jobs.colPositions')}</span>
                   <span>{t('jobs.city')}</span>
-                  <span>{t('jobs.colDeadline')}</span>
+                  <button
+                    type="button"
+                    onClick={() => setFilter('sort', filters.sort === 'deadline_asc' ? 'deadline_desc' : 'deadline_asc')}
+                    title={filters.sort === 'deadline_asc' ? t('jobs.sortDeadlineDesc') : t('jobs.sortDeadlineAsc')}
+                    className={`inline-flex items-center gap-1 justify-self-start transition-colors hover:text-brand-ink ${filters.sort.startsWith('deadline') ? 'text-brand-ink' : ''}`}
+                  >
+                    {t('jobs.colDeadline')}
+                    {filters.sort === 'deadline_asc' ? <ArrowUp className="h-3.5 w-3.5" />
+                      : filters.sort === 'deadline_desc' ? <ArrowDown className="h-3.5 w-3.5" />
+                        : <ArrowUpDown className="h-3.5 w-3.5 opacity-60" />}
+                  </button>
                   <span />
                 </div>
                 {jobs.map(job => <JobRow key={job.id} job={job} t={t} />)}

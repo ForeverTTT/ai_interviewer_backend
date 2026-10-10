@@ -24,6 +24,8 @@ export const jobQuerySchema = z.object({
   year: listParam,
   city: listParam,
   open: z.enum(['true', 'false']).default('true'),
+  // updated：最近更新在前；deadline_asc / deadline_desc：按截止日期，没写日期的（招满为止 …）都排最后
+  sort: z.enum(['updated', 'deadline_asc', 'deadline_desc']).default('updated'),
   page: z.coerce.number().int().min(1).max(500).default(1),
   pageSize: z.coerce.number().int().min(1).max(60).default(24),
 })
@@ -55,7 +57,7 @@ export function openFilter(now = Date.now()) {
 router.get('/', async (req, res) => {
   const parsed = jobQuerySchema.safeParse(req.query)
   if (!parsed.success) return res.status(400).json({ error: 'Invalid query' })
-  const { q, category, companyType, fn, industry, year, city, open, page, pageSize } = parsed.data
+  const { q, category, companyType, fn, industry, year, city, open, sort, page, pageSize } = parsed.data
 
   try {
     let query = supabase
@@ -73,10 +75,15 @@ router.get('/', async (req, res) => {
     const term = sanitizeSearch(q)
     if (term) query = query.or(`company.ilike.%${term}%,positions.ilike.%${term}%`)
 
+    if (sort !== 'updated') {
+      query = query.order('deadline_date', { ascending: sort === 'deadline_asc', nullsFirst: false })
+    }
     const from = (page - 1) * pageSize
     const { data, error, count } = await query
       .order('source_updated_at', { ascending: false, nullsFirst: false })
       .order('created_at', { ascending: false })
+      // 最后按 id 定死顺序，「加载更多」翻页时不会重复或漏掉同一时间的岗位
+      .order('id')
       .range(from, from + pageSize - 1)
 
     if (error) throw error
