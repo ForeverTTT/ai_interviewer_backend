@@ -29,7 +29,11 @@ const experienceSchema = z.object({
   reflection: z.string().max(5000).optional().nullable(),
   // private: only the author sees it. public: submitted to the library for review.
   visibility: z.enum(['private', 'public']).optional(),
+  // true: shown as 匿名荷包蛋. false (default): shown under the author's nickname.
+  anonymous: z.boolean().optional(),
 })
+
+export { experienceSchema }
 
 const EXPERIENCE_REWARD = 200
 
@@ -69,10 +73,49 @@ async function loadCompanyIndustries() {
   return map
 }
 
-/** Adds job_functions / industry_keys (computed, not stored) for the library filters. */
+/**
+ * Name shown on a post: anonymous posts have none (the card shows 匿名荷包蛋);
+ * otherwise the author's current nickname, so renaming updates old posts;
+ * authors without a nickname keep the name stored when they posted (older posts).
+ */
+export function displayPublisher(row, nicknames) {
+  if (row.anonymous) return null
+  return (row.user_id && nicknames.get(row.user_id)) || row.publisher || null
+}
+
+async function loadNicknames(userIds) {
+  const ids = [...new Set(userIds.filter(Boolean))]
+  if (!ids.length) return new Map()
+  const { data, error } = await supabase.from('profiles').select('id,nickname').in('id', ids).not('nickname', 'is', null)
+  if (error) {
+    console.error('[Experiences] Nickname lookup failed:', error.message)
+    return new Map()
+  }
+  return new Map(data.map(p => [p.id, p.nickname]))
+}
+
+/**
+ * Adds job_functions / industry_keys (computed, not stored) for the library
+ * filters, and resolves the display name.
+ */
 async function withTags(rows) {
-  const companies = await loadCompanyIndustries()
-  return (rows || []).map(row => tagExperience(row, companies))
+  const list = rows || []
+  const [companies, nicknames] = await Promise.all([loadCompanyIndustries(), loadNicknames(list.map(r => r.user_id))])
+  return list.map(row => ({ ...tagExperience(row, companies), publisher: displayPublisher(row, nicknames) }))
+}
+
+/**
+ * Publisher fields for a write. Posting under one's name needs a nickname
+ * (NICKNAME_REQUIRED otherwise); the nickname is also stored as a fallback.
+ * When editing an older post whose author has no nickname, the stored name stays.
+ */
+async function publisherFields(userId, anonymous, existingPublisher = null) {
+  if (anonymous) return { anonymous: true, publisher: null }
+  const { data, error } = await supabase.from('profiles').select('nickname').eq('id', userId).maybeSingle()
+  if (error) throw error
+  if (data?.nickname) return { anonymous: false, publisher: data.nickname }
+  if (existingPublisher) return { anonymous: false, publisher: existingPublisher }
+  return null
 }
 
 /**
@@ -141,6 +184,8 @@ router.post('/', validate(experienceSchema), async (req, res) => {
 
     const { type, company, location, position, department, date, language, rounds, result, salary, reflection } = req.body
     const visibility = req.body.visibility === 'public' ? 'public' : 'private'
+    const publisher = await publisherFields(user.id, req.body.anonymous === true)
+    if (!publisher) return res.status(400).json({ error: 'NICKNAME_REQUIRED' })
 
     const { data, error } = await supabase
       .from('interview_experiences')
@@ -159,7 +204,7 @@ router.post('/', validate(experienceSchema), async (req, res) => {
         visibility,
         review_status: visibility === 'public' ? 'pending' : 'none',
         user_id: user.id,
-        publisher: user.user_metadata?.full_name || user.email.split('@')[0]
+        ...publisher,
       }])
       .select()
       .single()
@@ -196,6 +241,18 @@ router.put('/:id', validate(experienceSchema), async (req, res) => {
     const { type, company, location, position, department, date, language, rounds, result, salary, reflection } = req.body
     const visibility = req.body.visibility === 'public' ? 'public' : 'private'
 
+    const { data: current, error: currentError } = await supabase
+      .from('interview_experiences')
+      .select('publisher, anonymous')
+      .eq('id', req.params.id)
+      .eq('user_id', user.id)
+      .maybeSingle()
+    if (currentError) throw currentError
+    if (!current) return res.status(404).json({ error: 'Experience not found' })
+    const anonymous = typeof req.body.anonymous === 'boolean' ? req.body.anonymous : current.anonymous
+    const publisher = await publisherFields(user.id, anonymous, current.publisher)
+    if (!publisher) return res.status(400).json({ error: 'NICKNAME_REQUIRED' })
+
     const { data, error } = await supabase
       .from('interview_experiences')
       .update({
@@ -212,6 +269,7 @@ router.put('/:id', validate(experienceSchema), async (req, res) => {
         reflection,
         visibility,
         review_status: visibility === 'public' ? 'pending' : 'none',
+        ...publisher,
       })
       .eq('id', req.params.id)
       .eq('user_id', user.id)

@@ -1912,7 +1912,35 @@
     "resubmit": "重新提交审核",
     "rejectReason": "未通过原因：",
     "securityNotice": "数据加密传输中 · 已开启防注入过滤",
-    "securityTip": "您的面试经验将以匿名方式或仅显示昵称共享，敏感数据会被自动过滤。"
+    "securityTip": "您的面试经验将以匿名方式或仅显示昵称共享，敏感数据会被自动过滤。",
+    "identityLabel": "发布身份",
+    "identityNickname": "用我的昵称",
+    "identityAnonymous": "匿名",
+    "identityShownAs": "显示为「{{name}}」",
+    "identityNicknameEmpty": "还没有昵称，先在下面设置一个"
+  },
+  "nickname": {
+    "label": "社区昵称",
+    "placeholder": "2–20 个字，全站唯一",
+    "hint": "用昵称发布面经时，大家看到的就是这个名字。不能是邮箱、网址或手机号。",
+    "available": "这个昵称可以用",
+    "save": "保存",
+    "saving": "保存中…",
+    "cancel": "取消",
+    "profileLabel": "社区昵称",
+    "notSet": "未设置",
+    "edit": "修改",
+    "set": "设置",
+    "errors": {
+      "NICKNAME_LENGTH": "昵称需要 2–20 个字",
+      "NICKNAME_CONTACT": "昵称不能包含邮箱、网址或手机号",
+      "NICKNAME_CHARS": "昵称只能用中英文、数字、空格和 _ - · .",
+      "NICKNAME_RESERVED": "这个昵称不能使用，请换一个",
+      "NICKNAME_TAKEN": "这个昵称已经有人用了",
+      "NICKNAME_REQUIRED": "用昵称发布前，请先设置一个昵称，或者选择匿名发布",
+      "CHECK_FAILED": "暂时无法检查昵称，请稍后再试",
+      "SAVE_FAILED": "保存失败，请稍后再试"
+    }
   },
   "jobs": {
     "title": "求职信息",

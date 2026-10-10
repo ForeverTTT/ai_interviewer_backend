@@ -1898,7 +1898,35 @@
     "resubmit": "Erneut zur Prüfung einreichen",
     "rejectReason": "Grund: ",
     "securityNotice": "Verschlüsselt übertragen · Injektionsschutz aktiv",
-    "securityTip": "Ihre Erfahrungen werden anonymisiert oder mit Nickname geteilt. Sensitive Daten werden gefiltert."
+    "securityTip": "Ihre Erfahrungen werden anonymisiert oder mit Nickname geteilt. Sensitive Daten werden gefiltert.",
+    "identityLabel": "Veröffentlichen als",
+    "identityNickname": "Mein Spitzname",
+    "identityAnonymous": "Anonym",
+    "identityShownAs": "Angezeigt als „{{name}}“",
+    "identityNicknameEmpty": "Noch kein Spitzname, unten festlegen"
+  },
+  "nickname": {
+    "label": "Community-Spitzname",
+    "placeholder": "2–20 Zeichen, eindeutig",
+    "hint": "Wird bei Erfahrungsberichten unter deinem Spitznamen angezeigt. Keine E-Mails, Links oder Telefonnummern.",
+    "available": "Dieser Spitzname ist frei",
+    "save": "Speichern",
+    "saving": "Speichern…",
+    "cancel": "Abbrechen",
+    "profileLabel": "Community-Spitzname",
+    "notSet": "Nicht festgelegt",
+    "edit": "Ändern",
+    "set": "Festlegen",
+    "errors": {
+      "NICKNAME_LENGTH": "Spitznamen brauchen 2–20 Zeichen",
+      "NICKNAME_CONTACT": "Keine E-Mails, Links oder Telefonnummern im Spitznamen",
+      "NICKNAME_CHARS": "Nur Buchstaben, Zahlen, Leerzeichen und _ - · .",
+      "NICKNAME_RESERVED": "Dieser Spitzname ist nicht verfügbar, bitte wähle einen anderen",
+      "NICKNAME_TAKEN": "Dieser Spitzname ist schon vergeben",
+      "NICKNAME_REQUIRED": "Lege zuerst einen Spitznamen fest oder poste anonym",
+      "CHECK_FAILED": "Spitzname konnte nicht geprüft werden, bitte später erneut versuchen",
+      "SAVE_FAILED": "Speichern fehlgeschlagen, bitte später erneut versuchen"
+    }
   },
   "jobs": {
     "title": "Stellenbörse",
