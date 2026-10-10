@@ -349,7 +349,8 @@ function normalizeExperience(exp, source) {
     visibility: 'public',
     review_status: 'approved',
     reward_granted: true,
-    publisher: source,
+    // 面经库里导入的面经统一显示「匿名荷包蛋」（卡片在没有发布者时的默认名），出处只记在 source
+    publisher: null,
     source,
     external_key: stableKey('exp', source, exp.company, exp.position, exp.date, rounds[0]?.questions[0] || exp.reflection),
   }

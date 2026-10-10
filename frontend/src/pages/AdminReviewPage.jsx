@@ -96,7 +96,7 @@ function ReviewCard({ exp, status, busy, onReview, onDelete, t, locale }) {
           </div>
 
           <p className="text-[12px] text-brand-muted">
-            {t('adminReview.submittedBy')}: <span className="font-bold text-brand-ink">{exp.publisher || exp.user_id}</span>
+            {t('adminReview.submittedBy')}: <span className="font-bold text-brand-ink">{exp.publisher || exp.source || exp.user_id}</span>
             {' · '}
             {t('adminReview.submittedAt')}: {formatDateTime(exp.created_at, locale)}
             {exp.reviewed_at && <> · {t('adminReview.reviewedAt')}: {formatDateTime(exp.reviewed_at, locale)}</>}
