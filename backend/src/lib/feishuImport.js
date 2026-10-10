@@ -213,9 +213,9 @@ export function withoutBoilerplate(value) {
   return clean(text.replace(/^[\s,，;；、·]+|[\s,，;；、·]+$/g, ''))
 }
 
-/** 表格里的使用说明行（「👈先看使用说明」之类）不是招聘 */
+/** 表格里的使用说明行（「👈先看使用说明」「⬆️如何筛选看上面教程」之类）不是招聘 */
 function isInstructionRow(row) {
-  return Object.values(row).some(v => /使用说明|使用指南/.test(String(v || '')))
+  return Object.values(row).some(v => /使用说明|使用指南|如何筛选|看上面教程/.test(String(v || '')))
 }
 
 export function mapJobRow(row, { category: fallbackCategory, source }) {

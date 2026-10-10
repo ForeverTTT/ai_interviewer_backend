@@ -15,7 +15,8 @@
 import { readFile } from 'node:fs/promises'
 import { basename, extname } from 'node:path'
 import { parseArgs } from 'node:util'
-import { parseCsv, mapJobRow, unmappedHeaders, JOB_FIELD_ALIASES, STALE_AFTER_DAYS } from '../src/lib/feishuImport.js'
+import { parseCsv, JOB_FIELD_ALIASES } from '../src/lib/feishuImport.js'
+import { importJobTables } from '../src/lib/jobImport.js'
 import { readXlsx } from '../src/lib/xlsx.js'
 
 const { values: opts, positionals: files } = parseArgs({
@@ -35,7 +36,6 @@ if (!files.length) {
   process.exit(1)
 }
 
-const BATCH = 500
 const { supabase } = opts['dry-run'] ? {} : await import('../src/lib/supabase.js')
 // 写库前先说清楚写到哪：手动设置的 SUPABASE_URL 优先于 backend/.env（本地开发库）
 if (!opts['dry-run']) console.log(`目标数据库: ${process.env.SUPABASE_URL || '(未设置 SUPABASE_URL)'}`)
@@ -62,79 +62,16 @@ async function loadTables(file) {
   return [{ label: name, rows: parseCsv(await readFile(file, 'utf8')), fallback: opts.category || name }]
 }
 
-function tally(list, pickValues, top = 12) {
-  const counts = new Map()
-  for (const item of list) for (const v of pickValues(item)) counts.set(v, (counts.get(v) || 0) + 1)
-  return [...counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, top).map(([k, n]) => `${k} ${n}`).join('，')
-}
-
-async function existingKeys(source) {
-  const keys = []
-  for (let from = 0; ; from += 1000) {
-    const { data, error } = await supabase
-      .from('job_postings')
-      .select('external_key')
-      .eq('source', source)
-      // 分页必须有固定顺序，否则各页之间会重复 / 漏行
-      .order('id')
-      .range(from, from + 999)
-    if (error) throw error
-    keys.push(...data.map(r => r.external_key))
-    if (data.length < 1000) return keys
-  }
-}
-
-const imported = new Set()
-const staleCutoff = new Date(Date.now() - STALE_AFTER_DAYS * 86400000).toISOString().slice(0, 10)
-const today = new Date().toISOString().slice(0, 10)
-
+const tables = []
 for (const file of files) {
-  console.log(`\n${file}`)
-  for (const table of await loadTables(file)) {
-    const byKey = new Map()
-    let skipped = 0
-    for (const row of table.rows) {
-      const job = mapJobRow(row, { category: table.fallback, source: opts.source })
-      if (job) byKey.set(job.external_key, job)
-      else skipped++
-    }
-    const jobs = [...byKey.values()]
-    const open = jobs.filter(j => (j.deadline_date ? j.deadline_date >= today : !j.source_updated_at || j.source_updated_at >= staleCutoff))
-
-    console.log(`\n[${table.label}]`)
-    console.log(`  行数 ${table.rows.length}，有效岗位 ${jobs.length}，跳过 ${skipped}（缺公司名或说明行），重复合并 ${table.rows.length - skipped - jobs.length}`)
-    if (table.rows[0]) {
-      const extra = unmappedHeaders(table.rows[0])
-      if (extra.length) console.log(`  未识别的列（不会导入）: ${extra.join('、')}`)
-    }
-    console.log(`  有投递链接 ${jobs.filter(j => j.apply_url).length}，有截止日期 ${jobs.filter(j => j.deadline_date).length}，按「只看未截止」能看到 ${open.length}`)
-    console.log(`  分类: ${tally(jobs, j => [j.category])}`)
-    console.log(`  企业类型: ${tally(jobs, j => [j.company_type || '(空)'])}`)
-    console.log(`  企业分类: ${tally(jobs, j => j.industry_keys, 20)}`)
-    console.log(`  岗位类别: ${tally(jobs, j => j.job_functions, 20)}`)
-    console.log(`  届次: ${tally(jobs, j => j.graduation_years, 10)}`)
-
-    if (opts['dry-run']) {
-      if (opts.sample && jobs[0]) console.log('  示例:', JSON.stringify(jobs[0], null, 2).replace(/\n/g, '\n  '))
-      continue
-    }
-
-    for (let i = 0; i < jobs.length; i += BATCH) {
-      const { error } = await supabase
-        .from('job_postings')
-        .upsert(jobs.slice(i, i + BATCH), { onConflict: 'external_key' })
-      if (error) throw error
-    }
-    for (const key of byKey.keys()) imported.add(key)
-    console.log(`  已写入 ${jobs.length} 条`)
-  }
+  console.log(`
+${file}`)
+  tables.push(...await loadTables(file))
 }
-
-if (opts.replace && !opts['dry-run']) {
-  const stale = (await existingKeys(opts.source)).filter(k => !imported.has(k))
-  for (let i = 0; i < stale.length; i += 100) {
-    const { error } = await supabase.from('job_postings').delete().in('external_key', stale.slice(i, i + 100))
-    if (error) throw error
-  }
-  console.log(`\n来源「${opts.source}」下已删除这次导入里没有的旧岗位 ${stale.length} 条`)
-}
+await importJobTables(tables, {
+  supabase,
+  source: opts.source,
+  replace: opts.replace,
+  dryRun: opts['dry-run'],
+  sample: opts.sample,
+})

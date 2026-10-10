@@ -1,0 +1,57 @@
+name: Sync job board from Feishu
+
+on:
+  schedule:
+    # 每天北京时间 06:00（UTC 22:00）
+    - cron: '0 22 * * *'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: Only parse and print stats, do not write to the database
+        type: boolean
+        default: false
+      force:
+        description: Write even if far fewer jobs than currently in the database
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sync-feishu-jobs
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    name: Sync Feishu bitable into job_postings
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: production
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: backend
+        run: npm ci
+
+      - name: Sync
+        working-directory: backend
+        env:
+          FEISHU_APP_ID: ${{ secrets.FEISHU_APP_ID }}
+          FEISHU_APP_SECRET: ${{ secrets.FEISHU_APP_SECRET }}
+          FEISHU_JOBS_URL: ${{ vars.FEISHU_JOBS_URL }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          DRY_RUN: ${{ inputs.dry_run && '--dry-run' || '' }}
+          FORCE: ${{ inputs.force && '--force' || '' }}
+        run: node scripts/syncFeishuJobs.js $DRY_RUN $FORCE
