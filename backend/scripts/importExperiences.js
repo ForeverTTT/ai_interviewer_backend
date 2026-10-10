@@ -32,6 +32,8 @@ if (!files.length) {
 }
 
 const { supabase } = opts['dry-run'] ? {} : await import('../src/lib/supabase.js')
+// 写库前先说清楚写到哪：手动设置的 SUPABASE_URL 优先于 backend/.env（本地开发库）
+if (!opts['dry-run']) console.log(`目标数据库: ${process.env.SUPABASE_URL || '(未设置 SUPABASE_URL)'}`)
 
 for (const file of files) {
   const text = await readFile(file, 'utf8')

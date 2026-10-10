@@ -37,6 +37,8 @@ if (!files.length) {
 
 const BATCH = 500
 const { supabase } = opts['dry-run'] ? {} : await import('../src/lib/supabase.js')
+// 写库前先说清楚写到哪：手动设置的 SUPABASE_URL 优先于 backend/.env（本地开发库）
+if (!opts['dry-run']) console.log(`目标数据库: ${process.env.SUPABASE_URL || '(未设置 SUPABASE_URL)'}`)
 
 function hasColumn(rows, aliases) {
   const headers = Object.keys(rows[0] || {}).map(h => h.replace(/\s*\(\d+\)$/, ''))
