@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { supabase } from '../lib/supabase.js'
 import { requireAuth } from '../middleware/auth.js'
 import { JOB_FUNCTIONS, INDUSTRIES, taxonomyOrder } from '../lib/jobTaxonomy.js'
+import { STALE_AFTER_DAYS } from '../lib/feishuImport.js'
 
 const router = Router()
 
@@ -37,8 +38,18 @@ export function pgArrayLiteral(values) {
   return `{${values.map(v => `"${v.replace(/["\\]/g, '\\$&')}"`).join(',')}}`
 }
 
-function today() {
-  return new Date().toISOString().slice(0, 10)
+function isoDaysAgo(days, now = Date.now()) {
+  return new Date(now - days * 86400000).toISOString().slice(0, 10)
+}
+
+/**
+ * 「只看未截止」：有截止日期的看截止日期；没有的看更新时间是否在半年内，
+ * 不然表里 2024 届「招满为止」的老岗位会一直显示成未截止。
+ */
+export function openFilter(now = Date.now()) {
+  const today = isoDaysAgo(0, now)
+  const freshSince = isoDaysAgo(STALE_AFTER_DAYS, now)
+  return `deadline_date.gte.${today},and(deadline_date.is.null,or(source_updated_at.is.null,source_updated_at.gte.${freshSince}))`
 }
 
 router.get('/', async (req, res) => {
@@ -58,7 +69,7 @@ router.get('/', async (req, res) => {
     if (industry.length) query = query.filter('industry_keys', 'ov', pgArrayLiteral(industry))
     if (year.length) query = query.filter('graduation_years', 'ov', pgArrayLiteral(year))
     if (city.length) query = query.filter('locations', 'ov', pgArrayLiteral(city))
-    if (open === 'true') query = query.or(`deadline_date.is.null,deadline_date.gte.${today()}`)
+    if (open === 'true') query = query.or(openFilter())
     const term = sanitizeSearch(q)
     if (term) query = query.or(`company.ilike.%${term}%,positions.ilike.%${term}%`)
 
@@ -101,6 +112,8 @@ router.get('/facets', async (_req, res) => {
       const { data, error } = await supabase
         .from('job_postings')
         .select('category,company_type,job_functions,industry_keys,graduation_years,locations,source,source_updated_at')
+        // 分页必须有固定顺序，否则各页之间会重复 / 漏行
+        .order('id')
         .range(from, from + 999)
       if (error) throw error
       rows.push(...data)

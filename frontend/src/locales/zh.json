@@ -1967,7 +1967,7 @@
       "other": "其他"
     },
     "ind": {
-      "internet": "互联网",
+      "internet": "互联网/科技",
       "auto": "汽车",
       "semiconductor": "电子/半导体",
       "finance": "金融",
@@ -1981,6 +1981,8 @@
       "media": "文化传媒",
       "logistics": "交通物流",
       "public": "公共事业",
+      "services": "生活服务",
+      "agriculture": "农林牧渔",
       "other": "其他"
     }
   },

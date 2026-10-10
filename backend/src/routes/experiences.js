@@ -50,6 +50,8 @@ async function loadCompanyIndustries() {
       const { data, error } = await supabase
         .from('job_postings')
         .select('company,industry_keys')
+        // 分页必须有固定顺序，否则各页之间会重复 / 漏行
+        .order('id')
         .range(from, from + 999)
       if (error) throw error
       for (const row of data) {

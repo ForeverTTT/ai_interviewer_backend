@@ -1963,7 +1963,7 @@
       "other": "Other"
     },
     "ind": {
-      "internet": "Internet",
+      "internet": "Internet & tech",
       "auto": "Automotive",
       "semiconductor": "Electronics & semiconductors",
       "finance": "Finance",
@@ -1977,6 +1977,8 @@
       "media": "Media",
       "logistics": "Transport & logistics",
       "public": "Public sector",
+      "services": "Consumer services",
+      "agriculture": "Agriculture",
       "other": "Other"
     }
   },
