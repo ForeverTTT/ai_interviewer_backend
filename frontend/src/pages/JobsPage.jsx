@@ -5,6 +5,7 @@ import { motion } from 'framer-motion'
 import {
   Search, MapPin, Clock, GraduationCap, ExternalLink, Loader2,
   BookOpen, PenLine, ChevronDown, CalendarClock, LayoutGrid, List,
+  ArrowUp, ArrowDown, ArrowUpDown,
 } from 'lucide-react'
 import { getBackendBaseUrl } from '../lib/backendBase'
 import { supabase } from '../lib/supabase'
@@ -24,6 +25,21 @@ function readView() {
   } catch {
     return 'card'
   }
+}
+
+/**
+ * 届次从早到晚排，连续的合并：['2026届', '2024届', '2025届', '海外往届'] → ['2024–2026届', '海外往届']
+ */
+function formatGraduationYears(years) {
+  const nums = [...new Set((years || []).map(y => y.match(/^(\d{4})届$/)?.[1]).filter(Boolean).map(Number))].sort((a, b) => a - b)
+  const others = (years || []).filter(y => !/^\d{4}届$/.test(y))
+  const ranges = []
+  for (const n of nums) {
+    const last = ranges[ranges.length - 1]
+    if (last && n === last[1] + 1) last[1] = n
+    else ranges.push([n, n])
+  }
+  return [...ranges.map(([a, b]) => (a === b ? `${a}届` : `${a}–${b}届`)), ...others]
 }
 
 function formatLocations(locations, max) {
@@ -52,7 +68,8 @@ function DeadlineBadge({ job, t }) {
   return (
     <span className={`flex items-center gap-1 ${urgent ? 'font-bold text-brand-danger' : expired ? 'text-brand-muted line-through' : ''}`}>
       <CalendarClock className="h-3.5 w-3.5" />
-      {urgent ? t('jobs.daysLeft', { n: daysLeft }) : job.deadline}
+      {/* 原表日期写法不统一（2027/10/08、2027-9-30 …），有解析出的日期就统一显示 */}
+      {urgent ? t('jobs.daysLeft', { n: daysLeft }) : (job.deadline_date || job.deadline)}
     </span>
   )
 }
@@ -100,7 +117,7 @@ function JobCard({ job, t }) {
             +{job.job_functions.length - MAX_CARD_FUNCTIONS}
           </span>
         )}
-        {job.graduation_years?.map(y => (
+        {formatGraduationYears(job.graduation_years).map(y => (
           <span key={y} className="inline-flex items-center rounded-lg border border-brand-line bg-brand-card px-2.5 py-1 text-[11px] font-bold text-brand-muted">
             {y}
           </span>
@@ -188,7 +205,7 @@ function JobRow({ job, t }) {
       <div className="min-w-0">
         <p className="truncate font-brand text-[15px] font-semibold text-brand-ink">{job.company}</p>
         <p className="mt-0.5 truncate text-[12px] text-brand-muted">
-          {[job.company_type, ...(job.graduation_years || [])].filter(Boolean).join(' · ')}
+          {[job.company_type, ...formatGraduationYears(job.graduation_years)].filter(Boolean).join(' · ')}
         </p>
       </div>
       <div className="min-w-0">
@@ -235,7 +252,7 @@ function JobRow({ job, t }) {
 export default function JobsPage() {
   const { t } = useTranslation()
   const [facets, setFacets] = useState(null)
-  const [filters, setFilters] = useState({ category: '', industry: [], fn: [], companyType: [], year: [], city: [], open: true })
+  const [filters, setFilters] = useState({ category: '', industry: [], fn: [], companyType: [], year: [], city: [], open: true, sort: 'updated' })
   const [searchInput, setSearchInput] = useState('')
   const [search, setSearch] = useState('')
   const [jobs, setJobs] = useState([])
@@ -246,6 +263,8 @@ export default function JobsPage() {
   const [error, setError] = useState(false)
   const [view, setView] = useState(readView)
   const requestId = useRef(0)
+  // 届次筛选项是分组（2025届及更早 …），查询时要换成组里实际的届次；用 ref 免得筛选项加载完又多查一次
+  const yearGroupsRef = useRef([])
 
   const changeView = (next) => {
     setView(next)
@@ -261,7 +280,10 @@ export default function JobsPage() {
   }, [t])
 
   useEffect(() => {
-    authedFetch('/api/jobs/facets').then(setFacets).catch(() => setFacets({ categories: [], industries: [], functions: [], companyTypes: [], years: [], cities: [], sources: [] }))
+    authedFetch('/api/jobs/facets').then(data => {
+      yearGroupsRef.current = data.years || []
+      setFacets(data)
+    }).catch(() => setFacets({ categories: [], industries: [], functions: [], companyTypes: [], years: [], cities: [], sources: [] }))
   }, [])
 
   useEffect(() => {
@@ -271,12 +293,16 @@ export default function JobsPage() {
 
   const load = useCallback(async (nextPage) => {
     const id = ++requestId.current
-    const params = new URLSearchParams({ page: String(nextPage), pageSize: String(PAGE_SIZE), open: String(filters.open) })
+    const params = new URLSearchParams({ page: String(nextPage), pageSize: String(PAGE_SIZE), open: String(filters.open), sort: filters.sort })
     if (search) params.set('q', search)
     if (filters.category) params.set('category', filters.category)
     // 多选：逗号拼在一起，后端拆开按「任一满足」查
-    for (const key of ['industry', 'fn', 'companyType', 'year', 'city']) {
+    for (const key of ['industry', 'fn', 'companyType', 'city']) {
       if (filters[key].length) params.set(key, filters[key].join(','))
+    }
+    if (filters.year.length) {
+      const members = filters.year.flatMap(key => yearGroupsRef.current.find(g => g.value === key)?.members || [key])
+      params.set('year', [...new Set(members)].join(','))
     }
     if (nextPage === 1) setLoading(true)
     else setLoadingMore(true)
@@ -302,6 +328,12 @@ export default function JobsPage() {
   }, [load])
 
   const setFilter = (key, value) => setFilters(prev => ({ ...prev, [key]: value }))
+  const yearLabel = (key) => {
+    const group = facets?.years?.find(g => g.value === key)
+    if (key === 'earlier') return t('jobs.yearEarlier', { year: group?.year })
+    if (key === 'later') return t('jobs.yearLater', { year: group?.year })
+    return key
+  }
   const categoryTabs = [{ value: '', count: facets?.total ?? 0, label: t('jobs.allCategories') }, ...(facets?.categories || [])]
   const hasMore = jobs.length < total
 
@@ -367,12 +399,22 @@ export default function JobsPage() {
             <FilterSelect label={t('taxonomy.industryLabel')} values={filters.industry} onChange={v => setFilter('industry', v)} options={facets.industries || []} allLabel={t('jobs.any')} formatLabel={v => t(`taxonomy.ind.${v}`, v)} />
             <FilterSelect label={t('taxonomy.functionLabel')} values={filters.fn} onChange={v => setFilter('fn', v)} options={facets.functions || []} allLabel={t('jobs.any')} formatLabel={v => t(`taxonomy.fn.${v}`, v)} />
             <FilterSelect label={t('jobs.companyType')} values={filters.companyType} onChange={v => setFilter('companyType', v)} options={facets.companyTypes} allLabel={t('jobs.any')} />
-            <FilterSelect label={t('jobs.year')} values={filters.year} onChange={v => setFilter('year', v)} options={facets.years} allLabel={t('jobs.any')} />
+            <FilterSelect label={t('jobs.year')} values={filters.year} onChange={v => setFilter('year', v)} options={facets.years} allLabel={t('jobs.any')} formatLabel={yearLabel} />
             <FilterSelect label={t('jobs.city')} values={filters.city} onChange={v => setFilter('city', v)} options={facets.cities} allLabel={t('jobs.any')} />
             <div className="ml-auto flex items-center gap-3">
               {!loading && !error && (
                 <span className="text-[12.5px] font-semibold text-brand-muted">{t('jobs.resultCount', { n: total })}</span>
               )}
+              <select
+                value={filters.sort}
+                onChange={e => setFilter('sort', e.target.value)}
+                aria-label={t('jobs.sortLabel')}
+                className="h-[36px] rounded-full border border-brand-line bg-brand-card px-3 text-[12px] font-bold text-brand-ink focus:border-brand-ink focus:outline-none"
+              >
+                <option value="updated">{t('jobs.sortUpdated')}</option>
+                <option value="deadline_asc">{t('jobs.sortDeadlineAsc')}</option>
+                <option value="deadline_desc">{t('jobs.sortDeadlineDesc')}</option>
+              </select>
               <div className="flex rounded-full border border-brand-line bg-brand-card p-1" role="group" aria-label={t('jobs.viewLabel')}>
                 {[['card', LayoutGrid, t('jobs.viewCard')], ['list', List, t('jobs.viewList')]].map(([key, Icon, label]) => (
                   <button
@@ -414,7 +456,17 @@ export default function JobsPage() {
                   <span>{t('jobs.colCompany')}</span>
                   <span>{t('jobs.colPositions')}</span>
                   <span>{t('jobs.city')}</span>
-                  <span>{t('jobs.colDeadline')}</span>
+                  <button
+                    type="button"
+                    onClick={() => setFilter('sort', filters.sort === 'deadline_asc' ? 'deadline_desc' : 'deadline_asc')}
+                    title={filters.sort === 'deadline_asc' ? t('jobs.sortDeadlineDesc') : t('jobs.sortDeadlineAsc')}
+                    className={`inline-flex items-center gap-1 justify-self-start transition-colors hover:text-brand-ink ${filters.sort.startsWith('deadline') ? 'text-brand-ink' : ''}`}
+                  >
+                    {t('jobs.colDeadline')}
+                    {filters.sort === 'deadline_asc' ? <ArrowUp className="h-3.5 w-3.5" />
+                      : filters.sort === 'deadline_desc' ? <ArrowDown className="h-3.5 w-3.5" />
+                        : <ArrowUpDown className="h-3.5 w-3.5 opacity-60" />}
+                  </button>
                   <span />
                 </div>
                 {jobs.map(job => <JobRow key={job.id} job={job} t={t} />)}

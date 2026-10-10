@@ -1915,8 +1915,14 @@
     "colCompany": "Unternehmen",
     "colPositions": "Stellen",
     "colDeadline": "Frist",
+    "sortLabel": "Sortierung",
+    "sortUpdated": "Zuletzt aktualisiert",
+    "sortDeadlineAsc": "Frist: früheste",
+    "sortDeadlineDesc": "Frist: späteste",
     "companyType": "Unternehmensart",
     "year": "Jahrgang",
+    "yearEarlier": "Jahrgang {{year}} oder früher",
+    "yearLater": "Jahrgang {{year}} oder später",
     "city": "Stadt",
     "any": "Alle",
     "resultCount": "{{n}} Ergebnisse",
@@ -1953,7 +1959,7 @@
       "other": "Sonstige"
     },
     "ind": {
-      "internet": "Internet",
+      "internet": "Internet & Tech",
       "auto": "Automobil",
       "semiconductor": "Elektronik & Halbleiter",
       "finance": "Finanzen",
@@ -1967,6 +1973,8 @@
       "media": "Medien",
       "logistics": "Verkehr & Logistik",
       "public": "Öffentlicher Sektor",
+      "services": "Dienstleistungen",
+      "agriculture": "Landwirtschaft",
       "other": "Sonstige"
     }
   },

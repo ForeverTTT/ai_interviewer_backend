@@ -1,90 +1,77 @@
 /**
- * 把飞书多维表格导出的 CSV 导入 job_postings。
+ * 把飞书多维表格导出的 Excel / CSV 导入 job_postings。
  *
- *   node scripts/importJobs.js <csv...> [--category 互联网] [--source 来源名] [--replace] [--dry-run]
+ *   node scripts/importJobs.js <xlsx|csv...> [--sheet 工作表名] [--category 分类] [--source 来源名] [--replace] [--dry-run] [--sample]
  *
- * - 每个 tab（央国企 / 外企 / 互联网 …）单独导出一个 CSV；不传 --category 时用文件名当分类。
+ * - Excel：默认导入所有带「公司」和「招聘岗位」列的工作表（名录、内推码这类表会跳过），
+ *   --sheet 只导入指定的一张。
+ * - 分类：表里有「批次」列（飞书总表）就按批次归成 秋招 / 春招 / 实习 / 社招；
+ *   没有时用 --category，再没有用工作表名（Excel）或文件名（CSV）。
  * - 按 external_key upsert，重复导入同一份文件不会产生重复行。
- * - --replace：同分类 + 同来源下，这次 CSV 里已经没有的旧岗位会被删掉。
- * - --dry-run：只解析并打印统计和没识别的列，不写库。
+ * - --replace：同一来源（--source）下，这次导入（所有文件合计）里已经没有的旧岗位会被删掉。
+ *   所以分 tab 导出的 CSV 要放在同一条命令里一起导入。
+ * - --dry-run：只解析并打印统计和没识别的列，不写库；加 --sample 再打印一条解析结果。
  */
 import { readFile } from 'node:fs/promises'
 import { basename, extname } from 'node:path'
 import { parseArgs } from 'node:util'
-import { parseCsv, mapJobRow, unmappedHeaders } from '../src/lib/feishuImport.js'
+import { parseCsv, JOB_FIELD_ALIASES } from '../src/lib/feishuImport.js'
+import { importJobTables } from '../src/lib/jobImport.js'
+import { readXlsx } from '../src/lib/xlsx.js'
 
 const { values: opts, positionals: files } = parseArgs({
   allowPositionals: true,
   options: {
+    sheet: { type: 'string' },
     category: { type: 'string' },
     source: { type: 'string', default: '飞书求职汇总表' },
     replace: { type: 'boolean', default: false },
     'dry-run': { type: 'boolean', default: false },
+    sample: { type: 'boolean', default: false },
   },
 })
 
 if (!files.length) {
-  console.error('用法: node scripts/importJobs.js <csv...> [--category 分类] [--source 来源] [--replace] [--dry-run]')
+  console.error('用法: node scripts/importJobs.js <xlsx|csv...> [--sheet 工作表] [--category 分类] [--source 来源] [--replace] [--dry-run] [--sample]')
   process.exit(1)
 }
 
-const BATCH = 500
 const { supabase } = opts['dry-run'] ? {} : await import('../src/lib/supabase.js')
+// 写库前先说清楚写到哪：手动设置的 SUPABASE_URL 优先于 backend/.env（本地开发库）
+if (!opts['dry-run']) console.log(`目标数据库: ${process.env.SUPABASE_URL || '(未设置 SUPABASE_URL)'}`)
 
-async function existingKeys(category, source) {
-  const keys = []
-  for (let from = 0; ; from += 1000) {
-    const { data, error } = await supabase
-      .from('job_postings')
-      .select('external_key')
-      .eq('category', category)
-      .eq('source', source)
-      .range(from, from + 999)
-    if (error) throw error
-    keys.push(...data.map(r => r.external_key))
-    if (data.length < 1000) return keys
-  }
+function hasColumn(rows, aliases) {
+  const headers = Object.keys(rows[0] || {}).map(h => h.replace(/\s*\(\d+\)$/, ''))
+  return aliases.some(a => headers.includes(a))
 }
 
-for (const file of files) {
-  const category = opts.category || basename(file, extname(file))
-  const rows = parseCsv(await readFile(file, 'utf8'))
-  const byKey = new Map()
-  let skipped = 0
-  for (const row of rows) {
-    const job = mapJobRow(row, { category, source: opts.source })
-    if (job) byKey.set(job.external_key, job)
-    else skipped++
-  }
-  const jobs = [...byKey.values()]
-
-  console.log(`\n[${category}] ${file}`)
-  console.log(`  CSV 行数 ${rows.length}，有效岗位 ${jobs.length}，缺公司名跳过 ${skipped}，重复合并 ${rows.length - skipped - jobs.length}`)
-  if (rows[0]) {
-    const extra = unmappedHeaders(rows[0])
-    if (extra.length) console.log(`  未识别的列（不会导入）: ${extra.join('、')}`)
-  }
-  console.log(`  有投递链接 ${jobs.filter(j => j.apply_url).length}，有截止日期 ${jobs.filter(j => j.deadline_date).length}`)
-
-  if (opts['dry-run']) {
-    if (jobs[0]) console.log('  示例:', JSON.stringify(jobs[0], null, 2).replace(/\n/g, '\n  '))
-    continue
-  }
-
-  for (let i = 0; i < jobs.length; i += BATCH) {
-    const { error } = await supabase
-      .from('job_postings')
-      .upsert(jobs.slice(i, i + BATCH), { onConflict: 'external_key' })
-    if (error) throw error
-  }
-  console.log(`  已写入 ${jobs.length} 条`)
-
-  if (opts.replace) {
-    const stale = (await existingKeys(category, opts.source)).filter(k => !byKey.has(k))
-    for (let i = 0; i < stale.length; i += 100) {
-      const { error } = await supabase.from('job_postings').delete().in('external_key', stale.slice(i, i + 100))
-      if (error) throw error
+/** 每个文件拆成若干「表」：CSV 一张，Excel 每个像招聘表的工作表一张 */
+async function loadTables(file) {
+  if (extname(file).toLowerCase() === '.xlsx') {
+    const sheets = readXlsx(await readFile(file))
+    const picked = opts.sheet
+      ? sheets.filter(s => s.name === opts.sheet)
+      : sheets.filter(s => hasColumn(s.rows, JOB_FIELD_ALIASES.company) && hasColumn(s.rows, JOB_FIELD_ALIASES.positions))
+    for (const s of sheets) {
+      if (!picked.includes(s)) console.log(`  跳过工作表「${s.name}」（${opts.sheet ? '未指定' : '没有公司 / 招聘岗位列'}）`)
     }
-    console.log(`  已删除下架岗位 ${stale.length} 条`)
+    if (opts.sheet && !picked.length) throw new Error(`找不到工作表「${opts.sheet}」，可选: ${sheets.map(s => s.name).join('、')}`)
+    return picked.map(s => ({ label: s.name, rows: s.rows, fallback: opts.category || s.name }))
   }
+  const name = basename(file, extname(file))
+  return [{ label: name, rows: parseCsv(await readFile(file, 'utf8')), fallback: opts.category || name }]
 }
+
+const tables = []
+for (const file of files) {
+  console.log(`
+${file}`)
+  tables.push(...await loadTables(file))
+}
+await importJobTables(tables, {
+  supabase,
+  source: opts.source,
+  replace: opts.replace,
+  dryRun: opts['dry-run'],
+  sample: opts.sample,
+})

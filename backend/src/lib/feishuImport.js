@@ -66,13 +66,25 @@ export function splitMulti(value) {
   )]
 }
 
-/** '2026/10/08'、'2026-10-08 12:00'、'2026年10月8日' → '2026-10-08'；'尽快投递' 之类返回 null */
+/**
+ * '2026/10/08'、'2026-10-08 12:00'、'2026年10月8日' → '2026-10-08'；'尽快投递' 之类返回 null。
+ * Excel 导出的日期是序列号（1900 日期系统，46000 ≈ 2025-12），也认。
+ */
 export function parseDate(value) {
-  const m = String(value || '').match(/(\d{4})\s*[-/.年]\s*(\d{1,2})\s*[-/.月]\s*(\d{1,2})/)
+  const text = String(value || '').trim()
+  if (/^\d{5}(\.\d+)?$/.test(text)) {
+    const serial = Math.floor(Number(text))
+    if (serial < 30000 || serial > 80000) return null
+    // Excel 序列号 1 = 1900-01-01，且把 1900 年当闰年，所以从 1899-12-30 起算
+    return new Date(Date.UTC(1899, 11, 30) + serial * 86400000).toISOString().slice(0, 10)
+  }
+  const m = text.match(/(\d{4})\s*[-/.年]\s*(\d{1,2})\s*[-/.月]\s*(\d{1,2})/)
   if (!m) return null
-  const [, y, mo, d] = m
-  const iso = `${y}-${mo.padStart(2, '0')}-${d.padStart(2, '0')}`
-  return Number.isNaN(Date.parse(iso)) ? null : iso
+  const [y, mo, d] = m.slice(1).map(Number)
+  // 表里有「2026/4/31」这种不存在的日期；JS 会顺延成 5 月 1 日，数据库会直接报错，所以严格校验
+  const date = new Date(Date.UTC(y, mo - 1, d))
+  if (date.getUTCFullYear() !== y || date.getUTCMonth() !== mo - 1 || date.getUTCDate() !== d) return null
+  return date.toISOString().slice(0, 10)
 }
 
 export function extractUrl(value) {
@@ -89,6 +101,9 @@ function stableKey(...parts) {
   return createHash('sha1').update(parts.map(p => p ?? '').join('|')).digest('hex')
 }
 
+// 没写截止日期（招满为止 / 尽快投递）的岗位，超过这么多天没更新就当作已经结束（「只看未截止」）
+export const STALE_AFTER_DAYS = 180
+
 export const JOB_FIELD_ALIASES = {
   company: ['公司', '公司名称', '企业名称', '企业'],
   company_type: ['企业类型', '公司类型', '企业性质'],
@@ -100,7 +115,9 @@ export const JOB_FIELD_ALIASES = {
   education: ['学历要求', '学历'],
   major_requirement: ['专业要求', '专业'],
   written_test: ['是否笔试', '笔试'],
-  apply_url: ['投递链接', '网申链接', '投递方式', '投递入口', '网申地址', '官网链接', '链接'],
+  apply_url: ['简历投递链接', '投递链接', '网申链接', '投递方式', '投递入口', '网申地址', '官网链接', '链接'],
+  announcement_url: ['公告链接', '公告'],
+  batch: ['批次', '招聘批次', '招聘类型'],
   notes: ['备注', '说明'],
   start_date: ['开始时间', '开始日期', '发布时间'],
   source_updated_at: ['更新时间', '更新日期'],
@@ -119,42 +136,135 @@ function pick(row, aliases) {
   return null
 }
 
-export function mapJobRow(row, { category, source }) {
+/**
+ * 「批次」归并成页面顶部的分类：秋招提前批 / 秋招补录 → 秋招，寒假实习 → 实习 …
+ * 一格里有多个批次时取第一个能认出的；认不出的（夏招、校园招聘 …）归「其他」。
+ */
+export function normalizeBatch(value) {
+  const text = String(value || '')
+  for (const part of text.split(/[/,，、]/)) {
+    if (/实习/.test(part)) return '实习'
+    if (/社招/.test(part)) return '社招'
+    if (/秋招/.test(part)) return '秋招'
+    if (/春招/.test(part)) return '春招'
+  }
+  return clean(text) ? '其他' : null
+}
+
+const COMPANY_TYPE_ALIASES = [
+  [/^(国企|央企|央国企)$/, '央国企'],
+  [/^(私企|民营|民企)$/, '民企'],
+  [/^(外企|外资|合资|中外合资|外企\/合资)$/, '外企/合资'],
+  [/^(事业单位|政府机关|机关)$/, '事业单位'],
+  [/^(社会组织|社会机构|非营利)$/, '社会组织'],
+  [/^(银行)$/, '银行'],
+  [/^(其他)$/, '其他'],
+]
+
+/** 企业类型统一写法；认不出的（偶尔有人把公司名填进了这一列）归「其他」 */
+export function normalizeCompanyType(value) {
+  const parts = splitMulti(value)
+  if (!parts.length) return null
+  for (const part of parts) {
+    const hit = COMPANY_TYPE_ALIASES.find(([re]) => re.test(part))
+    if (hit) return hit[1]
+  }
+  return '其他'
+}
+
+/** '2026' → '2026届'，其他（海外往届、不限届 …）原样 */
+export function normalizeGraduationYears(value) {
+  const out = []
+  for (const part of splitMulti(value)) {
+    // 原表写法很杂：2026、2026届、25届-26届-27届、26届（留）-27届、28届优先 …，把里面的年份都取出来
+    const years = [
+      ...[...part.matchAll(/(?:20)?(\d{2})\s*届/g)].map(m => `20${m[1]}届`),
+      ...(/^\d{4}$/.test(part) ? [`${part}届`] : []),
+    ]
+    if (years.length) out.push(...years)
+    else if (/往届/.test(part)) out.push('往届')
+    else if (/不限/.test(part)) out.push('不限届')
+    // 其余（「4」「本科在读」之类）不是届次，丢掉
+  }
+  return [...new Set(out)]
+}
+
+/**
+ * 企业分类先只看「行业类别」；行业列为空或认不出（国企、外企、其他 …）时，
+ * 再用公司名和分类名猜。两者一起看会让「某某电子科技」之类同时挂好几个分类。
+ */
+function industryKeysFor(industries, company, category) {
+  const fromIndustry = classifyIndustry(industries)
+  if (fromIndustry.length && !(fromIndustry.length === 1 && fromIndustry[0] === 'other')) return fromIndustry
+  return classifyIndustry(company, category)
+}
+
+/**
+ * 原表作者写给飞书读者的套话（「按照岗位筛选，不清楚专业对应岗位的看必看文档的第八点哦 宝宝~」之类），
+ * 指向我们站里没有的文档，导入时去掉。整格都是套话就返回 null。
+ */
+// 从套话开头一直删到句末（。！或换行），中间的逗号、「宝宝~」一起去掉
+const BOILERPLATE = [/按照岗位筛选[^。！!\n]*[。！!~～]*/g, /[^，,。；;\n]*必看文档[^。！!\n]*[。！!~～]*/g]
+
+export function withoutBoilerplate(value) {
+  if (!value) return null
+  let text = String(value)
+  for (const re of BOILERPLATE) text = text.replace(re, '')
+  return clean(text.replace(/^[\s,，;；、·]+|[\s,，;；、·]+$/g, ''))
+}
+
+/** 表格里的使用说明行（「👈先看使用说明」「⬆️如何筛选看上面教程」之类）不是招聘 */
+function isInstructionRow(row) {
+  return Object.values(row).some(v => /使用说明|使用指南|如何筛选|看上面教程/.test(String(v || '')))
+}
+
+export function mapJobRow(row, { category: fallbackCategory, source }) {
   const company = pick(row, JOB_FIELD_ALIASES.company)
-  if (!company) return null
+  if (!company || isInstructionRow(row)) return null
 
   const positions = pick(row, JOB_FIELD_ALIASES.positions)
-  let applyUrl = extractUrl(pick(row, JOB_FIELD_ALIASES.apply_url))
+  const applyText = pick(row, JOB_FIELD_ALIASES.apply_url)
+  // 投递链接没有网址（邮箱投递、见公告 …）时用公告链接，再不行找第一个像网址的格子
+  let applyUrl = extractUrl(applyText) || extractUrl(pick(row, JOB_FIELD_ALIASES.announcement_url))
   if (!applyUrl) {
-    // 链接列的表头各 tab 叫法不一，退而求其次找第一个像 URL 的格子
     for (const v of Object.values(row)) {
       applyUrl = extractUrl(v)
       if (applyUrl) break
     }
   }
+  // 投递一栏没网址时，只有写了邮箱 / 微信这类具体方式才值得放进备注；
+  // 单个「投递」是飞书里的链接文字，导出成 Excel 后网址丢了，留着没意义
+  const applyNote = applyText && !extractUrl(applyText) && /@|邮箱|邮件|微信|电话|现场|线下/.test(applyText)
+    ? `投递方式：${applyText}`
+    : null
   const deadline = pick(row, JOB_FIELD_ALIASES.deadline)
   const industries = splitMulti(pick(row, JOB_FIELD_ALIASES.industries))
+  // 有「批次」列（飞书总表）就按批次分类，批次为空归「其他」；没有这一列才用文件名 / 工作表名 / --category
+  const hasBatchColumn = Object.keys(row).some(h => JOB_FIELD_ALIASES.batch.includes(h.replace(/\s*\(\d+\)$/, '')))
+  const category = hasBatchColumn ? normalizeBatch(pick(row, JOB_FIELD_ALIASES.batch)) || '其他' : fallbackCategory
+  const graduationYears = normalizeGraduationYears(pick(row, JOB_FIELD_ALIASES.graduation_years))
+  const startDate = parseDate(pick(row, JOB_FIELD_ALIASES.start_date))
 
   return {
-    external_key: stableKey('job', category, company, applyUrl || positions),
+    // 同一家公司常用同一个网申入口发好几条（不同届、不同批），只用链接做 key 会把它们合并掉
+    external_key: stableKey('job', category, company, applyUrl, positions, graduationYears.join(','), startDate),
     category,
     company,
-    company_type: pick(row, JOB_FIELD_ALIASES.company_type),
-    graduation_years: splitMulti(pick(row, JOB_FIELD_ALIASES.graduation_years)),
+    company_type: normalizeCompanyType(pick(row, JOB_FIELD_ALIASES.company_type)),
+    graduation_years: graduationYears,
     industries,
-    // 表格分类（互联网、银行金融类 …）也带上，表里行业列偶尔为空
-    industry_keys: classifyIndustry(industries, company, category),
+    industry_keys: industryKeysFor(industries, company, category),
     positions,
     job_functions: classifyPositions(positions),
     locations: splitMulti(pick(row, JOB_FIELD_ALIASES.locations)),
     deadline,
     deadline_date: parseDate(deadline),
     education: pick(row, JOB_FIELD_ALIASES.education),
-    major_requirement: pick(row, JOB_FIELD_ALIASES.major_requirement),
+    major_requirement: withoutBoilerplate(pick(row, JOB_FIELD_ALIASES.major_requirement)),
     written_test: pick(row, JOB_FIELD_ALIASES.written_test),
     apply_url: applyUrl,
-    notes: pick(row, JOB_FIELD_ALIASES.notes),
-    start_date: parseDate(pick(row, JOB_FIELD_ALIASES.start_date)),
+    notes: [withoutBoilerplate(pick(row, JOB_FIELD_ALIASES.notes)), applyNote].filter(Boolean).join(' · ') || null,
+    start_date: startDate,
     source,
     source_updated_at: parseDate(pick(row, JOB_FIELD_ALIASES.source_updated_at)),
   }
@@ -239,7 +349,8 @@ function normalizeExperience(exp, source) {
     visibility: 'public',
     review_status: 'approved',
     reward_granted: true,
-    publisher: source,
+    // 面经库里导入的面经统一显示「匿名荷包蛋」（卡片在没有发布者时的默认名），出处只记在 source
+    publisher: null,
     source,
     external_key: stableKey('exp', source, exp.company, exp.position, exp.date, rounds[0]?.questions[0] || exp.reflection),
   }

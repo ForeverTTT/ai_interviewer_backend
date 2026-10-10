@@ -5,7 +5,7 @@ import {
   parseCsv, splitMulti, parseDate, mapJobRow, unmappedHeaders,
   mapExperienceCsvRows, mapExperienceJson, experienceType,
 } from '../src/lib/feishuImport.js'
-import { jobQuerySchema, sanitizeSearch, pgArrayLiteral } from '../src/routes/jobs.js'
+import { jobQuerySchema, sanitizeSearch, pgArrayLiteral, graduationYearGroups } from '../src/routes/jobs.js'
 
 const JOB_CSV = '﻿更新时间,公司,企业类型,招聘届次,行业类别,招聘岗位,工作地点,截止时间,学历要求,投递链接,备注,是否笔试,是否笔试 (1),神秘列\r\n'
   + '2026/10/08,示例科技,民企,"2027届,2026届",IT/互联网/游戏,"算法工程师,产品经理","北京,上海,北京",2026/11/15,"本科,硕士",官网 https://jobs.example.com/a?x=1,/,,有笔试,x\r\n'
@@ -69,7 +69,8 @@ test('groups experience CSV rounds by company, position and date', () => {
   assert.equal(a.review_status, 'approved')
   assert.equal(a.reward_granted, true)
   assert.equal(a.rounds[0].answers, undefined, 'no answers column means no answers array')
-  assert.equal(a.publisher, '来源')
+  assert.equal(a.publisher, null, 'imported posts show as 匿名荷包蛋')
+  assert.equal(a.source, '来源')
   assert.equal(a.reflection, '准备充分')
   assert.deepEqual(a.rounds.map(r => r.format), ['技术一面', '技术二面'])
   assert.deepEqual(a.rounds[0].questions, ['自我介绍', '为什么选我们'])
@@ -96,6 +97,9 @@ test('job query schema applies defaults and bounds', () => {
   assert.equal(q.page, 1)
   assert.equal(q.open, 'true')
   assert.equal(jobQuerySchema.safeParse({ pageSize: '500' }).success, false)
+  assert.equal(q.sort, 'updated')
+  assert.equal(jobQuerySchema.parse({ sort: 'deadline_asc' }).sort, 'deadline_asc')
+  assert.equal(jobQuerySchema.safeParse({ sort: 'company' }).success, false, 'only known sort orders')
   assert.equal(sanitizeSearch('a,b(c)*%'), 'a b c')
 })
 
@@ -104,7 +108,7 @@ test('multi-select query params split on commas and stay bounded', () => {
   assert.deepEqual(q.industry, ['internet', 'auto'])
   assert.deepEqual(q.city, ['北京', '上海'])
   assert.deepEqual(q.fn, [], 'missing params mean no filter')
-  assert.equal(jobQuerySchema.safeParse({ city: Array.from({ length: 21 }, (_, i) => `c${i}`).join(',') }).success, false)
+  assert.equal(jobQuerySchema.safeParse({ city: Array.from({ length: 41 }, (_, i) => `c${i}`).join(',') }).success, false)
   assert.equal(jobQuerySchema.safeParse({ city: 'x'.repeat(41) }).success, false)
 })
 
@@ -118,4 +122,23 @@ test('maps free-text experience types onto internship / campus / experienced', (
   assert.equal(experienceType('社招'), 'experienced')
   assert.equal(experienceType('秋招'), 'campus')
   assert.equal(experienceType(undefined), 'campus')
+})
+
+test('groups class years into the three active years plus earlier / later', () => {
+  const rows = [
+    { graduation_years: ['2026届', '2027届'] },
+    { graduation_years: ['2024届', '2025届', '2026届'] },
+    { graduation_years: ['海外往届'] },
+    { graduation_years: ['2029届'] },
+    { graduation_years: ['不限届'] },
+    { graduation_years: [] },
+  ]
+  const groups = graduationYearGroups(rows, new Date(Date.UTC(2026, 9, 10)))
+  assert.deepEqual(groups.map(g => [g.value, g.count]), [
+    ['2026届', 3], ['2027届', 2], ['2028届', 1], ['earlier', 3], ['later', 2],
+  ], '不限届 counts in every group; a row counts once per group')
+  const earlier = groups.find(g => g.value === 'earlier')
+  assert.equal(earlier.year, 2025)
+  assert.deepEqual(earlier.members, ['2024届', '2025届', '海外往届'])
+  assert.deepEqual(groups.find(g => g.value === 'later').members, ['2029届'])
 })

@@ -1925,8 +1925,14 @@
     "colCompany": "Company",
     "colPositions": "Roles",
     "colDeadline": "Deadline",
+    "sortLabel": "Sort",
+    "sortUpdated": "Recently updated",
+    "sortDeadlineAsc": "Deadline: soonest",
+    "sortDeadlineDesc": "Deadline: latest",
     "companyType": "Company type",
     "year": "Graduating class",
+    "yearEarlier": "Class of {{year}} or earlier",
+    "yearLater": "Class of {{year}} or later",
     "city": "City",
     "any": "Any",
     "resultCount": "{{n}} results",
@@ -1963,7 +1969,7 @@
       "other": "Other"
     },
     "ind": {
-      "internet": "Internet",
+      "internet": "Internet & tech",
       "auto": "Automotive",
       "semiconductor": "Electronics & semiconductors",
       "finance": "Finance",
@@ -1977,6 +1983,8 @@
       "media": "Media",
       "logistics": "Transport & logistics",
       "public": "Public sector",
+      "services": "Consumer services",
+      "agriculture": "Agriculture",
       "other": "Other"
     }
   },
