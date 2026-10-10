@@ -1931,6 +1931,8 @@
     "sortDeadlineDesc": "Deadline: latest",
     "companyType": "Company type",
     "year": "Graduating class",
+    "yearEarlier": "Class of {{year}} or earlier",
+    "yearLater": "Class of {{year}} or later",
     "city": "City",
     "any": "Any",
     "resultCount": "{{n}} results",

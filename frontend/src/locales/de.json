@@ -1921,6 +1921,8 @@
     "sortDeadlineDesc": "Frist: späteste",
     "companyType": "Unternehmensart",
     "year": "Jahrgang",
+    "yearEarlier": "Jahrgang {{year}} oder früher",
+    "yearLater": "Jahrgang {{year}} oder später",
     "city": "Stadt",
     "any": "Alle",
     "resultCount": "{{n}} Ergebnisse",

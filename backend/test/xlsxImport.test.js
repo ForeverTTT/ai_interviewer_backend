@@ -61,6 +61,11 @@ test('normalisers', () => {
   assert.deepEqual(['国企', '私企', '中外合资', '政府机关', '社会机构', '银行', ''].map(normalizeCompanyType),
     ['央国企', '民企', '外企/合资', '事业单位', '社会组织', '银行', null])
   assert.deepEqual(normalizeGraduationYears('2026,2026届,不限届'), ['2026届', '不限届'])
+  assert.deepEqual(normalizeGraduationYears('25届-26届-27届'), ['2025届', '2026届', '2027届'])
+  assert.deepEqual(normalizeGraduationYears('26届（留）-27届,28届优先'), ['2026届', '2027届', '2028届'])
+  assert.deepEqual(normalizeGraduationYears('2届-29届'), ['2029届'])
+  assert.deepEqual(normalizeGraduationYears('海外往届,部分往届'), ['往届'])
+  assert.deepEqual(normalizeGraduationYears('4,本科在读'), [])
 })
 
 test('drops the source author boilerplate and placeholder apply text', () => {

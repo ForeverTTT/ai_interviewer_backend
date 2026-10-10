@@ -174,7 +174,19 @@ export function normalizeCompanyType(value) {
 
 /** '2026' → '2026届'，其他（海外往届、不限届 …）原样 */
 export function normalizeGraduationYears(value) {
-  return [...new Set(splitMulti(value).map(y => (/^\d{4}$/.test(y) ? `${y}届` : y)))]
+  const out = []
+  for (const part of splitMulti(value)) {
+    // 原表写法很杂：2026、2026届、25届-26届-27届、26届（留）-27届、28届优先 …，把里面的年份都取出来
+    const years = [
+      ...[...part.matchAll(/(?:20)?(\d{2})\s*届/g)].map(m => `20${m[1]}届`),
+      ...(/^\d{4}$/.test(part) ? [`${part}届`] : []),
+    ]
+    if (years.length) out.push(...years)
+    else if (/往届/.test(part)) out.push('往届')
+    else if (/不限/.test(part)) out.push('不限届')
+    // 其余（「4」「本科在读」之类）不是届次，丢掉
+  }
+  return [...new Set(out)]
 }
 
 /**

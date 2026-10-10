@@ -13,7 +13,7 @@ router.use(requireAuth)
 /** 多选参数：逗号分隔，去重去空，最多 20 项，每项最长 40 字 */
 const listParam = z.string().max(1000).optional()
   .transform(v => [...new Set((v || '').split(',').map(s => s.trim()).filter(Boolean))])
-  .refine(list => list.length <= 20 && list.every(s => s.length <= 40))
+  .refine(list => list.length <= 40 && list.every(s => s.length <= 40))
 
 export const jobQuerySchema = z.object({
   q: z.string().trim().max(60).optional(),
@@ -69,7 +69,8 @@ router.get('/', async (req, res) => {
     if (companyType.length) query = query.in('company_type', companyType)
     if (fn.length) query = query.filter('job_functions', 'ov', pgArrayLiteral(fn))
     if (industry.length) query = query.filter('industry_keys', 'ov', pgArrayLiteral(industry))
-    if (year.length) query = query.filter('graduation_years', 'ov', pgArrayLiteral(year))
+    // 「不限届」的岗位对任何届次都开放，选了届次也要带上
+    if (year.length) query = query.filter('graduation_years', 'ov', pgArrayLiteral([...year, ANY_YEAR]))
     if (city.length) query = query.filter('locations', 'ov', pgArrayLiteral(city))
     if (open === 'true') query = query.or(openFilter())
     const term = sanitizeSearch(q)
@@ -93,6 +94,48 @@ router.get('/', async (req, res) => {
     res.status(500).json({ error: 'Failed to load jobs' })
   }
 })
+
+const ANY_YEAR = '不限届'
+
+/**
+ * 届次筛选项：只把正在招的三届（今年起往后三届）单独列出，更早的（含海外往届）合成「earlier」，
+ * 更晚的合成「later」。每组带 members（实际的届次值），前端选中一组时把 members 传回来。
+ * 「不限届」不单列，计入每一组。
+ */
+export function graduationYearGroups(rows, now = new Date()) {
+  const thisYear = now.getUTCFullYear()
+  const active = [thisYear, thisYear + 1, thisYear + 2].map(y => `${y}届`)
+  const groups = new Map([
+    ...active.map(v => [v, { value: v, members: new Set([v]), count: 0 }]),
+    ['earlier', { value: 'earlier', year: thisYear - 1, members: new Set(), count: 0 }],
+    ['later', { value: 'later', year: thisYear + 3, members: new Set(), count: 0 }],
+  ])
+  const groupOf = (label) => {
+    if (groups.has(label)) return label
+    const m = label.match(/^(\d{4})届$/)
+    if (m) return Number(m[1]) < thisYear ? 'earlier' : 'later'
+    return 'earlier' // 海外往届、往届生 …
+  }
+
+  for (const row of rows) {
+    const years = row.graduation_years || []
+    const hit = new Set()
+    for (const label of years) {
+      if (label === ANY_YEAR) {
+        for (const key of groups.keys()) hit.add(key)
+        continue
+      }
+      const key = groupOf(label)
+      groups.get(key).members.add(label)
+      hit.add(key)
+    }
+    for (const key of hit) groups.get(key).count++
+  }
+
+  return [...groups.values()]
+    .filter(g => g.count > 0 && g.members.size > 0)
+    .map(g => ({ ...g, members: [...g.members].sort() }))
+}
 
 let facetCache = { at: 0, value: null }
 const FACET_TTL_MS = 10 * 60 * 1000
@@ -134,7 +177,7 @@ router.get('/facets', async (_req, res) => {
       // 按分类规则的固定顺序，「其他」放最后
       functions: countBy(rows, r => r.job_functions || []).sort(taxonomyOrder(JOB_FUNCTIONS)),
       industries: countBy(rows, r => r.industry_keys || []).sort(taxonomyOrder(INDUSTRIES)),
-      years: countBy(rows, r => r.graduation_years || []).sort((a, b) => a.value.localeCompare(b.value)),
+      years: graduationYearGroups(rows),
       cities: countBy(rows, r => r.locations || []).slice(0, 24),
       sources: countBy(rows, r => [r.source]).map(s => s.value),
       lastUpdated: rows.reduce((max, r) => (r.source_updated_at && (!max || r.source_updated_at > max) ? r.source_updated_at : max), null),

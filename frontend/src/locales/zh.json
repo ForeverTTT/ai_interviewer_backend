@@ -1935,6 +1935,8 @@
     "sortDeadlineDesc": "截止时间：最晚",
     "companyType": "企业类型",
     "year": "招聘届次",
+    "yearEarlier": "{{year}}届及更早",
+    "yearLater": "{{year}}届及以后",
     "city": "工作城市",
     "any": "不限",
     "resultCount": "{{n}} 个结果",
