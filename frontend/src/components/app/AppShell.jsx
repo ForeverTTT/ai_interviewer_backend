@@ -264,31 +264,31 @@ function SidebarContent({ collapsed, onToggleCollapse, onNavigate, onHelp, accou
                 {seeking ? t('profile.statusSeeking') : t('profile.statusHired')}
               </span>
             </button>
+          </>
+        )}
+        <div className={`flex items-center ${collapsed ? 'justify-center' : 'mt-1 gap-1 px-1'}`}>
+          {!collapsed && (
             <button
               type="button"
               onClick={openCookieSettings}
               data-track="cookie-settings"
-              className="mt-1 w-full rounded-xl px-3 py-1.5 text-left text-[11px] text-brand-muted transition-colors hover:bg-white/40 hover:text-brand-ink dark:hover:bg-white/[0.06]"
+              className="rounded-lg px-2 py-1.5 text-left text-[11px] text-brand-muted transition-colors hover:bg-white/40 hover:text-brand-ink dark:hover:bg-white/[0.06]"
             >
               {t('common.cookie.manage')}
             </button>
-          </>
-        )}
-      </div>
-      <div className={`shrink-0 border-t border-white/50 pb-3 pt-2 dark:border-white/10 ${collapsed ? 'px-2.5' : 'px-3'}`}>
-        <button
-          type="button"
-          onClick={onHelp}
-          aria-label={t('support.entry')}
-          aria-haspopup="dialog"
-          title={collapsed ? t('support.entry') : undefined}
-          data-track="help-feedback"
-          className={`flex min-h-11 w-full items-center gap-3 rounded-xl text-[12px] font-medium text-brand-muted transition-colors hover:bg-white/40 hover:text-brand-ink dark:hover:bg-white/[0.06] ${collapsed ? 'justify-center' : 'px-3'}`}
-        >
-          <CircleHelp className="h-[18px] w-[18px] shrink-0" />
-          {!collapsed && <span>{t('support.entry')}</span>}
-          {!collapsed && <ChevronRight className="ml-auto h-3.5 w-3.5 shrink-0" />}
-        </button>
+          )}
+          <button
+            type="button"
+            onClick={onHelp}
+            aria-label={t('support.entry')}
+            aria-haspopup="dialog"
+            title={collapsed ? t('support.entry') : undefined}
+            data-track="help-feedback"
+            className={`rounded-lg text-[11px] text-brand-muted transition-colors hover:bg-white/40 hover:text-brand-ink dark:hover:bg-white/[0.06] ${collapsed ? 'grid h-9 w-9 place-items-center' : 'px-2 py-1.5 text-left'}`}
+          >
+            {collapsed ? <CircleHelp className="h-4 w-4" /> : t('support.entry')}
+          </button>
+        </div>
       </div>
     </div>
   )
