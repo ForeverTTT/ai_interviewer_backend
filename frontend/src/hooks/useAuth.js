@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { track } from '../lib/analytics'
+import { dashboardStore } from '../lib/dashboardStore'
 
 export function useAuth() {
   const [user, setUser] = useState(null)
@@ -17,6 +18,7 @@ export function useAuth() {
     })
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (_event === 'SIGNED_OUT') dashboardStore.clear()
       if (mounted) {
         setUser(session?.user ?? null)
         setLoading(false)

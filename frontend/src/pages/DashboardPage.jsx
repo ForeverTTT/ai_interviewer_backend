@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { BRAND_ASSETS } from '../assets/brandAssets'
@@ -13,6 +13,7 @@ import { useAuth } from '../hooks/useAuth'
 import { supabase } from '../lib/supabase'
 import { getBackendBaseUrl } from '../lib/backendBase'
 import { authenticatedFetch } from '../lib/authenticatedFetch'
+import { dashboardStore } from '../lib/dashboardStore'
 import { createInterviewRequestId } from '../lib/interviewEvents'
 import { normalizeCjkSpacing } from '../lib/textNormalization'
 import OfferSprintPanel from '../components/OfferSprintPanel'
@@ -213,10 +214,19 @@ export default function DashboardPage() {
   const shouldReduceMotion = useReducedMotion()
   const { user } = useAuth()
   const navigate = useNavigate()
-  const [interviews, setInterviews] = useState([])
-  const [growthOverview, setGrowthOverview] = useState(null)
-  const [loading, setLoading] = useState(true)
-  const [loadError, setLoadError] = useState(false)
+  const userId = user?.id
+  const snapshot = useSyncExternalStore(
+    dashboardStore.subscribe,
+    useCallback(() => dashboardStore.get(userId), [userId]),
+  )
+  const { interviews, growthOverview, loadError } = snapshot
+  const loading = !snapshot.hasInterviews && !loadError
+  const setInterviews = useCallback(value => dashboardStore.update(userId, current => ({
+    interviews: typeof value === 'function' ? value(current.interviews) : value,
+  })), [userId])
+  const setGrowthOverview = useCallback(value => dashboardStore.update(userId, { growthOverview: value }), [userId])
+  const reportLanguageRef = useRef(i18n.language)
+  reportLanguageRef.current = i18n.language
   const [filter, setFilter] = useState('all')
   const [pendingDelete, setPendingDelete] = useState(null)
   const [deletingId, setDeletingId] = useState(null)
@@ -251,64 +261,51 @@ export default function DashboardPage() {
   useEffect(() => {
     let cancelled = false
     async function fetchInterviews() {
-      if (!user) return
-      setLoading(true)
-      setLoadError(false)
-      try {
-        const { data: { session } } = await supabase.auth.getSession()
-        if (!session?.access_token) throw new Error('missing auth session')
-        const [response, overviewResponse] = await Promise.all([
-          authenticatedFetch(`${getBackendBaseUrl()}/api/interviews`, {
-            headers: { Authorization: `Bearer ${session.access_token}` },
-          }),
-          authenticatedFetch(`${getBackendBaseUrl()}/api/growth-center/overview`, {
-            headers: { Authorization: `Bearer ${session.access_token}` },
-          }).catch(() => null),
-        ])
-        if (!response.ok) throw new Error('failed to load interviews')
-        const data = await response.json()
-        if (overviewResponse?.ok && !cancelled) {
-          const overviewData = await overviewResponse.json()
-          setGrowthOverview(overviewData)
-        }
-        const loadedInterviews = data.interviews || []
-        if (!cancelled) setInterviews(loadedInterviews)
-        loadedInterviews.forEach((interview) => {
-          if (
-            interview.mode !== 'formal'
-            || hasReport(interview)
-            || isGenerating(interview)
-            || !RESUMABLE_STATUSES.has(interview.status)
-            || formalFinalizeRequestedRef.current.has(interview.id)
-          ) return
-          formalFinalizeRequestedRef.current.add(interview.id)
-          setInterviews(current => current.map(item => item.id === interview.id
-            ? { ...item, status: 'finalizing', finalize_status: 'processing' }
-            : item))
-          void authenticatedFetch(`${getBackendBaseUrl()}/api/interviews/${interview.id}/finalize`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'X-Request-Id': createInterviewRequestId(),
-            },
-            body: JSON.stringify({ messages: [], reportUiLanguage: i18n.language }),
-          }).then(async (finalizeResponse) => {
-            if (!finalizeResponse.ok || cancelled) return
-            const finalizeBody = await finalizeResponse.json().catch(() => ({}))
-            if (finalizeBody.interview) {
-              setInterviews(current => current.map(item => item.id === interview.id ? finalizeBody.interview : item))
-            }
-          }).catch(() => {})
-        })
-      } catch {
-        if (!cancelled) setLoadError(true)
-      } finally {
-        if (!cancelled) setLoading(false)
-      }
+      if (!userId) return
+      const loadedInterviews = await dashboardStore.load(userId, {
+        interviews: async () => {
+          const response = await authenticatedFetch(`${getBackendBaseUrl()}/api/interviews`)
+          if (!response.ok) throw new Error('failed to load interviews')
+          return (await response.json()).interviews || []
+        },
+        overview: async () => {
+          const response = await authenticatedFetch(`${getBackendBaseUrl()}/api/growth-center/overview`)
+          if (!response.ok) throw new Error('failed to load overview')
+          return response.json()
+        },
+      })
+      if (cancelled || !loadedInterviews) return
+      loadedInterviews.forEach((interview) => {
+        if (
+          interview.mode !== 'formal'
+          || hasReport(interview)
+          || isGenerating(interview)
+          || !RESUMABLE_STATUSES.has(interview.status)
+          || formalFinalizeRequestedRef.current.has(interview.id)
+        ) return
+        formalFinalizeRequestedRef.current.add(interview.id)
+        setInterviews(current => current.map(item => item.id === interview.id
+          ? { ...item, status: 'finalizing', finalize_status: 'processing' }
+          : item))
+        void authenticatedFetch(`${getBackendBaseUrl()}/api/interviews/${interview.id}/finalize`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Request-Id': createInterviewRequestId(),
+          },
+          body: JSON.stringify({ messages: [], reportUiLanguage: reportLanguageRef.current }),
+        }).then(async (finalizeResponse) => {
+          if (!finalizeResponse.ok || cancelled) return
+          const finalizeBody = await finalizeResponse.json().catch(() => ({}))
+          if (finalizeBody.interview && !cancelled) {
+            setInterviews(current => current.map(item => item.id === interview.id ? finalizeBody.interview : item))
+          }
+        }).catch(() => {})
+      })
     }
     void fetchInterviews()
     return () => { cancelled = true }
-  }, [i18n.language, user])
+  }, [userId, setInterviews])
 
   const metrics = useMemo(() => {
     const effectiveInterviews = interviews.filter(interview => interview.status === 'completed' || effectiveSeconds(interview) >= 480)

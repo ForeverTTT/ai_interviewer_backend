@@ -93,6 +93,7 @@ function makeLLM(opts = {}) {
         location,
         streaming: opts.streaming ?? true,
         maxOutputTokens: opts.maxOutputTokens ?? opts.maxTokens ?? 1024,
+        maxRetries: 0,
       }
       if (supportsSamplingTemperature(model)) fields.temperature = opts.temperature ?? 0.8
       return new ChatVertexAI(fields)
@@ -103,6 +104,7 @@ function makeLLM(opts = {}) {
       apiKey,
       streaming: opts.streaming ?? true,
       maxOutputTokens: opts.maxTokens ?? 1024,
+      maxRetries: 0,
       safetySettings: [
         { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_NONE' },
         { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_NONE' },
@@ -114,14 +116,12 @@ function makeLLM(opts = {}) {
     return new ChatGoogleGenerativeAI(fields)
   }
 
-  const primaryLlm = createLlm(primaryModel)
-  let fallbackLlm = null
+  const models = new Map([[primaryModel, createLlm(primaryModel)]])
 
   return {
     invoke: (...args) => invokeWithGeminiQuotaFallback(primaryModel, (model) => {
-      if (model === primaryModel) return primaryLlm.invoke(...args)
-      if (!fallbackLlm) fallbackLlm = createLlm(model)
-      return fallbackLlm.invoke(...args)
+      if (!models.has(model)) models.set(model, createLlm(model))
+      return models.get(model).invoke(...args)
     }),
   }
 }

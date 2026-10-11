@@ -9,3 +9,6 @@ client_secret_*.json
 logs/
 node_modules/
 npm-debug.log*
+/aiinterview-cv.md
+/aiinterview-eval/
+/宣传视频/

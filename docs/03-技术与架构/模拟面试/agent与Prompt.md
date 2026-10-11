@@ -179,8 +179,8 @@ flowchart TB
 | 机制 | 行为 |
 |---|---|
 | 运行环境 | 配了 `GEMINI_API_KEY` 走 Google AI Studio，否则走 Vertex AI（`GCP_PROJECT_ID` / `GCP_LOCATION`） |
-| 超时 | 默认 45 秒，可按调用传 `timeoutMs`；超时抛出 `GEMINI_TIMEOUT`。超时只是不再等待结果，底层请求不会被取消，迟到的结果会被丢弃——因为写库在模型调用之后，这不会造成脏数据 |
-| 配额降级 | 只有主模型是 `gemini-3.7-flash` 且错误被识别为配额耗尽（429 / gRPC 8 / `RESOURCE_EXHAUSTED` / quota、rate limit 字样）时，才用 `GEMINI_FALLBACK_MODEL`（默认 `gemini-3.5-flash-lite`）**重试一次**；其它错误直接抛出 |
+| 超时 | 总预算默认 45 秒，可按调用传 `timeoutMs`，超时抛出 `GEMINI_TIMEOUT`；单模型默认 12 秒，可通过 `GEMINI_MODEL_TIMEOUT_MS` 配置。向 SDK 传取消信号并丢弃迟到结果，总预算耗尽后不会继续发起备用模型请求 |
+| 多模型兜底 | 所有文本主模型（包括练习用 Flash-Lite）均可按 `GEMINI_FALLBACK_MODELS` 依次切换，默认候选为 3.5 Flash-Lite、3.1 Flash-Lite、3.5 Flash、3.6 Flash、3.7 Flash；去重并跳过主模型。限流、暂时不可用、模型 404、网络错误及单模型超时可切换，鉴权和非法请求直接失败。SDK 内置重试关闭，避免先等待同一模型多次重试。保留每次模型尝试与降级回调 |
 | 参数兼容 | Gemini 3.x 模型不再传 `temperature` |
 | 输出清理 | `stripJsonFence` 去掉 Markdown 代码围栏，再由各 Agent 自己 `JSON.parse` 和校验 |
 

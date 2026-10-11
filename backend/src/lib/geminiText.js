@@ -34,6 +34,7 @@ export async function invokeGemini(system, user, opts = {}) {
         project: projectId,
         location,
         maxOutputTokens: opts.maxOutputTokens ?? 8192,
+        maxRetries: 0,
       }
       if (supportsSamplingTemperature(model)) fields.temperature = opts.temperature ?? 0.35
       return new ChatVertexAI(fields)
@@ -44,6 +45,7 @@ export async function invokeGemini(system, user, opts = {}) {
       apiKey,
       streaming: false,
       maxOutputTokens: opts.maxOutputTokens ?? 8192,
+      maxRetries: 0,
     }
     if (supportsSamplingTemperature(model)) fields.temperature = opts.temperature ?? 0.35
     return new ChatGoogleGenerativeAI(fields)
@@ -53,24 +55,47 @@ export async function invokeGemini(system, user, opts = {}) {
     { role: 'system', content: system },
     { role: 'user', content: user },
   ]
-  const invocation = invokeWithGeminiQuotaFallback(
-    primaryModel,
-    (model) => createLlm(model).invoke(messages),
-    {
-      onModelAttempt: opts.onModelAttempt,
-      onFallback: opts.onFallback,
-    },
-  )
   const timeoutMs = Math.max(1_000, Number(opts.timeoutMs) || 45_000)
-  let timeoutId
-  const timeout = new Promise((_, reject) => {
-    timeoutId = setTimeout(() => {
-      const error = new Error(`Gemini request timed out after ${timeoutMs}ms`)
-      error.code = 'GEMINI_TIMEOUT'
-      reject(error)
-    }, timeoutMs)
+  const attemptTimeoutMs = Math.max(1_000, Number(process.env.GEMINI_MODEL_TIMEOUT_MS) || 12_000)
+  const controller = new AbortController()
+  const timeoutError = Object.assign(new Error(`Gemini request timed out after ${timeoutMs}ms`), { code: 'GEMINI_TIMEOUT' })
+  const totalTimer = setTimeout(() => controller.abort(timeoutError), timeoutMs)
+  let onTotalAbort
+  const totalAbort = new Promise((_, reject) => {
+    onTotalAbort = () => reject(controller.signal.reason)
+    controller.signal.addEventListener('abort', onTotalAbort, { once: true })
   })
-  const res = await Promise.race([invocation, timeout]).finally(() => clearTimeout(timeoutId))
+  let res
+  try {
+    const invocation = invokeWithGeminiQuotaFallback(primaryModel, async model => {
+      controller.signal.throwIfAborted()
+      const attempt = new AbortController()
+      const signal = AbortSignal.any([controller.signal, attempt.signal])
+      const attemptError = Object.assign(new Error(`Gemini model ${model} timed out`), { code: 'GEMINI_MODEL_TIMEOUT' })
+      const timer = setTimeout(() => attempt.abort(attemptError), attemptTimeoutMs)
+      // Race as well as passing signal: some SDK transports ignore cancellation.
+      let onAbort
+      const aborted = new Promise((_, reject) => {
+        onAbort = () => reject(signal.reason)
+        if (signal.aborted) onAbort()
+        else signal.addEventListener('abort', onAbort, { once: true })
+      })
+      try {
+        signal.throwIfAborted()
+        return await Promise.race([createLlm(model).invoke(messages, { signal }), aborted])
+      } catch (error) {
+        if (signal.aborted) throw signal.reason
+        throw error
+      } finally {
+        clearTimeout(timer)
+        signal.removeEventListener('abort', onAbort)
+      }
+    }, { signal: controller.signal, onModelAttempt: opts.onModelAttempt, onFallback: opts.onFallback })
+    res = await Promise.race([invocation, totalAbort])
+  } finally {
+    clearTimeout(totalTimer)
+    controller.signal.removeEventListener('abort', onTotalAbort)
+  }
 
   const c = res.content
   if (typeof c === 'string') return c
