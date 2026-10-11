@@ -10,6 +10,7 @@ import {
 } from '../lib/interviewEvents'
 import ChatInterface from '../components/ChatInterface'
 import PracticeInterviewPanel from '../components/PracticeInterviewPanel'
+import UserFeedbackForm from '../components/UserFeedbackForm'
 import LanguageSwitcher from '../components/LanguageSwitcher'
 import { InterviewThemeToggle } from '../components/ThemeToggle'
 import {
@@ -995,13 +996,14 @@ export default function InterviewPage() {
 
       {endNotice && (
         <div className="fixed inset-0 z-[110] flex items-center justify-center bg-brand-ink/40 p-6 backdrop-blur-sm" role="dialog" aria-modal="true" aria-live="polite">
-          <div className="brand-float w-full max-w-md rounded-[28px] p-9 shadow-float">
+          <div className="brand-float max-h-[calc(100dvh-3rem)] w-full max-w-md overflow-y-auto rounded-[28px] p-6 shadow-float sm:p-9">
             <div className="mb-7 flex h-16 w-16 items-center justify-center rounded-2xl bg-brand-harbor/[0.12] text-brand-harbor">
               {endNotice.status === 'generating' ? <Loader2 className="h-8 w-8 animate-spin" /> : endNotice.status === 'ready' ? <FileText className="h-8 w-8" /> : <AlertCircle className="h-8 w-8 text-brand-danger" />}
             </div>
             <h3 className="lk-display text-3xl">{t(`interview.endNotice.${endNotice.status}Title`)}</h3>
             <p className="mt-4 text-base leading-relaxed text-brand-muted">{t(`interview.endNotice.${endNotice.status}Body`)}</p>
             {endNotice.status === 'failed' && finalizeError && <p className="mt-4 rounded-xl bg-brand-danger/[0.08] p-3 text-sm font-bold text-brand-danger">{finalizeError}</p>}
+            {interviewId && <UserFeedbackForm key={interviewId} source="interview" interviewId={interviewId} className="mt-5" />}
             <div className="mt-8 grid gap-3 sm:grid-cols-2">
               <button type="button" onClick={() => navigate('/dashboard')} className="lk-btn lk-btn-primary">{t('interview.endNotice.openGrowth')}</button>
               {endNotice.status === 'failed'

@@ -1,4 +1,37 @@
 {
+  "userFeedback": {
+    "helpTitle": "Send us feedback",
+    "interviewTitle": "How was your interview experience?",
+    "helpHint": "Tell us about a problem or a feature you'd like to see.",
+    "interviewHint": "Leave a rating or a suggestion. Feedback is optional and won't affect access to your report.",
+    "ratingLabel": "Interview experience rating",
+    "good": "Good experience",
+    "improve": "Needs improvement",
+    "message": "Your feedback",
+    "optionalMessage": "Suggestions (optional)",
+    "helpPlaceholder": "Which page were you on, what did you do, and what went wrong? Or share a feature idea…",
+    "interviewPlaceholder": "Were the questions relevant? Was the audio smooth? What could we improve?",
+    "submit": "Submit feedback",
+    "sending": "Submitting…",
+    "thanks": "Feedback received. Thank you for helping us improve!",
+    "failed": "Couldn't submit. Your text is still here; please try again later.",
+    "auth": "Your session expired. Please sign in again to submit.",
+    "limited": "Too many submissions. Your text is still here; please try again later."
+  },
+  "support": {
+    "entry": "Help & feedback",
+    "description": "Need a hand or have an idea to share? Submit feedback here or contact us on WeChat.",
+    "contact": "Contact us on WeChat",
+    "wechat": "WeChat ID",
+    "copy": "Copy WeChat ID",
+    "copied": "Copied",
+    "addHint": "Open WeChat and search for this ID to add us.",
+    "copySuccess": "WeChat ID copied. Open WeChat to add us.",
+    "copyFailed": "Couldn't copy. Select or press and hold the ID above to copy it manually.",
+    "feedbackTitle": "What to include in your feedback",
+    "feedbackHint": "Tell us which page you were on, what you did, and what went wrong. Screenshots help us understand the issue. Feature ideas are welcome too.",
+    "close": "Close help & feedback"
+  },
   "meta": {
     "title": "FlowLab - AI Interview Practice for Your Next Role"
   },

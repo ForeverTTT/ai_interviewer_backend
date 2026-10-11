@@ -16,6 +16,7 @@ import { authenticatedFetch } from '../lib/authenticatedFetch'
 import { createInterviewRequestId } from '../lib/interviewEvents'
 import { normalizeCjkSpacing } from '../lib/textNormalization'
 import FeedbackPrompt from '../components/FeedbackPrompt'
+import UserFeedbackForm from '../components/UserFeedbackForm'
 import './InterviewReportPage.css'
 
 const REVIEW_MENTOR_WRITING = BRAND_ASSETS.reviewMentorWriting
@@ -1226,6 +1227,8 @@ export default function InterviewReportPage() {
               <img src={REVIEW_MENTOR_WRITING} alt="" />
             </div>
           </header>
+
+          {interviewId && <UserFeedbackForm key={interviewId} source="interview" interviewId={interviewId} />}
 
           <div className="min-h-[400px]">
             {reportTranslating ? (

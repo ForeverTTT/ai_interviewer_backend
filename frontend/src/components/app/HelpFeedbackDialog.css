@@ -1,0 +1,12 @@
+.flowlab-help-dialog {
+  width: min(440px, calc(100vw - 2rem));
+  max-height: calc(100dvh - 2rem);
+  margin: auto;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.flowlab-help-dialog::backdrop {
+  background: rgb(20 28 36 / 0.36);
+  backdrop-filter: blur(5px);
+}

@@ -1,0 +1,81 @@
+name: Daily user feedback email
+
+on:
+  schedule:
+    - cron: '0 9 * * *'
+      timezone: Europe/Berlin
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Preview counts without sending email or changing delivery state'
+        type: boolean
+        required: true
+        default: true
+      test_email:
+        description: 'Send a setup test email without marking feedback notified (requires dry_run=false)'
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: feedback-digest-production
+  cancel-in-progress: false
+
+jobs:
+  digest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: production
+    steps:
+      # Resolve environment variables inside the job, after production is loaded.
+      - name: Check delivery switch
+        id: gate
+        shell: bash
+        env:
+          ENABLED: ${{ vars.FEEDBACK_DIGEST_ENABLED }}
+          DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run }}
+        run: |
+          if [ "$ENABLED" = "true" ] || [ "$DRY_RUN" = "true" ]; then
+            echo 'run=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'Delivery is disabled. Configure the production environment before enabling.'
+          fi
+      - uses: actions/checkout@v7
+        if: steps.gate.outputs.run == 'true'
+      - uses: actions/setup-node@v7
+        if: steps.gate.outputs.run == 'true'
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - run: npm ci
+        if: steps.gate.outputs.run == 'true'
+        working-directory: backend
+      - name: Send or preview daily feedback digest
+        if: steps.gate.outputs.run == 'true'
+        working-directory: backend
+        shell: bash
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          FEEDBACK_DIGEST_TO: ${{ secrets.FEEDBACK_DIGEST_TO }}
+          FEEDBACK_DIGEST_FROM: ${{ vars.FEEDBACK_DIGEST_FROM }}
+          FEEDBACK_DIGEST_DASHBOARD_URL: ${{ vars.FEEDBACK_DIGEST_DASHBOARD_URL }}
+          DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run }}
+          TEST_EMAIL: ${{ github.event_name == 'workflow_dispatch' && inputs.test_email }}
+        run: |
+          if [ "$DRY_RUN" = "true" ]; then
+            node scripts/sendFeedbackDigest.js --dry-run
+          else
+            mode=--send
+            if [ "$TEST_EMAIL" = "true" ]; then mode=--test-email; fi
+            # Retry transient failures while the provider's deduplication key is valid.
+            for attempt in 1 2 3; do
+              if node scripts/sendFeedbackDigest.js "$mode"; then exit 0; fi
+              if [ "$attempt" -lt 3 ]; then sleep 20; fi
+            done
+            exit 1
+          fi
