@@ -1,4 +1,37 @@
 {
+  "userFeedback": {
+    "helpTitle": "Feedback senden",
+    "interviewTitle": "Wie war dein Vorstellungsgespräch?",
+    "helpHint": "Erzähl uns von einem Problem oder einem Funktionswunsch.",
+    "interviewHint": "Bewertung oder Vorschlag: Dein Feedback ist freiwillig und hat keinen Einfluss auf den Zugriff auf deinen Bericht.",
+    "ratingLabel": "Bewertung des Gesprächs",
+    "good": "Gute Erfahrung",
+    "improve": "Verbesserungsbedarf",
+    "message": "Dein Feedback",
+    "optionalMessage": "Vorschläge (optional)",
+    "helpPlaceholder": "Auf welcher Seite warst du, was hast du gemacht und welches Problem trat auf? Auch Funktionswünsche sind willkommen…",
+    "interviewPlaceholder": "Waren die Fragen passend? War die Audioqualität gut? Was können wir verbessern?",
+    "submit": "Feedback senden",
+    "sending": "Wird gesendet…",
+    "thanks": "Feedback erhalten. Danke, dass du uns hilfst, besser zu werden!",
+    "failed": "Senden fehlgeschlagen. Dein Text bleibt erhalten. Bitte versuche es später erneut.",
+    "auth": "Deine Sitzung ist abgelaufen. Bitte melde dich erneut an.",
+    "limited": "Zu viele Einsendungen. Dein Text bleibt erhalten. Bitte versuche es später erneut."
+  },
+  "support": {
+    "entry": "Hilfe & Feedback",
+    "description": "Du brauchst Hilfe oder möchtest eine Idee teilen? Sende uns hier dein Feedback oder schreib uns auf WeChat.",
+    "contact": "Kontakt über WeChat",
+    "wechat": "WeChat-ID",
+    "copy": "WeChat-ID kopieren",
+    "copied": "Kopiert",
+    "addHint": "Öffne WeChat und suche nach dieser ID, um uns hinzuzufügen.",
+    "copySuccess": "WeChat-ID kopiert. Öffne WeChat, um uns hinzuzufügen.",
+    "copyFailed": "Kopieren fehlgeschlagen. Markiere die ID oben oder halte sie gedrückt, um sie manuell zu kopieren.",
+    "feedbackTitle": "Hilfreiche Angaben für dein Feedback",
+    "feedbackHint": "Sag uns, auf welcher Seite du warst, was du gemacht hast und welches Problem aufgetreten ist. Screenshots helfen uns weiter. Auch Funktionswünsche sind willkommen.",
+    "close": "Hilfe & Feedback schließen"
+  },
   "meta": {
     "title": "FlowLab - KI-gestütztes Interviewtraining"
   },

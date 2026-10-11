@@ -1,4 +1,37 @@
 {
+  "userFeedback": {
+    "helpTitle": "直接提交反馈",
+    "interviewTitle": "这次面试体验怎么样？",
+    "helpHint": "使用问题和功能建议都欢迎告诉我们。",
+    "interviewHint": "选择评价或填写建议均可，自愿反馈，不影响查看报告。",
+    "ratingLabel": "面试体验评价",
+    "good": "体验不错",
+    "improve": "需要改进",
+    "message": "反馈内容",
+    "optionalMessage": "补充建议（选填）",
+    "helpPlaceholder": "例如：在哪个页面、进行了什么操作、遇到了什么问题，或你希望增加的功能……",
+    "interviewPlaceholder": "例如：问题是否贴近岗位、语音是否流畅，或哪里可以做得更好……",
+    "submit": "提交反馈",
+    "sending": "正在提交…",
+    "thanks": "反馈已收到，谢谢你帮助我们改进！",
+    "failed": "提交失败，内容已保留，请稍后重试。",
+    "auth": "登录状态已过期，请重新登录后提交。",
+    "limited": "提交较频繁，内容已保留，请稍后再试。"
+  },
+  "support": {
+    "entry": "帮助与反馈",
+    "description": "遇到使用问题，或有想分享的建议？可以直接提交反馈，也可以通过微信联系我们。",
+    "contact": "微信联系客服",
+    "wechat": "微信号",
+    "copy": "复制微信号",
+    "copied": "已复制",
+    "addHint": "复制后打开微信，搜索微信号添加好友。",
+    "copySuccess": "微信号已复制，去微信添加好友吧。",
+    "copyFailed": "复制失败，请长按或选中上方微信号手动复制。",
+    "feedbackTitle": "反馈时可以告诉我们",
+    "feedbackHint": "你在哪个页面、进行了什么操作，以及遇到的问题。附上截图会更方便我们了解情况；功能建议也欢迎直接聊。",
+    "close": "关闭帮助与反馈"
+  },
   "meta": {
     "title": "FlowLab 不卡壳实验室 - AI 求职陪练"
   },

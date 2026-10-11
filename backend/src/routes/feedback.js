@@ -1,7 +1,10 @@
 import { Router } from 'express'
 import { z } from 'zod'
+import rateLimit from 'express-rate-limit'
 import { requireAuth } from '../middleware/auth.js'
 import { FEEDBACK_FEATURES, FEEDBACK_REASONS, trackServerEvent } from '../lib/analytics.js'
+import { supabaseForUser } from '../lib/supabase.js'
+import { createFeedbackMessageHandler } from '../lib/userFeedback.js'
 
 /**
  * POST /api/feedback — explicit 👍/👎 on an AI-generated result.
@@ -9,6 +12,16 @@ import { FEEDBACK_FEATURES, FEEDBACK_REASONS, trackServerEvent } from '../lib/an
  * Only predefined reason codes are accepted; there is no free text.
  */
 const router = Router()
+
+// Explicit text feedback is stored separately from the existing AI ratings.
+router.post('/messages', requireAuth, rateLimit({
+  windowMs: 10 * 60 * 1000,
+  limit: 10,
+  keyGenerator: req => req.user.id,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many feedback submissions' },
+}), createFeedbackMessageHandler(supabaseForUser))
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 

@@ -1,11 +1,11 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
   LayoutDashboard, Mic, StickyNote, FilePenLine, UserCircle, Compass,
   BookOpen, BookMarked, Zap, LogOut, Briefcase, PanelLeftClose, PanelLeftOpen,
-  Menu, X, ChevronRight, Mail, ShieldCheck,
+  Menu, X, ChevronRight, Mail, ShieldCheck, CircleHelp,
 } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import { useIsAdmin } from '../../hooks/useIsAdmin'
@@ -15,6 +15,7 @@ import { openCookieSettings } from '../CookieBanner'
 import LanguageSwitcher from '../LanguageSwitcher'
 import { AppThemeToggle } from '../ThemeToggle'
 import NotificationBell from './NotificationBell'
+import HelpFeedbackDialog from './HelpFeedbackDialog'
 
 /**
  * 站内工作台外壳（登录后的页面）。
@@ -85,10 +86,10 @@ function useNavGroups() {
       id: 'community',
       label: t('nav.groupCommunity'),
       items: [
-        { to: '/gallup', label: t('nav.gallup'), icon: Compass, dot: 'bg-[#DDAA46]' },
         { to: '/jobs', label: t('nav.jobs'), icon: Briefcase, dot: 'bg-[#DDAA46]' },
         { to: '/experiences', label: t('nav.experiences'), icon: BookOpen, dot: 'bg-[#DDAA46]' },
         { to: '/experiences?mine=true', label: t('nav.myExperiences'), icon: BookMarked, dot: 'bg-[#DDAA46]' },
+        { to: '/gallup', label: t('nav.gallup'), icon: Compass, dot: 'bg-[#DDAA46]' },
       ],
     },
     // 只有 ADMIN_EMAILS 里的账号能看到
@@ -125,7 +126,7 @@ function Avatar({ src, seeking, size = 'h-9 w-9' }) {
 }
 
 /** 侧栏内容：桌面端固定侧栏与移动端抽屉共用 */
-function SidebarContent({ collapsed, onToggleCollapse, onNavigate, account, variant = 'desktop' }) {
+function SidebarContent({ collapsed, onToggleCollapse, onNavigate, onHelp, account, variant = 'desktop' }) {
   const { t } = useTranslation()
   const { user, signOut } = useAuth()
   const location = useLocation()
@@ -168,7 +169,7 @@ function SidebarContent({ collapsed, onToggleCollapse, onNavigate, account, vari
       </div>
 
       {/* 导航分组 */}
-      <nav className={`mt-6 flex-1 space-y-6 overflow-y-auto scrollbar-hide ${collapsed ? 'px-2.5' : 'px-3'}`} aria-label={t('nav.menu')}>
+      <nav className={`mt-6 min-h-0 flex-1 space-y-6 overflow-y-auto scrollbar-hide ${collapsed ? 'px-2.5' : 'px-3'}`} aria-label={t('nav.menu')}>
         {groups.map(group => (
           <div key={group.id}>
             {collapsed
@@ -274,6 +275,21 @@ function SidebarContent({ collapsed, onToggleCollapse, onNavigate, account, vari
           </>
         )}
       </div>
+      <div className={`shrink-0 border-t border-white/50 pb-3 pt-2 dark:border-white/10 ${collapsed ? 'px-2.5' : 'px-3'}`}>
+        <button
+          type="button"
+          onClick={onHelp}
+          aria-label={t('support.entry')}
+          aria-haspopup="dialog"
+          title={collapsed ? t('support.entry') : undefined}
+          data-track="help-feedback"
+          className={`flex min-h-11 w-full items-center gap-3 rounded-xl text-[12px] font-medium text-brand-muted transition-colors hover:bg-white/40 hover:text-brand-ink dark:hover:bg-white/[0.06] ${collapsed ? 'justify-center' : 'px-3'}`}
+        >
+          <CircleHelp className="h-[18px] w-[18px] shrink-0" />
+          {!collapsed && <span>{t('support.entry')}</span>}
+          {!collapsed && <ChevronRight className="ml-auto h-3.5 w-3.5 shrink-0" />}
+        </button>
+      </div>
     </div>
   )
 }
@@ -300,6 +316,9 @@ export default function AppShell({ children }) {
   const location = useLocation()
   const [collapsed, setCollapsed] = useState(readCollapsed)
   const [drawerOpen, setDrawerOpen] = useState(false)
+  const [helpOpen, setHelpOpen] = useState(false)
+  const mobileMenuRef = useRef(null)
+  const helpReturnFocusRef = useRef(null)
   const crumb = useCurrentLabel()
   const role = workspaceRole(location.pathname)
   const surface = workspaceSurface(location.pathname, location.search)
@@ -318,6 +337,11 @@ export default function AppShell({ children }) {
   }, [drawerOpen])
 
   const sidebarW = collapsed ? 84 : 264
+  const openHelp = (event, mobile = false) => {
+    helpReturnFocusRef.current = mobile ? mobileMenuRef.current : event.currentTarget
+    setDrawerOpen(false)
+    setHelpOpen(true)
+  }
 
   return (
     <div
@@ -334,7 +358,7 @@ export default function AppShell({ children }) {
         transition={{ type: 'spring', stiffness: 300, damping: 34 }}
         className="flowlab-sidebar fixed bottom-3 left-3 top-3 z-40 hidden overflow-hidden rounded-[28px] lg:block"
       >
-        <SidebarContent collapsed={collapsed} onToggleCollapse={() => setCollapsed(v => !v)} account={account} />
+        <SidebarContent collapsed={collapsed} onToggleCollapse={() => setCollapsed(v => !v)} onHelp={openHelp} account={account} />
       </motion.aside>
 
       {/* 顶栏：面包屑 + 语言 / 主题；移动端带菜单按钮 */}
@@ -343,6 +367,7 @@ export default function AppShell({ children }) {
       >
         <div className="flex min-w-0 items-center gap-2">
           <button
+            ref={mobileMenuRef}
             type="button"
             onClick={() => setDrawerOpen(true)}
             className="grid h-9 w-9 shrink-0 place-items-center rounded-xl text-brand-ink transition-colors hover:bg-white/50 lg:hidden"
@@ -407,7 +432,7 @@ export default function AppShell({ children }) {
               >
                 <X className="h-4 w-4" />
               </button>
-              <SidebarContent collapsed={false} account={account} onNavigate={() => setDrawerOpen(false)} variant="mobile" />
+              <SidebarContent collapsed={false} account={account} onNavigate={() => setDrawerOpen(false)} onHelp={event => openHelp(event, true)} variant="mobile" />
             </motion.aside>
           </>
         )}
@@ -420,6 +445,7 @@ export default function AppShell({ children }) {
           <AppFooter />
         </div>
       </div>
+      {helpOpen && <HelpFeedbackDialog onClose={() => setHelpOpen(false)} returnFocusRef={helpReturnFocusRef} />}
     </div>
   )
 }

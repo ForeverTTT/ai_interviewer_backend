@@ -34,6 +34,7 @@
 |---|---|:---:|---|
 | POST | `/api/ux-events` | 可选 | 批量上报浏览器事件，请求体 `{ events: [...] }`，每批 1–20 条。带有效 token 时事件归属到该用户，否则按匿名处理；不接受请求体里的用户 ID。事件名和字段按 `backend/src/lib/analytics.js` 的白名单校验，不合格的单条事件被丢弃。批次格式错误返回 400，其余一律返回 204 |
 | POST | `/api/feedback` | ✅ | 对 AI 结果的 👍/👎 反馈。请求体 `feedbackId`、`feature`（`interview_report` / `resume_tailor` / `cover_letter` / `resume_diagnose` / `gallup`）、`rating`（`up` / `down`），可选 `reasons`（预设原因代码数组，最多 5 个，必须与 rating 对应）和 `interviewId`。不接受自由文本。成功返回 204，格式错误返回 400 |
+| POST | `/api/feedback/messages` | ✅ | 直接提交反馈。请求体 `feedbackId`（8–64 位字母、数字、连字符，用于重试去重）、`source`（`help` / `interview`），可选 `message`（最多 2000 字符）、`rating`（`up` / `down`）、`interviewId`、`pagePath`（仅路径，不带 query/hash）。帮助反馈必须有文字；面试反馈必须提供本人面试 ID，文字和评价至少填一个。写入 `public.user_feedback`，成功及重复重试返回 204；校验错误 400、无权访问面试 404、每用户 10 分钟最多 10 次（超限 429）、存储失败 503。正文不进埋点或日志 |
 
 ## 面试 `/api/interviews`
 
