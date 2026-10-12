@@ -49,34 +49,69 @@ function shouldTranslateText(v) {
   return true
 }
 
+// Bump to invalidate persisted coach_cache entries (e.g. ones saved with partially failed translations).
+const COACH_TRANSLATION_VERSION = 2
+const TRANSLATE_CONCURRENCY = 8
+const TRANSLATE_RETRY_DELAYS_MS = [400, 1200]
+
+/** Returns { text, ok }. On failure `text` falls back to the source so callers can still render. */
 async function translateTextViaPlugin(text, targetLang) {
   const q = String(text || '').trim()
-  if (!q) return ''
-  try {
-    const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=${encodeURIComponent(targetLang)}&dt=t&q=${encodeURIComponent(q)}`
-    const r = await fetch(url)
-    if (!r.ok) return q
-    const data = await r.json()
-    const parts = Array.isArray(data?.[0]) ? data[0].map((x) => x?.[0]).filter(Boolean) : []
-    const out = parts.join('').trim()
-    return out || q
-  } catch {
-    return q
+  if (!q) return { text: '', ok: true }
+  const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=${encodeURIComponent(targetLang)}&dt=t&q=${encodeURIComponent(q)}`
+  for (let attempt = 0; attempt <= TRANSLATE_RETRY_DELAYS_MS.length; attempt++) {
+    if (attempt > 0) await new Promise((r) => setTimeout(r, TRANSLATE_RETRY_DELAYS_MS[attempt - 1]))
+    try {
+      const r = await fetch(url)
+      if (!r.ok) continue
+      const data = await r.json()
+      const parts = Array.isArray(data?.[0]) ? data[0].map((x) => x?.[0]).filter(Boolean) : []
+      const out = parts.join('').trim()
+      if (out) return { text: out, ok: true }
+    } catch {
+      // retry
+    }
   }
+  return { text: q, ok: false }
 }
 
+/** Minimal promise pool so a whole coach payload doesn't hit the translate endpoint at once (it rate-limits). */
+function createLimiter(max) {
+  let active = 0
+  const queue = []
+  const next = () => {
+    if (active >= max || queue.length === 0) return
+    active++
+    const { fn, resolve, reject } = queue.shift()
+    fn().then(resolve, reject).finally(() => {
+      active--
+      next()
+    })
+  }
+  return (fn) => new Promise((resolve, reject) => {
+    queue.push({ fn, resolve, reject })
+    next()
+  })
+}
+
+/** Returns { payload, complete }; `complete` is false if any field kept its source text due to a failure. */
 async function translateCoachPayloadToUi(payload, uiCode) {
   const targetLang = uiCodeToTargetLang(uiCode)
 
   const cache = new Map()
+  const limit = createLimiter(TRANSLATE_CONCURRENCY)
+  let complete = true
   const tr = async (v) => {
     const s = String(v || '')
     if (!shouldTranslateText(s)) return s
     const key = `${targetLang}::${s}`
-    if (cache.has(key)) return cache.get(key)
-    const translated = await translateTextViaPlugin(s, targetLang)
-    cache.set(key, translated)
-    return translated
+    if (!cache.has(key)) {
+      cache.set(key, limit(() => translateTextViaPlugin(s, targetLang)).then(({ text, ok }) => {
+        if (!ok) complete = false
+        return text
+      }))
+    }
+    return cache.get(key)
   }
 
   const out = {
@@ -120,9 +155,10 @@ async function translateCoachPayloadToUi(payload, uiCode) {
         expectedOutcome: await tr(a?.expectedOutcome),
       })),
     ),
+    translationVersion: COACH_TRANSLATION_VERSION,
   }
 
-  return out
+  return { payload: out, complete }
 }
 
 async function extractPdfText(buffer) {
@@ -676,7 +712,8 @@ ${resume.slice(0, 48_000)}
       positioning: Array.isArray(parsed.positioning) ? parsed.positioning : [],
       actionChecklist: Array.isArray(parsed.actionChecklist) ? parsed.actionChecklist : [],
     }
-    const payload = await translateCoachPayloadToUi(payloadRaw, coachUiLanguage)
+    const { payload, complete } = await translateCoachPayloadToUi(payloadRaw, coachUiLanguage)
+    if (!complete) console.warn('[resume-coach] some fields could not be translated; client will retry via /translate')
 
     const { error } = await db
       .from('profiles')
@@ -722,20 +759,25 @@ router.post('/resume-coach/translate', requireAuth, async (req, res) => {
     const targetLang = uiCodeToTargetLang(coachUiLanguage)
 
     // If cache hit for this specific language and same report timestamp
-    if (cache[targetLang] && cache[targetLang].generatedAt === baseCoach.generatedAt) {
-      return res.json({ coach: cache[targetLang], cached: true })
+    const hit = cache[targetLang]
+    if (hit && hit.generatedAt === baseCoach.generatedAt && hit.translationVersion === COACH_TRANSLATION_VERSION) {
+      return res.json({ coach: hit, cached: true })
     }
 
-    const translated = await translateCoachPayloadToUi(baseCoach, coachUiLanguage)
+    const { payload: translated, complete } = await translateCoachPayloadToUi(baseCoach, coachUiLanguage)
 
-    // Persist to cache
-    cache[targetLang] = translated
-    await db
-      .from('profiles')
-      .update({ profile_json: { ...pjson, coach_cache: cache } })
-      .eq('id', req.user.id)
+    // Only persist fully translated payloads; a partial one would pin mixed languages until the report is regenerated.
+    if (complete) {
+      cache[targetLang] = translated
+      await db
+        .from('profiles')
+        .update({ profile_json: { ...pjson, coach_cache: cache } })
+        .eq('id', req.user.id)
+    } else {
+      console.warn('[resume-coach/translate] partial translation, not caching', targetLang)
+    }
 
-    return res.json({ coach: translated, cached: false })
+    return res.json({ coach: translated, cached: false, complete })
   } catch (err) {
     console.error('[resume-coach/translate]', err)
     return res.status(500).json({ error: 'Translate coach failed' })
