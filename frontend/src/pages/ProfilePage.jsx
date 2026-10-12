@@ -483,6 +483,11 @@ function parseBullets(raw) {
   return [s]
 }
 
+/** Lines for MultiLineInput. Arrays are passed through raw (incl. empty lines) so Enter isn't swallowed while typing; views use parseBullets, which drops blanks. */
+function editableLines(raw) {
+  return Array.isArray(raw) && raw.length ? raw : parseBullets(raw)
+}
+
 function parseTechnologyTokens(raw) {
   const s = String(raw || '').trim()
   if (!s) return []
@@ -2281,12 +2286,12 @@ function ProfileEditView({
                       </div>
                       <MultiLineInput
                         label={t('profile.cv.phHighlights') || t('profile.cv.phExpRole')}
-                        lines={parseBullets(exp.highlights)}
+                        lines={editableLines(exp.highlights)}
                         t={t}
                         inputClass={inputClass}
                         onChange={(lines) => {
                           const newExp = [...(cvProfile.workExperience || [])]
-                          newExp[idx] = { ...exp, highlights: lines.join('\n') }
+                          newExp[idx] = { ...exp, highlights: lines }
                           setCvProfile({ ...cvProfile, workExperience: newExp })
                         }}
                       />
@@ -2376,7 +2381,30 @@ function ProfileEditView({
                             }}
                           />
                         </div>
+                        <div className="space-y-2">
+                          <label className="block text-[12.5px] font-bold text-brand-ink">{t('profile.cv.phGpa')}</label>
+                          <input
+                            className={inputClass}
+                            value={edu.gpa || ''}
+                            onChange={(e) => {
+                              const newEdu = [...cvProfile.education]
+                              newEdu[idx] = { ...edu, gpa: e.target.value }
+                              setCvProfile({ ...cvProfile, education: newEdu })
+                            }}
+                          />
+                        </div>
                       </div>
+                      <MultiLineInput
+                        label={t('profile.cv.phEduDetails')}
+                        lines={editableLines(edu.details?.length ? edu.details : edu.description)}
+                        t={t}
+                        inputClass={inputClass}
+                        onChange={(lines) => {
+                          const newEdu = [...cvProfile.education]
+                          newEdu[idx] = { ...edu, details: lines }
+                          setCvProfile({ ...cvProfile, education: newEdu })
+                        }}
+                      />
                     </div>
                   ))}
                   <button
@@ -2440,12 +2468,12 @@ function ProfileEditView({
                       </div>
                       <MultiLineInput
                         label={t('profile.cv.phProjDesc')}
-                        lines={parseBullets(pr.description)}
+                        lines={editableLines(pr.description)}
                         t={t}
                         inputClass={inputClass}
                         onChange={(lines) => {
                           const newPr = [...cvProfile.projects]
-                          newPr[idx] = { ...pr, description: lines.join('\n') }
+                          newPr[idx] = { ...pr, description: lines }
                           setCvProfile({ ...cvProfile, projects: newPr })
                         }}
                       />

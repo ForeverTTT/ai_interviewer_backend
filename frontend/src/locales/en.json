@@ -776,6 +776,7 @@
     "privacyMore": "Learn more"
   },
   "profile": {
+    "placeholder": "Paste your full resume text here...",
     "coachCta": "Generate AI resume diagnosis",
     "coachPreviewTitle": "Let AI diagnose your resume",
     "scoreDetails": "View diagnosis details",
@@ -1110,7 +1111,7 @@
       "phDegree": "Degree",
       "phField": "Major",
       "phGpa": "GPA / Grade",
-      "phEduDetails": "Details...",
+      "phEduDetails": "Courses, thesis, honors, etc.",
       "phProjName": "Project Title",
       "phProjRole": "Your Role",
       "phProjDesc": "Description",
@@ -1124,6 +1125,10 @@
       "phLangLevel": "Level (e.g., C1)",
       "phAwardTitle": "Award Title",
       "phIssuer": "Issuer",
+      "phDuration": "Duration",
+      "phExpTitle": "Position",
+      "phExpRole": "Responsibilities & Achievements",
+      "phHighlightsHint": "One point per line",
       "rawResumeTitle": "Base resume text (collapsed)",
       "rawResumeHint": "Paste the full resume text or import it from the PDF extraction above.",
       "saveFooter": "Saving makes this the base resume for your account."

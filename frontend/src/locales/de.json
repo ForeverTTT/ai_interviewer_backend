@@ -776,6 +776,7 @@
     "privacyMore": "Mehr erfahren"
   },
   "profile": {
+    "placeholder": "Fügen Sie hier Ihren vollständigen Lebenslauftext ein...",
     "coachCta": "KI-Lebenslaufanalyse erstellen",
     "coachPreviewTitle": "Lass die KI deinen Lebenslauf analysieren",
     "scoreDetails": "Analyse ansehen",
@@ -1100,7 +1101,7 @@
       "phDegree": "Grad",
       "phField": "Fach",
       "phGpa": "Note",
-      "phEduDetails": "Details...",
+      "phEduDetails": "Kurse, Abschlussarbeit, Auszeichnungen usw.",
       "phProjName": "Titel",
       "phProjRole": "Rolle",
       "phProjDesc": "Desc",
@@ -1114,6 +1115,10 @@
       "phLangLevel": "Level",
       "phAwardTitle": "Titel",
       "phIssuer": "Aussteller",
+      "phDuration": "Zeitraum",
+      "phExpTitle": "Position",
+      "phExpRole": "Aufgaben & Erfolge",
+      "phHighlightsHint": "Ein Punkt pro Zeile",
       "rawResumeTitle": "Basislebenslauf (eingeklappt)",
       "rawResumeHint": "Vollständigen Lebenslauf einfügen oder aus dem PDF-Import übernehmen.",
       "saveFooter": "Speichern legt diesen Text als Basislebenslauf fest."

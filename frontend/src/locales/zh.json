@@ -776,6 +776,7 @@
     "privacyMore": "了解更多"
   },
   "profile": {
+    "placeholder": "在这里粘贴完整的简历文本…",
     "coachCta": "生成 AI 简历诊断",
     "coachPreviewTitle": "让 AI 帮你诊断这份简历",
     "scoreDetails": "查看诊断详情",
@@ -1124,6 +1125,10 @@
       "phLangLevel": "熟练度（如 C1、工作语言）",
       "phAwardTitle": "奖项名称",
       "phIssuer": "颁发机构",
+      "phDuration": "时间段",
+      "phExpTitle": "职位",
+      "phExpRole": "职责与成果",
+      "phHighlightsHint": "每行写一条",
       "rawResumeTitle": "基础简历正文（折叠）",
       "rawResumeHint": "粘贴完整简历正文，或从上方 PDF 提取结果导入。",
       "saveFooter": "保存后，这份内容会成为账户中的基础简历。"
