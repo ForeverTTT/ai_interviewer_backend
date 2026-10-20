@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { motion } from 'framer-motion'
-import { ArrowRight, Check, ThumbsDown, ThumbsUp, UserRoundCheck } from 'lucide-react'
+import { ArrowRight, Check, Clock3, ThumbsDown, ThumbsUp } from 'lucide-react'
 import { BRAND_ASSETS } from '../assets/brandAssets'
 import { useAuth } from '../hooks/useAuth'
 import { authenticatedFetch } from '../lib/authenticatedFetch'
@@ -72,7 +72,7 @@ export default function CoachPage() {
             transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
             className="coach-hero-copy"
           >
-            <span className="coach-kicker"><UserRoundCheck />{t('coachPage.kicker')}</span>
+            <span className="coach-kicker"><Clock3 aria-hidden="true" />{t('coachPage.kicker')}</span>
             <h1>{t('coachPage.title')}</h1>
             <p className="coach-lead">{t('coachPage.subtitle')}</p>
             <div className="coach-points" aria-label={t('coachPage.pointsLabel')}>
