@@ -491,7 +491,7 @@ export default function SetupPage() {
   const [form, setForm] = useState({
     position: String(offerSprintDefaults.position || ''),
     jobDescription: String(offerSprintDefaults.jobDescription || ''),
-    language: 'English',
+    language: 'Chinese',
     duration: Math.max(5, Math.min(60, Number(offerSprintDefaults.duration) || 10)),
     interviewerStyle: 'balanced',
     interviewerType: ['hr', 'technical', 'mixed'].includes(offerSprintDefaults.interviewerType)
@@ -592,9 +592,9 @@ export default function SetupPage() {
   }, [])
 
   const languages = useMemo(() => [
+    { value: 'Chinese', label: '中文', flag: '🇨🇳', desc: t('setup.langZhDesc') },
     { value: 'English', label: 'English', flag: '🇬🇧', desc: t('setup.langEnDesc') },
     { value: 'Deutsch', label: 'Deutsch', flag: '🇩🇪', desc: t('setup.langDeDesc') },
-    { value: 'Chinese', label: '中文', flag: '🇨🇳', desc: t('setup.langZhDesc') },
   ], [t])
 
   const interviewerStyles = useMemo(() => [
