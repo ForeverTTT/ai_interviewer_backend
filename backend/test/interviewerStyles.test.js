@@ -36,9 +36,9 @@ test('style and language select a deterministic recommended voice', () => {
   assert.equal(getInterviewerVoice('analytical', 'Chinese'), 'Sadaltager')
 })
 
-test('Chinese TTS uses Aoede for every style while other languages follow the style voice', () => {
+test('Chinese TTS uses Puck for every style while other languages follow the style voice', () => {
   for (const style of ['balanced', 'supportive', 'demanding', 'analytical']) {
-    assert.equal(getTtsVoice(style, 'Chinese'), 'Aoede')
+    assert.equal(getTtsVoice(style, 'Chinese'), 'Puck')
   }
   assert.equal(getTtsVoice('demanding', 'English'), getInterviewerVoice('demanding', 'English'))
   assert.equal(getTtsVoice('balanced', 'Deutsch'), getInterviewerVoice('balanced', 'Deutsch'))

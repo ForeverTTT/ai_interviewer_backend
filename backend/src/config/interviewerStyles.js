@@ -54,7 +54,7 @@ export function getInterviewerVoice(style, language = 'English') {
 
 // TTS can use its own voice for a language regardless of style; Live keeps the style voices.
 const TTS_VOICES = Object.freeze({
-  Chinese: 'Aoede',
+  Chinese: 'Puck',
 })
 
 export function getTtsVoice(style, language = 'English') {
