@@ -497,3 +497,25 @@ Quota exceeded for metric: generate_requests_per_model_per_day
 协议格式、练习模式的输出闸门、断线恢复的语义都以[面试流程 · 实时语音与断线恢复](面试流程.md#13-实时语音与断线恢复)为准，这里不再重复。
 
 `backend/src/lib/geminiLive.js` 不是 WebSocket 服务的一部分，它把 Live 模型封装成 LangGraph 可以调用的文本模型，供 `agents/interviewGraph.js` 使用。
+
+### 11.1 连接恢复与诊断日志
+
+Live 模式仅由后端保存已完成的对话回合，前端禁用兼容通道的 transcript 自动保存。`liveTurnPersistence.js` 在每次写入前重新读取状态，在版本冲突时最多尝试三次；回答、对话和问题分别使用固定的幂等键，避免重试时重复提交。已结束或正在生成报告的面试不会被重新激活。
+
+上游关闭后，后端发送 `closed` 并同时关闭浏览器 WebSocket，避免旧前端忽略通知后仍显示已连接。前端清理麦克风及播放队列，以 1、2、4 秒间隔最多重连三次，从数据库保存的上下文继续；连接稳定 30 秒后重置重试次数。用户结束面试、组件卸载和服务端 1008 策略拒绝不会自动重连。模型启用 `contextWindowCompression.slidingWindow`，参见 [Google Live 会话管理](https://ai.google.dev/gemini-api/docs/live-api/session-management)。重连恢复已保存的完整回合，不保证恢复断开时尚未完成的音频或转写。
+
+连接生命周期及流量摘要以结构化日志写入 Cloud Logging，不依赖客户端产品埋点是否启用。日志包含 `interviewId`、`userId`、每条浏览器连接唯一的 `connectionId`、模型、模式、连接时长和当前状态版本。每 30 秒做一次浏览器心跳并记录流量摘要，超过 60 秒没有 pong 则断开。不会逐帧记录日志，也不会记录音频、转写正文、token、API Key 或恢复句柄。
+
+| 事件 | 用途 |
+|---|---|
+| `live_ready` / `live_setup_timeout` | 定位鉴权、会话读取或上游建立阶段的问题 |
+| `live_upstream_go_away` | 记录上游预关闭通知及剩余时间 |
+| `live_upstream_closed` | 记录上游关闭码、经过过滤的原因、是否正常关闭、由谁发起，以及未完成转写的字符数 |
+| `live_upstream_error` / `live_browser_closed` / `live_browser_error` | 区分上游服务、浏览器传输和用户正常结束 |
+| `live_connection_health` / `live_browser_heartbeat_timeout` | 音频输入字节数、转写次数、音频输出块数和各环节最近活动距今时间；定位断网或停止收音 |
+| `live_turn_complete` / `live_turn_without_audio` | 每回合输入/输出字符数、音频块数、是否被练习模式输出闸门抑制 |
+| `live_response_timeout` | 最后一次输入转写或文本请求后 30 秒仍没有音频；提示用户可重试连接，不强制打断可能仍在进行的回答 |
+| `live_client_audio_error` | 浏览器麦克风、AudioContext 恢复或音频播放失败的具体错误码；同一连接同种错误只上报一次 |
+| `live_persist_conflict` / `live_persist_failed` / `live_turn_persisted` | 保存阶段、尝试次数、预期/当前版本、幂等请求 ID 和最终结果 |
+
+`live_turn_timing` 仍通过 `recordInterviewEvent` 同时保存在数据库和 Cloud Logging。其他新增连接事件仅在 Cloud Logging 中查询。没有上游明确关闭原因时，日志能定位到失败环节，但无法推断服务提供方未返回的内部原因。

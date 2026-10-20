@@ -729,6 +729,7 @@ const ChatInterface = forwardRef(function ChatInterface({
   )
 
   const handleLiveReady = useCallback(() => {
+    setInitError(null)
     if (isPractice) {
       setIsStreaming(false)
       setCurrentAgent(null)
@@ -933,15 +934,17 @@ const ChatInterface = forwardRef(function ChatInterface({
 
   // ── 面试中途：防抖保存对话到 Supabase（结束面试时 finalize 会再写入完整稿）──
   useEffect(() => {
-    if (!persistInterviewId) return
+    // Live turns are persisted on the server. A second writer would advance
+    // state_version behind the socket and can overwrite its checkpoint.
+    if (!persistInterviewId || nativeLiveEnabled) return
     const tmr = window.setTimeout(() => { void saveTranscriptToBackend() }, 6000)
     return () => window.clearTimeout(tmr)
-  }, [persistSig, persistInterviewId, saveTranscriptToBackend])
+  }, [persistSig, persistInterviewId, saveTranscriptToBackend, nativeLiveEnabled])
 
   useEffect(() => {
-    if (!persistInterviewId) return
+    if (!persistInterviewId || nativeLiveEnabled) return
     return () => { void saveTranscriptToBackend() }
-  }, [persistInterviewId, saveTranscriptToBackend])
+  }, [persistInterviewId, saveTranscriptToBackend, nativeLiveEnabled])
 
   // ── Kick off interview — AbortController prevents StrictMode double-fire ──
   // React 18 Strict Mode: effect runs → cleanup → effect runs again.

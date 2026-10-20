@@ -1138,7 +1138,7 @@ export default function InterviewReportPage() {
         }),
       })
       if (res.status === 202) {
-        for (let attempt = 0; attempt < 30; attempt += 1) {
+        for (let attempt = 0; attempt < 60; attempt += 1) {
           await new Promise((resolve) => setTimeout(resolve, 2000))
           const statusRes = await fetch(`${backendUrl}/api/interviews/${interviewId}`, {
             headers: { Authorization: `Bearer ${token}` },

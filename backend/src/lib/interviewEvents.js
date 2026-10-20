@@ -17,6 +17,7 @@ function cleanMetadata(metadata) {
     'attempt',
     'fallbackFrom',
     'fallbackTo',
+    'retryDelayMs',
     'responseRequestId',
     'turnIndex',
     'inputToFirstAudioMs',

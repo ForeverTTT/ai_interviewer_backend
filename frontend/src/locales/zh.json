@@ -1,4 +1,12 @@
 {
+  "dashboardReportStatus": {
+    "failedLabel": "生成失败，可重试",
+    "failedTitle": "报告暂未生成",
+    "failedBody": "本次生成未成功，面试记录仍然保存。请打开报告页面查看状态或重试。",
+    "unknownLabel": "状态待确认",
+    "unknownTitle": "请确认报告状态",
+    "unknownBody": "暂时无法确认生成进度。请打开报告页面查看最新状态，避免一直等待。"
+  },
   "userFeedback": {
     "helpTitle": "直接提交反馈",
     "interviewTitle": "这次面试体验怎么样？",

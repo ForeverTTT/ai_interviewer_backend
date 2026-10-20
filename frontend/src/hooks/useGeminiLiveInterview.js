@@ -63,6 +63,21 @@ export function useGeminiLiveInterview({
   const listeningRef = useRef(false)
   const callbacksRef = useRef({})
   const audioEnabledRef = useRef(audioEnabled)
+  const intentionalDisconnectRef = useRef(false)
+  const retryCountRef = useRef(0)
+  const retryTimerRef = useRef(null)
+  const audioErrorCodesRef = useRef(new Set())
+
+  const reportAudioError = useCallback((code, cause) => {
+    if (intentionalDisconnectRef.current || audioErrorCodesRef.current.has(code)) return
+    audioErrorCodesRef.current.add(code)
+    const nextError = new Error(cause?.message || code)
+    nextError.code = code
+    setError(nextError.message)
+    callbacksRef.current.onError?.(nextError)
+    const socket = socketRef.current
+    if (socket?.readyState === WebSocket.OPEN) socket.send(JSON.stringify({ type: 'client_diagnostic', code }))
+  }, [])
 
   useLayoutEffect(() => {
     callbacksRef.current = { onReady, onAudioStart, onInputTranscript, onOutputTranscript, onTurnComplete, onError }
@@ -98,7 +113,11 @@ export function useGeminiLiveInterview({
       outputContextRef.current = new AC({ sampleRate: 24_000 })
     }
     const context = outputContextRef.current
-    if (context.state === 'suspended') void context.resume()
+    if (context.state === 'suspended') {
+      void context.resume().then(() => {
+        if (context.state === 'suspended') reportAudioError('LIVE_AUDIO_CONTEXT_SUSPENDED')
+      }).catch(cause => reportAudioError('LIVE_AUDIO_PLAYBACK_FAILED', cause))
+    }
 
     const rate = Number(mimeType.match(/rate=(\d+)/)?.[1]) || 24_000
     const pcm = base64ToInt16(base64)
@@ -120,7 +139,7 @@ export function useGeminiLiveInterview({
       outputSourcesRef.current.delete(source)
       if (!outputSourcesRef.current.size) setSpeaking(false)
     }
-  }, [])
+  }, [reportAudioError])
 
   const stopMic = useCallback(() => {
     listeningRef.current = false
@@ -140,10 +159,9 @@ export function useGeminiLiveInterview({
 
   const startMic = useCallback(async () => {
     if (!enabled || !connected || listeningRef.current) return
+    const startedSocket = socketRef.current
     if (!navigator.mediaDevices?.getUserMedia) {
-      const nextError = new Error('Microphone capture is not supported in this browser')
-      setError(nextError.message)
-      callbacksRef.current.onError?.(nextError)
+      reportAudioError('LIVE_MIC_FAILED', new Error('Microphone capture is not supported in this browser'))
       return
     }
 
@@ -160,8 +178,18 @@ export function useGeminiLiveInterview({
         },
         video: false,
       })
+      if (socketRef.current !== startedSocket || startedSocket?.readyState !== WebSocket.OPEN || intentionalDisconnectRef.current) {
+        stream.getTracks().forEach(track => track.stop())
+        return
+      }
       const AC = window.AudioContext || window.webkitAudioContext
       context = new AC()
+      if (context.state === 'suspended') await context.resume()
+      if (socketRef.current !== startedSocket || startedSocket?.readyState !== WebSocket.OPEN || intentionalDisconnectRef.current) {
+        stream.getTracks().forEach(track => track.stop())
+        void context.close().catch(() => {})
+        return
+      }
       const source = context.createMediaStreamSource(stream)
       const processor = context.createScriptProcessor(4096, 1, 1)
       const gain = context.createGain()
@@ -185,11 +213,9 @@ export function useGeminiLiveInterview({
       micRef.current = null
       listeningRef.current = false
       setRecording(false)
-      const nextError = new Error(cause?.message || 'Microphone access was not granted')
-      setError(nextError.message)
-      callbacksRef.current.onError?.(nextError)
+      reportAudioError('LIVE_MIC_FAILED', cause)
     }
-  }, [connected, enabled, stopAudio])
+  }, [connected, enabled, stopAudio, reportAudioError])
 
   const sendText = useCallback((text) => {
     const trimmed = String(text || '').trim()
@@ -200,12 +226,17 @@ export function useGeminiLiveInterview({
   }, [])
 
   const reconnect = useCallback(() => {
+    intentionalDisconnectRef.current = false
+    retryCountRef.current = 0
+    window.clearTimeout(retryTimerRef.current)
     setConnected(false)
     setError(null)
     setConnectionGeneration(generation => generation + 1)
   }, [])
 
   const disconnect = useCallback(() => {
+    intentionalDisconnectRef.current = true
+    window.clearTimeout(retryTimerRef.current)
     stopMic()
     stopAudio()
     const socket = socketRef.current
@@ -223,27 +254,63 @@ export function useGeminiLiveInterview({
 
   useEffect(() => {
     if (!enabled) return undefined
+    intentionalDisconnectRef.current = false
     let disposed = false
     let socket
+    let failed = false
+    let stableTimer
+    let setupTimer
+
+    const failConnection = (nextError, retryable = true) => {
+      if (disposed || intentionalDisconnectRef.current || failed) return
+      failed = true
+      window.clearTimeout(setupTimer)
+      window.clearTimeout(stableTimer)
+      setConnected(false)
+      stopMic()
+      stopAudio()
+      setError(nextError.message)
+      callbacksRef.current.onError?.(nextError)
+      if (socket?.readyState === WebSocket.OPEN || socket?.readyState === WebSocket.CONNECTING) socket.close()
+      if (retryable && retryCountRef.current < 3) {
+        const delay = 1000 * 2 ** retryCountRef.current++
+        retryTimerRef.current = window.setTimeout(() => {
+          if (!disposed && !intentionalDisconnectRef.current) setConnectionGeneration(generation => generation + 1)
+        }, delay)
+      }
+    }
 
     ;(async () => {
       try {
-        const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+        let { data: { session }, error: sessionError } = await supabase.auth.getSession()
         if (sessionError) throw sessionError
+        if (session?.expires_at && session.expires_at * 1000 < Date.now() + 60_000) {
+          const refreshed = await supabase.auth.refreshSession()
+          if (refreshed.error) throw refreshed.error
+          session = refreshed.data.session
+        }
         if (!session?.access_token) throw new Error('Your login session has expired')
-        if (disposed) return
+        if (disposed || intentionalDisconnectRef.current) return
 
         socket = new WebSocket(websocketUrl())
         socket.binaryType = 'arraybuffer'
         socketRef.current = socket
+        setupTimer = window.setTimeout(() => {
+          failConnection(Object.assign(new Error('Live interview connection timed out'), { code: 'LIVE_CONNECT_TIMEOUT' }))
+        }, 20_000)
         socket.onopen = () => {
+          if (disposed || intentionalDisconnectRef.current || failed) return
           socket.send(JSON.stringify({ type: 'start', token: session.access_token, config: stableConfig }))
         }
         socket.onmessage = (event) => {
+          if (disposed || intentionalDisconnectRef.current || failed) return
           if (typeof event.data !== 'string') return
           let message
           try { message = JSON.parse(event.data) } catch { return }
           if (message.type === 'ready') {
+            audioErrorCodesRef.current.clear()
+            window.clearTimeout(setupTimer)
+            stableTimer = window.setTimeout(() => { retryCountRef.current = 0 }, 30_000)
             setConnected(true)
             setError(null)
             callbacksRef.current.onReady?.(message)
@@ -253,47 +320,52 @@ export function useGeminiLiveInterview({
             callbacksRef.current.onOutputTranscript?.(message.text)
           } else if (message.type === 'audio') {
             callbacksRef.current.onAudioStart?.()
-            playAudioChunk(message.data, message.mimeType)
+            try { playAudioChunk(message.data, message.mimeType) }
+            catch (cause) { reportAudioError('LIVE_AUDIO_PLAYBACK_FAILED', cause) }
           } else if (message.type === 'turn_complete') {
             callbacksRef.current.onTurnComplete?.(message)
           } else if (message.type === 'interrupted') {
             stopAudio()
           } else if (message.type === 'error') {
             const nextError = new Error(message.message || 'Gemini Live error')
-            setError(nextError.message)
-            callbacksRef.current.onError?.(nextError)
+            nextError.code = message.code || 'LIVE_SERVICE_ERROR'
+            if (message.fatal) failConnection(nextError)
+            else {
+              setError(nextError.message)
+              callbacksRef.current.onError?.(nextError)
+            }
+          } else if (message.type === 'closed') {
+            failConnection(Object.assign(new Error(message.reason || 'Live interview connection closed'), {
+              code: message.code || 'LIVE_UPSTREAM_CLOSED',
+            }))
           }
         }
         socket.onerror = () => {
-          const nextError = new Error('Unable to connect to the live interview service')
-          setError(nextError.message)
-          callbacksRef.current.onError?.(nextError)
+          failConnection(Object.assign(new Error('Unable to connect to the live interview service'), { code: 'LIVE_SOCKET_ERROR' }))
         }
         socket.onclose = (event) => {
-          setConnected(false)
-          stopMic()
-          if (!disposed && event.code !== 1000) {
-            const nextError = new Error(event.reason || 'Live interview connection closed')
-            setError(nextError.message)
-            callbacksRef.current.onError?.(nextError)
-          }
+          failConnection(Object.assign(new Error(event.reason || 'Live interview connection closed'), {
+            code: `LIVE_SOCKET_CLOSED_${event.code}`,
+          }), event.code !== 1008)
         }
       } catch (nextError) {
-        if (disposed) return
-        setError(nextError.message)
-        callbacksRef.current.onError?.(nextError)
+        nextError.code ||= 'LIVE_SETUP_FAILED'
+        failConnection(nextError)
       }
     })()
 
     return () => {
       disposed = true
+      window.clearTimeout(retryTimerRef.current)
+      window.clearTimeout(stableTimer)
+      window.clearTimeout(setupTimer)
       stopMic()
       stopAudio()
-      if (socket?.readyState === WebSocket.OPEN) socket.close(1000, 'Component unmounted')
+      if (socket?.readyState === WebSocket.OPEN || socket?.readyState === WebSocket.CONNECTING) socket.close(1000, 'Component unmounted')
       socketRef.current = null
       if (outputContextRef.current?.state !== 'closed') void outputContextRef.current?.close().catch(() => {})
     }
-  }, [enabled, stableConfig, connectionGeneration, playAudioChunk, stopAudio, stopMic])
+  }, [enabled, stableConfig, connectionGeneration, playAudioChunk, stopAudio, stopMic, reportAudioError])
 
   useEffect(() => {
     if (!audioEnabled) stopAudio()
