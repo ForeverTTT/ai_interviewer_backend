@@ -8,7 +8,7 @@ import { authenticatedFetch } from '../lib/authenticatedFetch'
 import { getBackendBaseUrl } from '../lib/backendBase'
 import './CoachPage.css'
 
-const CONTACT_EMAIL = 'coach@flowlab.example'
+const CONTACT_EMAIL = 'hanyanchen92@gmail.com'
 const DEV_AUTH_BYPASS = import.meta.env.DEV && import.meta.env.VITE_DEV_AUTH_BYPASS === 'true'
 
 const newFeedbackId = () => globalThis.crypto?.randomUUID?.()
