@@ -1,8 +1,34 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { DEFAULT_GEMINI_FALLBACK_MODELS, getGeminiFallbackModels, invokeWithGeminiQuotaFallback, isGeminiRetryableError } from '../src/lib/geminiFallback.js'
+import { DEFAULT_GEMINI_FALLBACK_MODELS, geminiFailureEvent, geminiFailureType, getGeminiFallbackModels, invokeWithGeminiQuotaFallback, isGeminiRetryableError } from '../src/lib/geminiFallback.js'
 
 const apiError = status => Object.assign(new Error(`API ${status}`), { status })
+
+test('failure events distinguish quota, slow models, overloaded providers and network failures', () => {
+  assert.equal(geminiFailureEvent(apiError(429)), 'gemini_quota_exhausted')
+  assert.equal(geminiFailureEvent(apiError(503)), 'gemini_unavailable')
+  assert.equal(geminiFailureEvent({ code: 'GEMINI_MODEL_TIMEOUT' }), 'gemini_model_timeout')
+  assert.equal(geminiFailureType(apiError('504')), 'timeout')
+  assert.equal(geminiFailureEvent(apiError(404)), 'gemini_model_unavailable')
+  assert.equal(geminiFailureEvent(new Error('wrapped', { cause: { code: 'ECONNRESET' } })), 'gemini_network_error')
+  assert.equal(geminiFailureEvent(apiError(403)), 'gemini_request_failed')
+})
+
+test('a cancelled retry wait never starts the fallback model', async () => {
+  const controller = new AbortController()
+  let calls = 0
+  let plannedDelay
+  const result = invokeWithGeminiQuotaFallback('primary', async () => { calls++; throw apiError(503) }, {
+    signal: controller.signal, fallbackModels: ['backup'], retryDelayBaseMs: 1000,
+    onFallback: ({ retryDelayMs }) => {
+      plannedDelay = retryDelayMs
+      setImmediate(() => controller.abort(new Error('deadline')))
+    },
+  })
+  await assert.rejects(result)
+  assert.equal(calls, 1)
+  assert.ok(plannedDelay >= 1000 && plannedDelay < 1250)
+})
 
 test('practice model can fail over through several distinct models', async () => {
   const calls = [], attempts = [], transitions = []

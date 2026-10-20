@@ -3,7 +3,9 @@ import { ChatVertexAI } from '@langchain/google-vertexai'
 import {
   invokeWithGeminiQuotaFallback,
   supportsSamplingTemperature,
+  geminiFailureType,
 } from './geminiFallback.js'
+import { errorSummary, logStructured } from './observability.js'
 
 function getApiKey() {
   return process.env.GEMINI_API_KEY
@@ -56,7 +58,7 @@ export async function invokeGemini(system, user, opts = {}) {
     { role: 'user', content: user },
   ]
   const timeoutMs = Math.max(1_000, Number(opts.timeoutMs) || 45_000)
-  const attemptTimeoutMs = Math.max(1_000, Number(process.env.GEMINI_MODEL_TIMEOUT_MS) || 12_000)
+  const attemptTimeoutMs = Math.min(timeoutMs, Math.max(1_000, Number(opts.attemptTimeoutMs ?? process.env.GEMINI_MODEL_TIMEOUT_MS) || 12_000))
   const controller = new AbortController()
   const timeoutError = Object.assign(new Error(`Gemini request timed out after ${timeoutMs}ms`), { code: 'GEMINI_TIMEOUT' })
   const totalTimer = setTimeout(() => controller.abort(timeoutError), timeoutMs)
@@ -69,6 +71,7 @@ export async function invokeGemini(system, user, opts = {}) {
   try {
     const invocation = invokeWithGeminiQuotaFallback(primaryModel, async model => {
       controller.signal.throwIfAborted()
+      const startedAt = Date.now()
       const attempt = new AbortController()
       const signal = AbortSignal.any([controller.signal, attempt.signal])
       const attemptError = Object.assign(new Error(`Gemini model ${model} timed out`), { code: 'GEMINI_MODEL_TIMEOUT' })
@@ -82,15 +85,29 @@ export async function invokeGemini(system, user, opts = {}) {
       })
       try {
         signal.throwIfAborted()
-        return await Promise.race([createLlm(model).invoke(messages, { signal }), aborted])
+        const result = await Promise.race([createLlm(model).invoke(messages, { signal }), aborted])
+        logStructured('info', 'gemini_text_attempt_completed', {
+          model, requestId: opts.requestId, interviewId: opts.interviewId,
+          durationMs: Date.now() - startedAt, attemptTimeoutMs, timeoutMs,
+        })
+        return result
       } catch (error) {
-        if (signal.aborted) throw signal.reason
-        throw error
+        const failure = signal.aborted ? signal.reason : error
+        const summary = errorSummary(failure)
+        logStructured('warn', 'gemini_text_attempt_failed', {
+          model, requestId: opts.requestId, interviewId: opts.interviewId,
+          durationMs: Date.now() - startedAt, attemptTimeoutMs, timeoutMs,
+          failureType: geminiFailureType(failure), errorCode: summary.code, errorMessage: summary.message,
+        })
+        throw failure
       } finally {
         clearTimeout(timer)
         signal.removeEventListener('abort', onAbort)
       }
-    }, { signal: controller.signal, onModelAttempt: opts.onModelAttempt, onFallback: opts.onFallback })
+    }, {
+      signal: controller.signal, onModelAttempt: opts.onModelAttempt, onFallback: opts.onFallback,
+      fallbackModels: opts.fallbackModels, retryDelayBaseMs: opts.retryDelayBaseMs,
+    })
     res = await Promise.race([invocation, totalAbort])
   } finally {
     clearTimeout(totalTimer)

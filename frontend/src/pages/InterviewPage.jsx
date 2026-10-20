@@ -473,7 +473,8 @@ export default function InterviewPage() {
       })
       if (res.status === 202) {
         let completed = false
-        for (let poll = 0; poll < 20; poll += 1) {
+        // Another request can hold the 120s finalize lease while generating.
+        for (let poll = 0; poll < 60; poll += 1) {
           await new Promise((resolve) => window.setTimeout(resolve, 2000))
           const statusResponse = await fetch(`${getBackendBaseUrl()}/api/interviews/${interviewId}`, {
             headers: { Authorization: `Bearer ${token}`, 'X-Request-Id': requestId },
