@@ -1,4 +1,12 @@
 {
+  "dashboardReportStatus": {
+    "failedLabel": "Erstellung fehlgeschlagen · erneut versuchen",
+    "failedTitle": "Ihr Bericht ist noch nicht fertig",
+    "failedBody": "Dieser Versuch ist fehlgeschlagen. Ihr Interview ist gespeichert. Öffnen Sie die Berichtsseite, um den Status zu prüfen oder es erneut zu versuchen.",
+    "unknownLabel": "Berichtsstatus prüfen",
+    "unknownTitle": "Bitte prüfen Sie den Berichtsstatus",
+    "unknownBody": "Der Fortschritt lässt sich gerade nicht bestätigen. Öffnen Sie die Berichtsseite für den aktuellen Status."
+  },
   "userFeedback": {
     "helpTitle": "Feedback senden",
     "interviewTitle": "Wie war dein Vorstellungsgespräch?",

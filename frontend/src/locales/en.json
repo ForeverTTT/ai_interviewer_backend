@@ -1,4 +1,12 @@
 {
+  "dashboardReportStatus": {
+    "failedLabel": "Generation failed · retry available",
+    "failedTitle": "Your report is not ready",
+    "failedBody": "This attempt failed. Your interview record is saved. Open the report page to check its status or retry.",
+    "unknownLabel": "Check report status",
+    "unknownTitle": "Please check your report status",
+    "unknownBody": "We cannot confirm the generation progress right now. Open the report page for the latest status."
+  },
   "userFeedback": {
     "helpTitle": "Send us feedback",
     "interviewTitle": "How was your interview experience?",
