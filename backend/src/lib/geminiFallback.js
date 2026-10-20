@@ -1,3 +1,5 @@
+import { setTimeout as sleep } from 'node:timers/promises'
+
 export const DEFAULT_GEMINI_FALLBACK_MODEL = 'gemini-3.5-flash-lite'
 export const DEFAULT_GEMINI_FALLBACK_MODELS = [
   DEFAULT_GEMINI_FALLBACK_MODEL,
@@ -73,6 +75,25 @@ export function isGeminiRetryableError(error) {
   })
 }
 
+export function geminiFailureType(error) {
+  if (isGeminiQuotaError(error)) return 'quota'
+  const chain = errorChain(error)
+  const codes = chain.flatMap(item => [item?.status, item?.statusCode, item?.code, item?.response?.status])
+  if (codes.some(code => ['GEMINI_TIMEOUT', 'GEMINI_MODEL_TIMEOUT', 'ETIMEDOUT'].includes(code) || [408, 504, 4].includes(Number(code)))) return 'timeout'
+  if (codes.some(code => [404, '404'].includes(code))) return 'model_unavailable'
+  if (codes.some(code => [500, 502, 503, 14].includes(Number(code)))) return 'unavailable'
+  if (chain.some(item => ['ECONNRESET', 'EAI_AGAIN', 'ENOTFOUND'].includes(item?.code) || /fetch failed/i.test(item?.message || ''))) return 'network'
+  return 'request_error'
+}
+
+export function geminiFailureEvent(error) {
+  return {
+    quota: 'gemini_quota_exhausted', timeout: 'gemini_model_timeout',
+    unavailable: 'gemini_unavailable', model_unavailable: 'gemini_model_unavailable',
+    network: 'gemini_network_error', request_error: 'gemini_request_failed',
+  }[geminiFailureType(error)]
+}
+
 // Gemini 3.x no longer recommends the legacy sampling temperature parameter.
 export function supportsSamplingTemperature(model) {
   return !/^gemini-3(?:[.-]|$)/i.test(String(model || ''))
@@ -91,7 +112,12 @@ export async function invokeWithGeminiQuotaFallback(primaryModel, invokeForModel
       const nextModel = models[index + 1]
       if (!nextModel || !isGeminiRetryableError(error)) throw error
       console.warn('[Gemini] %s unavailable; trying %s', model, nextModel)
-      await hooks.onFallback?.({ fromModel: model, toModel: nextModel, error })
+      const baseDelay = Math.max(0, Number(hooks.retryDelayBaseMs) || 0)
+      const retryDelayMs = baseDelay ? Math.min(baseDelay * 2 ** index, 4000) + Math.floor(Math.random() * 250) : 0
+      await hooks.onFallback?.({ fromModel: model, toModel: nextModel, error, retryDelayMs })
+      hooks.signal?.throwIfAborted()
+      if (retryDelayMs) await sleep(retryDelayMs, undefined, { signal: hooks.signal })
+      hooks.signal?.throwIfAborted()
     }
   }
 }

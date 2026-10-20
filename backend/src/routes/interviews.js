@@ -5,7 +5,8 @@ import { assertGeminiConfigured, invokeGemini, stripJsonFence } from '../lib/gem
 import { recordInterviewEvent } from '../lib/interviewEvents.js'
 import { trackServerEvent } from '../lib/analytics.js'
 import { errorSummary, logStructured, normalizeRequestId, requestContext } from '../lib/observability.js'
-import { selectFinalizeMessages, shouldReuseFinalizedInterview } from '../lib/interviewFinalize.js'
+import { FINALIZE_LOCK_MS, reportGenerationPolicy, selectFinalizeMessages, shouldReuseFinalizedInterview } from '../lib/interviewFinalize.js'
+import { geminiFailureEvent, geminiFailureType } from '../lib/geminiFallback.js'
 import { normalizeInterviewerStyle } from '../config/interviewerStyles.js'
 import { normalizeInterviewerType, getInterviewerTypePolicy } from '../config/interviewerTypes.js'
 import {
@@ -384,8 +385,6 @@ const CLIENT_INTERVIEW_EVENTS = new Set([
   'finalize_client_error',
   'interview_exit',
 ])
-
-const FINALIZE_LOCK_MS = 2 * 60 * 1000
 
 function finalizedRecently(interview) {
   if (interview?.finalize_status !== 'processing') return false
@@ -782,6 +781,9 @@ Return the JSON object now.`
       ? 'This is a PRACTICE learning report. Explicitly compare early and later attempts where evidence exists.'
       : 'This is a FORMAL simulation report. Evaluate the completed interview as a whole.'}`
     const raw = await invokeGemini(modeReportSystem, userPayload, {
+      ...reportGenerationPolicy(),
+      requestId: req.requestId,
+      interviewId: id,
       temperature: 0.3,
       maxOutputTokens: 32768,
       onModelAttempt: async ({ model, attempt, fallback }) => {
@@ -797,17 +799,17 @@ Return the JSON object now.`
           metadata: { attempt },
         })
       },
-      onFallback: async ({ fromModel, toModel, error }) => {
+      onFallback: async ({ fromModel, toModel, error, retryDelayMs }) => {
         await recordInterviewEvent({
           interviewId: id,
           userId: req.user.id,
           requestId: req.requestId,
-          eventType: 'gemini_quota_exhausted',
+          eventType: geminiFailureEvent(error),
           stage,
           model: fromModel,
           error,
           messageCount: messages.length,
-          metadata: { fallbackFrom: fromModel, fallbackTo: toModel },
+          metadata: { fallbackFrom: fromModel, fallbackTo: toModel, reason: geminiFailureType(error), retryDelayMs },
         })
       },
     })
