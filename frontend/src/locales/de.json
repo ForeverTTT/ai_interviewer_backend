@@ -274,6 +274,7 @@
     "profile": "Profil",
     "resumeTailor": "Lebenslauf optimieren",
     "gallup": "Stärkentest",
+    "coaches": "Persönliches Coaching",
     "jobs": "Stellenbörse",
     "experiences": "Erfahrungen",
     "myExperiences": "Meine Erfahrungen",
@@ -290,6 +291,37 @@
     "menu": "Menü",
     "backHome": "Zur Startseite",
     "energyCta": "Mehr Energie erhalten"
+  },
+  "coachPage": {
+    "kicker": "Persönliche Begleitung · Gemeinsam entwickelt",
+    "title": "Besprich deinen nächsten Schritt mit Menschen aus der Praxis",
+    "subtitle": "Hier möchten wir dich mit Coaches verbinden, die echte Erfahrung in Recruiting, Führung oder ihrer Branche haben. Bring eine Zielstelle, deinen Lebenslauf oder ein Interview-Review mit und erhalte persönliche Empfehlungen. Das Angebot ist noch in Planung – deshalb möchten wir zuerst deinen Bedarf verstehen.",
+    "pointsLabel": "Schwerpunkte des persönlichen Coachings",
+    "points": {
+      "direction": "Berufliche Richtung klären",
+      "practice": "Live-Übung mit Rückfragen",
+      "review": "Lebenslauf und Interview auswerten"
+    },
+    "vote": {
+      "eyebrow": "Sag FlowLab, was du brauchst",
+      "title": "Würdest du persönliches Coaching nutzen?",
+      "body": "Eine Auswahl genügt. Dein Feedback hilft uns zu entscheiden, ob wir dieses Angebot priorisieren und welche Coaches wir zuerst einladen.",
+      "up": "Ja, das brauche ich",
+      "upHint": "Bitte informiert mich zum Start",
+      "down": "Im Moment nicht",
+      "downHint": "Die KI-Funktionen reichen mir aus",
+      "thanks": "Deine Auswahl wurde gespeichert",
+      "upRecorded": "Danke. Wir werden persönliches Coaching bevorzugt validieren.",
+      "downRecorded": "Danke für deine ehrliche Rückmeldung. Auch sie hilft uns bei der Entscheidung.",
+      "error": "Deine Auswahl konnte nicht gesendet werden. Bitte versuche es später erneut."
+    },
+    "join": {
+      "eyebrow": "Coach bei FlowLab werden",
+      "title": "Du hast Erfahrung und möchtest Bewerbende unterstützen?",
+      "body": "Recruiter, Branchenprofis und Karriere-Coaches sollen sich selbstständig beteiligen können. Schreib uns kurz zu deinem Hintergrund und deinen Schwerpunkten.",
+      "cta": "FlowLab kontaktieren",
+      "mailSubject": "Als Coach bei FlowLab bewerben"
+    }
   },
   "resumeTailor": {
     "pageTitle": "Lebenslauf optimieren",

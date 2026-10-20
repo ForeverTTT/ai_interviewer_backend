@@ -1,0 +1,215 @@
+.coach-page { min-height: 100vh; }
+
+.coach-page .community-shell {
+  width: min(1080px, calc(100% - 40px));
+}
+
+.coach-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 270px;
+  align-items: center;
+  min-height: 330px;
+  gap: 46px;
+  padding: 34px 16px 28px;
+}
+
+.coach-hero-copy { max-width: 650px; }
+
+.coach-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: rgb(var(--brand-violet));
+  font-size: 11.5px;
+  font-weight: 750;
+  letter-spacing: 0.1em;
+}
+.coach-kicker svg { width: 16px; height: 16px; }
+
+.coach-hero h1 {
+  max-width: 620px;
+  margin: 14px 0 0;
+  color: rgb(var(--brand-ink));
+  font-size: clamp(28px, 3vw, 38px);
+  font-weight: 850;
+  letter-spacing: -0.035em;
+  line-height: 1.17;
+}
+
+.coach-lead {
+  max-width: 620px;
+  margin: 18px 0 0;
+  color: rgb(var(--brand-muted));
+  font-size: 14px;
+  line-height: 1.8;
+}
+
+.coach-points { display: flex; flex-wrap: wrap; gap: 8px 18px; margin-top: 20px; }
+.coach-points span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: rgb(var(--brand-muted));
+  font-size: 12px;
+  font-weight: 600;
+}
+.coach-points svg { width: 13px; height: 13px; color: rgb(var(--brand-success)); }
+
+.coach-character-stage {
+  display: flex;
+  min-height: 250px;
+  align-items: flex-end;
+  justify-content: center;
+}
+.coach-character-stage img {
+  width: min(250px, 100%);
+  filter: drop-shadow(0 18px 18px rgb(var(--brand-shadow) / 0.13));
+}
+
+.coach-actions-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: stretch;
+  max-width: 1080px;
+  margin: 34px auto 0;
+  border-top: 1px solid rgb(var(--brand-line));
+  border-bottom: 1px solid rgb(var(--brand-line));
+}
+
+.coach-vote-card {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  justify-content: center;
+  margin: 0;
+  padding: 30px 34px;
+  border-right: 1px solid rgb(var(--brand-line));
+  text-align: left;
+}
+
+.coach-card-number,
+.coach-join-copy > span {
+  color: rgb(var(--brand-violet));
+  font-size: 10.5px;
+  font-weight: 750;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.coach-vote-card h2,
+.coach-join-card h2 {
+  margin: 7px 0 0;
+  color: rgb(var(--brand-ink));
+  font-size: 20px;
+  font-weight: 750;
+}
+
+.coach-vote-card > div:first-child > p,
+.coach-join-copy > p {
+  margin: 8px 0 0;
+  color: rgb(var(--brand-muted));
+  font-size: 12.5px;
+  line-height: 1.7;
+}
+
+.coach-vote-actions {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.coach-vote-actions button {
+  display: inline-flex;
+  min-width: 118px;
+  height: 42px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 1px solid rgb(var(--brand-line));
+  border-radius: 999px;
+  background: rgb(var(--brand-card) / 0.82);
+  padding: 0 16px;
+  color: rgb(var(--brand-ink));
+  transition: border-color 160ms ease, background 160ms ease, transform 160ms ease;
+}
+.coach-vote-actions button:hover:not(:disabled) {
+  border-color: rgb(var(--brand-violet) / 0.45);
+  background: rgb(var(--brand-inset));
+  transform: translateY(-1px);
+}
+.coach-vote-actions button:disabled { cursor: wait; opacity: 0.58; }
+.coach-vote-actions button svg { width: 16px; height: 16px; }
+.coach-vote-actions button strong { font-size: 12.5px; font-weight: 700; }
+.coach-vote-up svg { color: rgb(var(--brand-success)); }
+.coach-vote-down svg { color: rgb(var(--brand-muted)); }
+
+.coach-vote-done {
+  display: inline-flex;
+  align-items: center;
+  gap: 11px;
+  margin-top: 20px;
+  color: rgb(var(--brand-ink));
+  text-align: left;
+}
+.coach-vote-done > span {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  flex: none;
+  place-items: center;
+  border-radius: 50%;
+  background: rgb(var(--brand-success));
+  color: white;
+}
+.coach-vote-done svg { width: 15px; height: 15px; }
+.coach-vote-done strong { font-size: 13px; }
+.coach-vote-done p { margin: 3px 0 0; color: rgb(var(--brand-muted)); font-size: 11.5px; }
+.coach-vote-error { margin: 12px 0 0; color: rgb(var(--brand-danger)); font-size: 12px; }
+
+.coach-join-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 18px;
+  min-width: 0;
+  margin: 0;
+  padding: 30px 34px;
+}
+.coach-mail-link {
+  display: inline-flex;
+  align-items: center;
+  align-self: center;
+  gap: 10px;
+  margin-top: 2px;
+  border: 1px solid rgb(var(--brand-line));
+  border-radius: 999px;
+  background: rgb(var(--brand-card) / 0.8);
+  padding: 10px 14px;
+  color: rgb(var(--brand-ink));
+}
+.coach-mail-link span { font-size: 12.5px; font-weight: 700; }
+.coach-mail-link small { color: rgb(var(--brand-muted)); font-size: 10.5px; }
+.coach-mail-link svg { width: 15px; height: 15px; }
+
+@media (max-width: 760px) {
+  .coach-page .community-shell { width: min(100% - 24px, 1080px); }
+  .coach-hero { grid-template-columns: 1fr; gap: 8px; padding-top: 24px; text-align: center; }
+  .coach-hero-copy { margin-inline: auto; }
+  .coach-lead { margin-inline: auto; }
+  .coach-points { justify-content: center; }
+  .coach-character-stage { min-height: 210px; }
+  .coach-character-stage img { width: 210px; }
+  .coach-actions-grid { grid-template-columns: 1fr; max-width: 650px; }
+  .coach-vote-card { border-right: 0; border-bottom: 1px solid rgb(var(--brand-line)); }
+}
+
+@media (max-width: 480px) {
+  .coach-hero h1 { font-size: 28px; }
+  .coach-vote-actions { align-items: center; flex-direction: column; }
+  .coach-vote-actions button { width: 158px; }
+  .coach-vote-card, .coach-join-card { padding-inline: 20px; }
+  .coach-join-card { text-align: center; }
+  .coach-mail-link { align-self: center; }
+  .coach-mail-link small { display: none; }
+}

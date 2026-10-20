@@ -6,6 +6,7 @@ import {
   LayoutDashboard, Mic, StickyNote, FilePenLine, UserCircle, Compass,
   BookOpen, BookMarked, Zap, LogOut, Briefcase, PanelLeftClose, PanelLeftOpen,
   Menu, X, ChevronRight, Mail, ShieldCheck, CircleHelp,
+  Handshake,
 } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import { useIsAdmin } from '../../hooks/useIsAdmin'
@@ -35,6 +36,7 @@ const BRAND_ICON = BRAND_ASSETS.shellBaseIcon
 
 function workspaceRole(pathname) {
   if (pathname === '/dashboard' || pathname === '/notes' || /^\/interview\/[^/]+\/report$/.test(pathname)) return 'review'
+  if (pathname === '/coaches') return 'coach'
   if (pathname === '/gallup' || pathname === '/experiences' || pathname === '/jobs') return 'community'
   if (pathname === '/resume-tailor' || pathname === '/profile' || pathname === '/profile/edit') return 'resume'
   if (pathname === '/setup') return 'coach'
@@ -90,6 +92,7 @@ function useNavGroups() {
         { to: '/experiences', label: t('nav.experiences'), icon: BookOpen, dot: 'bg-[#DDAA46]' },
         { to: '/experiences?mine=true', label: t('nav.myExperiences'), icon: BookMarked, dot: 'bg-[#DDAA46]' },
         { to: '/gallup', label: t('nav.gallup'), icon: Compass, dot: 'bg-[#DDAA46]' },
+        { to: '/coaches', label: t('nav.coaches'), icon: Handshake, dot: 'bg-[#DDAA46]' },
       ],
     },
     // 只有 ADMIN_EMAILS 里的账号能看到

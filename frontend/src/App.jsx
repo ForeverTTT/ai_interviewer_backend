@@ -28,6 +28,7 @@ const GallupTestPage = lazyWithReload(() => import('./pages/GallupTestPage'))
 const ExperiencesPage = lazyWithReload(() => import('./pages/ExperiencesPage'))
 const ResumeTailorPage = lazyWithReload(() => import('./pages/ResumeTailorPage'))
 const JobsPage = lazyWithReload(() => import('./pages/JobsPage'))
+const CoachPage = lazyWithReload(() => import('./pages/CoachPage'))
 const AdminReviewPage = lazyWithReload(() => import('./pages/AdminReviewPage'))
 
 function PageFallback() {
@@ -183,6 +184,14 @@ export default function App() {
             <ProtectedRoute>
               <AppShell>
                 <JobsPage />
+              </AppShell>
+            </ProtectedRoute>
+          } />
+
+          <Route path="/coaches" element={
+            <ProtectedRoute>
+              <AppShell>
+                <CoachPage />
               </AppShell>
             </ProtectedRoute>
           } />

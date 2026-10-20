@@ -347,11 +347,16 @@ function CollectButton({ card, fallbackIndex, t, collections, collectionBusy, on
   const busy = collectionBusy === idx
   return (
     <button
-      type="button" disabled={busy} onClick={() => onToggleCollection(idx)}
-      className={`inline-flex shrink-0 items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-[11.5px] font-medium transition-colors disabled:opacity-40 ${
-        saved ? 'border-brand-ink bg-brand-card text-brand-ink' : 'border-brand-line bg-brand-card text-brand-muted hover:border-brand-ink hover:text-brand-ink'}`}
+      type="button"
+      disabled={busy}
+      aria-pressed={saved}
+      onClick={() => onToggleCollection(idx)}
+      className={`inline-flex shrink-0 items-center gap-2 rounded-xl border px-4 py-2.5 text-[12.5px] font-semibold transition-all disabled:cursor-wait disabled:opacity-40 ${
+        saved
+          ? 'border-brand-violet/25 bg-brand-violet/10 text-brand-violet'
+          : 'border-brand-violet bg-brand-violet text-white shadow-[0_8px_22px_rgb(var(--brand-violet)/0.24)] ring-4 ring-brand-violet/10 hover:-translate-y-0.5 hover:brightness-95 hover:shadow-[0_10px_26px_rgb(var(--brand-violet)/0.3)]'}`}
     >
-      {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : saved ? <BookmarkCheck className="h-3.5 w-3.5" /> : <Bookmark className="h-3.5 w-3.5" />}
+      {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : saved ? <BookmarkCheck className="h-4 w-4" /> : <Bookmark className="h-4 w-4" />}
       {t(saved ? 'report.collection.saved' : 'report.collection.save')}
     </button>
   )
@@ -652,7 +657,6 @@ function QaDeck({ cards, mode = 'card', t, collections, collectionBusy, onToggle
                     <p className="whitespace-pre-wrap font-brand text-[25px] font-semibold leading-[1.42] tracking-[-0.02em] text-brand-ink sm:text-[30px]">
                       {current.question || current.questionSummary || t('report.qaQuestionFallback')}
                     </p>
-                    <p className="mx-auto mt-6 max-w-md text-[13px] leading-relaxed text-brand-muted">{t('report.deckSub')}</p>
                   </div>
                 </div>
                 <button

@@ -274,6 +274,7 @@
     "profile": "个人资料",
     "resumeTailor": "简历优化",
     "gallup": "优势测试",
+    "coaches": "真人教练",
     "jobs": "求职信息",
     "experiences": "面经库",
     "myExperiences": "我的面经",
@@ -290,6 +291,37 @@
     "menu": "菜单",
     "backHome": "返回首页",
     "energyCta": "获取更多能量"
+  },
+  "coachPage": {
+    "kicker": "真人指导 · 功能共创",
+    "title": "和真正做过招聘的人，聊清楚下一步",
+    "subtitle": "这里将连接有招聘、带人或行业经验的真人教练。你可以带着目标岗位、简历或一次面试复盘来，获得更贴近个人情况的一对一建议。功能还在筹备，我们想先听听你的真实需求。",
+    "pointsLabel": "真人教练服务方向",
+    "points": {
+      "direction": "一起明确求职方向",
+      "practice": "真人模拟与追问",
+      "review": "简历和面试复盘"
+    },
+    "vote": {
+      "eyebrow": "告诉 FlowLab 你的需求",
+      "title": "你会需要真人教练吗？",
+      "body": "一个选择就够了。你的反馈会帮助我们判断是否优先上线，以及先邀请哪类教练。",
+      "up": "我需要",
+      "upHint": "上线后希望第一时间体验",
+      "down": "暂时不需要",
+      "downHint": "现有 AI 功能已经够用",
+      "thanks": "已经记下你的选择",
+      "upRecorded": "谢谢，我们会把真人教练列入优先验证方向。",
+      "downRecorded": "谢谢坦诚反馈，这同样能帮助我们做好取舍。",
+      "error": "暂时没有提交成功，请稍后再试。"
+    },
+    "join": {
+      "eyebrow": "成为 FlowLab 教练",
+      "title": "有经验，也愿意帮助求职者？",
+      "body": "我们希望让有招聘、行业或职业辅导经验的人自主入驻。欢迎来信简单介绍你的背景和擅长方向。",
+      "cta": "联系 FlowLab",
+      "mailSubject": "申请入驻 FlowLab 真人教练"
+    }
   },
   "resumeTailor": {
     "pageTitle": "简历优化",

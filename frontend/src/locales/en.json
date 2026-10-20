@@ -274,6 +274,7 @@
     "profile": "Profile",
     "resumeTailor": "Resume Tailor",
     "gallup": "Gallup",
+    "coaches": "Human Coaches",
     "jobs": "Job Board",
     "experiences": "Experiences",
     "myExperiences": "My Experiences",
@@ -290,6 +291,37 @@
     "menu": "Menu",
     "backHome": "Back to home",
     "energyCta": "Get more energy"
+  },
+  "coachPage": {
+    "kicker": "Human guidance · Built with you",
+    "title": "Talk through your next move with someone who has hired before",
+    "subtitle": "This space will connect you with coaches who have real recruiting, leadership, or industry experience. Bring a target role, resume, or interview review and get advice shaped around your situation. We are still planning it and want to validate the need first.",
+    "pointsLabel": "Human coaching focus areas",
+    "points": {
+      "direction": "Clarify your career direction",
+      "practice": "Live practice and follow-ups",
+      "review": "Resume and interview review"
+    },
+    "vote": {
+      "eyebrow": "Tell FlowLab what you need",
+      "title": "Would you use a human coach?",
+      "body": "One choice is enough. Your feedback helps us decide whether to prioritize this and which coaches to invite first.",
+      "up": "Yes, I would",
+      "upHint": "Tell me when it becomes available",
+      "down": "Not right now",
+      "downHint": "The current AI tools are enough",
+      "thanks": "Your choice is recorded",
+      "upRecorded": "Thank you. We will prioritize validating human coaching.",
+      "downRecorded": "Thanks for being honest. That helps us make a better call too.",
+      "error": "Your vote could not be submitted. Please try again later."
+    },
+    "join": {
+      "eyebrow": "Coach on FlowLab",
+      "title": "Experienced and keen to help job seekers?",
+      "body": "We want recruiters, industry professionals, and career coaches to join independently. Email us with a short introduction and the areas you know best.",
+      "cta": "Contact FlowLab",
+      "mailSubject": "Apply to coach on FlowLab"
+    }
   },
   "resumeTailor": {
     "pageTitle": "Resume optimization",
