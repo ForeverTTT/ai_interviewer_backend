@@ -26,6 +26,9 @@ jobs:
       - name: Install frontend dependencies
         working-directory: frontend
         run: npm ci
+      - name: Test live interview connection recovery
+        working-directory: frontend
+        run: npm test
       - name: Verify frontend production build
         working-directory: frontend
         env:

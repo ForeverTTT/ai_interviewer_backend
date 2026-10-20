@@ -11,16 +11,15 @@ import { interviewerTypeInstruction, normalizeInterviewerType } from '../config/
 import { getMaxQuestions } from '../agents/utils.js'
 import { supabaseForUser } from '../lib/supabase.js'
 import {
-  claimInterviewRequest,
-  commitInterviewTurn,
   loadInterviewSession,
-  releaseInterviewRequest,
   sanitizeMessages,
 } from '../lib/interviewSessionStore.js'
-import { applyInterviewAction, completeFormalAnswerAfterDeadline, expireFormalInterviewIfDue } from '../lib/interviewLearning.js'
+import { expireFormalInterviewIfDue } from '../lib/interviewLearning.js'
 import { recordInterviewEvent } from '../lib/interviewEvents.js'
 import { trackServerEvent } from '../lib/analytics.js'
 import { createLiveTurnTimer } from '../lib/liveTurnTiming.js'
+import { persistLiveTurn } from '../lib/liveTurnPersistence.js'
+import { createLiveDiagnostics, safeLiveMessage as safeErrorMessage } from '../lib/liveDiagnostics.js'
 
 const LIVE_PATH = '/api/chat/live'
 const LIVE_MODEL = process.env.GEMINI_LIVE_MODEL || 'gemini-3.1-flash-live-preview'
@@ -34,14 +33,6 @@ const LIVE_VOICE_OVERRIDES = {
 
 function liveVoiceFor(language, interviewerStyle) {
   return LIVE_VOICE_OVERRIDES[language] || getInterviewerVoice(interviewerStyle, language)
-}
-
-function safeErrorMessage(error, fallback) {
-  const message = typeof error?.message === 'string' ? error.message.trim() : ''
-  // SDK WebSocket ErrorEvent objects can contain the full request URL, including
-  // the API key. Only accept a short plain message and never stringify the event.
-  if (message && !/https?:|wss?:|[?&]key=/i.test(message)) return message.slice(0, 300)
-  return fallback
 }
 
 function sendJson(socket, payload) {
@@ -121,7 +112,13 @@ async function verifyAccessToken(token) {
   return user
 }
 
-export function attachInterviewLiveSocket(server, { allowedOrigins = [] } = {}) {
+export function attachInterviewLiveSocket(server, { allowedOrigins = [], services = {} } = {}) {
+  const verifyToken = services.verifyToken || verifyAccessToken
+  const userDb = services.userDb || supabaseForUser
+  const loadSession = services.loadSession || loadInterviewSession
+  const expireIfDue = services.expireIfDue || expireFormalInterviewIfDue
+  const persistTurn = services.persistTurn || persistLiveTurn
+  const connectLive = services.connectLive || (options => new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY }).live.connect(options))
   const wss = new WebSocketServer({ server, path: LIVE_PATH })
 
   wss.on('connection', (socket, request) => {
@@ -142,30 +139,75 @@ export function attachInterviewLiveSocket(server, { allowedOrigins = [] } = {}) 
     let checkpoint = null
     let stateVersion = 0
     let persistedTranscript = []
-    let currentQuestionId = null
-    let currentDifficulty = 'medium'
     let persistChain = Promise.resolve()
-    let persistRequestKey = null
     let practiceSpeechAllowed = false
+    let browserClosed = false
+    let upstreamClosed = false
+    let closingLive = false
+    let lastPongAt = Date.now()
+    let responseTimer = null
+    let turnAudioChunks = 0
+    const connectionId = randomUUID()
+    const diagnostics = createLiveDiagnostics(() => ({
+      connectionId, interviewId, userId: interviewUserId, model: LIVE_MODEL,
+      mode: checkpoint?.config?.mode, stateVersion,
+    }), services.diagnostics)
+    diagnostics.emit('live_browser_connected')
     const turnTimer = createLiveTurnTimer()
 
+    const clearResponseTimer = () => {
+      clearTimeout(responseTimer)
+      responseTimer = null
+    }
+    const expectResponse = () => {
+      clearResponseTimer()
+      if (checkpoint?.config?.mode === 'practice' && !practiceSpeechAllowed) return
+      responseTimer = setTimeout(() => {
+        diagnostics.emit('live_response_timeout', { timeoutMs: 30_000 }, 'warn')
+        sendJson(socket, { type: 'error', code: 'LIVE_RESPONSE_TIMEOUT', fatal: false, message: 'The live interview has not returned audio. Please retry the connection.' })
+      }, 30_000)
+    }
+
     const authTimer = setTimeout(() => {
-      if (!authenticated) socket.close(1008, 'Authentication timeout')
+      if (!authenticated) {
+        diagnostics.emit('live_setup_timeout', { stage: interviewUserId ? 'upstream' : 'auth' }, 'warn')
+        socket.close(1008, 'Authentication timeout')
+      }
     }, 10_000)
 
     const closeLive = () => {
+      closingLive = true
+      clearResponseTimer()
       try { liveSession?.close() } catch { /* ignore */ }
       liveSession = null
     }
 
-    socket.on('close', () => {
+    const heartbeat = setInterval(() => {
+      if (Date.now() - lastPongAt > 60_000) {
+        diagnostics.emit('live_browser_heartbeat_timeout', {}, 'warn')
+        socket.terminate()
+        return
+      }
+      if (socket.readyState === WebSocket.OPEN) socket.ping()
+      diagnostics.emit('live_connection_health')
+    }, 30_000)
+    socket.on('pong', () => { lastPongAt = Date.now() })
+
+    socket.on('close', (code, reason) => {
+      browserClosed = true
       clearTimeout(authTimer)
+      clearInterval(heartbeat)
+      diagnostics.emit('live_browser_closed', {
+        closeCode: code, closeReason: safeErrorMessage({ message: reason?.toString() }, 'No close reason'),
+        upstreamClosed,
+      }, code === 1000 ? 'info' : 'warn')
       closeLive()
     })
 
     socket.on('error', (error) => {
-      console.error('[Live WS] Browser socket error:', error.message)
+      diagnostics.emit('live_browser_error', { errorMessage: safeErrorMessage(error, 'Browser socket error') }, 'error')
       closeLive()
+      socket.terminate()
     })
 
     socket.on('message', async (raw, isBinary) => {
@@ -176,8 +218,9 @@ export function attachInterviewLiveSocket(server, { allowedOrigins = [] } = {}) 
           if (message.type !== 'start') throw new Error('First message must be start')
           connecting = true
 
-          const user = await verifyAccessToken(message.token)
+          const user = await verifyToken(message.token)
           if (!user) {
+            diagnostics.emit('live_auth_rejected', {}, 'warn')
             socket.close(1008, 'Invalid or expired token')
             return
           }
@@ -188,30 +231,34 @@ export function attachInterviewLiveSocket(server, { allowedOrigins = [] } = {}) 
             return
           }
           interviewUserId = user.id
-          sessionDb = supabaseForUser(message.token)
-          await expireFormalInterviewIfDue(sessionDb, interviewId, interviewUserId)
-          const loaded = await loadInterviewSession(sessionDb, interviewId, interviewUserId)
+          sessionDb = userDb(message.token)
+          await expireIfDue(sessionDb, interviewId, interviewUserId)
+          const loaded = await loadSession(sessionDb, interviewId, interviewUserId)
           checkpoint = loaded.checkpoint
           stateVersion = loaded.stateVersion
           persistedTranscript = loaded.transcript
-          currentQuestionId = loaded.interview.current_question_id
-          currentDifficulty = loaded.interview.current_difficulty
           if (!['active', 'draft'].includes(loaded.interview.status)) {
+            diagnostics.emit('live_start_rejected', { interviewStatus: loaded.interview.status }, 'warn')
             socket.close(1008, `Interview is ${loaded.interview.status}`)
             return
           }
 
           const apiKey = process.env.GEMINI_API_KEY
-          if (!apiKey) throw new Error('GEMINI_API_KEY is not configured')
-          const ai = new GoogleGenAI({ apiKey })
+          if (!apiKey && !services.connectLive) throw new Error('GEMINI_API_KEY is not configured')
           const persistedConfig = checkpoint.config
           const interviewerStyle = normalizeInterviewerStyle(persistedConfig.interviewerStyle)
           const liveVoice = liveVoiceFor(persistedConfig.language, interviewerStyle)
 
-          liveSession = await ai.live.connect({
+          diagnostics.emit('live_upstream_connecting')
+          liveSession = await connectLive({
             model: LIVE_MODEL,
             callbacks: {
               onmessage(serverMessage) {
+                if (browserClosed || closingLive) return
+                diagnostics.mark('serverMessage')
+                if (serverMessage?.goAway) {
+                  diagnostics.emit('live_upstream_go_away', { timeLeft: String(serverMessage.goAway.timeLeft || '').slice(0, 40) }, 'warn')
+                }
                 const content = serverMessage?.serverContent
                 if (!content) return
                 const practiceMode = checkpoint?.config?.mode === 'practice'
@@ -219,6 +266,8 @@ export function attachInterviewLiveSocket(server, { allowedOrigins = [] } = {}) 
 
                 const inputDelta = content.inputTranscription?.text || ''
                 if (inputDelta) {
+                  diagnostics.mark('inputTranscript')
+                  expectResponse()
                   turnTimer.onInputTranscript()
                   inputTranscript = appendTranscript(inputTranscript, inputDelta)
                   sendJson(socket, { type: 'input_transcript', text: inputTranscript })
@@ -234,6 +283,9 @@ export function attachInterviewLiveSocket(server, { allowedOrigins = [] } = {}) 
                   for (const part of content.modelTurn?.parts || []) {
                     const inline = part.inlineData || part.inline_data
                     if (inline?.data) {
+                      diagnostics.mark('outputAudio')
+                      turnAudioChunks++
+                      clearResponseTimer()
                       turnTimer.onOutputAudio()
                       sendJson(socket, {
                         type: 'audio',
@@ -244,8 +296,13 @@ export function attachInterviewLiveSocket(server, { allowedOrigins = [] } = {}) 
                   }
                 }
 
-                if (content.interrupted) sendJson(socket, { type: 'interrupted' })
+                if (content.interrupted) {
+                  diagnostics.emit('live_turn_interrupted')
+                  sendJson(socket, { type: 'interrupted' })
+                }
                 if (content.turnComplete) {
+                  clearResponseTimer()
+                  diagnostics.mark('turnComplete')
                   const timing = turnTimer.onTurnComplete()
                   if (timing && !practiceMode) {
                     // Baseline latency for the formal-interview orchestration
@@ -262,6 +319,13 @@ export function attachInterviewLiveSocket(server, { allowedOrigins = [] } = {}) 
                   }
                   const completedInput = inputTranscript.trim()
                   const completedOutput = outputTranscript.trim()
+                  diagnostics.emit('live_turn_complete', {
+                    inputChars: completedInput.length, outputChars: completedOutput.length,
+                    outputSuppressed: !relayModelOutput, turnAudioChunks,
+                    ...(timing || {}),
+                  })
+                  if (completedInput && relayModelOutput && !turnAudioChunks) diagnostics.emit('live_turn_without_audio', {}, 'warn')
+                  turnAudioChunks = 0
                   sendJson(socket, {
                     type: 'turn_complete',
                     inputText: completedInput,
@@ -290,129 +354,53 @@ export function attachInterviewLiveSocket(server, { allowedOrigins = [] } = {}) 
                     { role: 'assistant', content: completedOutput },
                   ])
                   if (turnMessages.length) {
+                    const requestKey = `live-${randomUUID()}`
                     persistChain = persistChain.then(async () => {
-                      const requestKey = `live-${randomUUID()}`
-                      persistRequestKey = requestKey
-                      if (currentQuestionId && completedInput) {
-                        const answerKey = `${requestKey}:answer`
-                        const deadlineReached = checkpoint.config?.mode === 'formal'
-                          && checkpoint.config?.deadlineAt
-                          && new Date(checkpoint.config.deadlineAt).getTime() <= Date.now()
-                        if (deadlineReached) {
-                          const answerResult = await completeFormalAnswerAfterDeadline(sessionDb, {
-                            interviewId,
-                            userId: interviewUserId,
-                            idempotencyKey: `${requestKey}:deadline-answer`,
-                            answerText: completedInput,
-                          })
-                          stateVersion = Number(answerResult.stateVersion)
-                          currentQuestionId = null
-                          checkpoint = { ...checkpoint, phase: 'closed', closeReason: 'formal_deadline_answer_completed' }
-                          persistedTranscript = [...persistedTranscript, { role: 'user', content: completedInput }]
-                          sendJson(socket, { type: 'deadline_complete' })
-                          return
-                        }
-                        const answerClaim = await claimInterviewRequest(sessionDb, {
-                          interviewId,
-                          userId: interviewUserId,
-                          idempotencyKey: answerKey,
-                        })
-                        if (answerClaim?.claimed) {
-                          const answerResult = await applyInterviewAction(sessionDb, {
-                            interviewId,
-                            userId: interviewUserId,
-                            expectedVersion: stateVersion,
-                            idempotencyKey: answerKey,
-                            action: 'attempt',
-                            payload: { questionId: currentQuestionId, answerText: completedInput },
-                          })
-                          stateVersion = Number(answerResult.stateVersion)
-                          currentQuestionId = null
-                        }
-                      }
-                      const claim = await claimInterviewRequest(sessionDb, {
-                        interviewId,
-                        userId: interviewUserId,
-                        idempotencyKey: requestKey,
+                      const result = await persistTurn(sessionDb, {
+                        interviewId, userId: interviewUserId, requestKey,
+                        inputText: completedInput, outputText: completedOutput,
+                        onDiagnostic: (event, fields) => diagnostics.emit(event, { ...fields, requestId: requestKey }, 'warn'),
                       })
-                      if (!claim?.claimed) return
-                      try {
-                        const nextCheckpoint = {
-                          ...checkpoint,
-                          phase: 'questioning',
-                          liveTurnCount: (checkpoint.liveTurnCount ?? 0) + 1,
-                        }
-                        const nextTranscript = [...persistedTranscript, ...turnMessages]
-                        const result = await commitInterviewTurn(sessionDb, {
-                          interviewId,
-                          userId: interviewUserId,
-                          expectedVersion: stateVersion,
-                          idempotencyKey: requestKey,
-                          checkpoint: nextCheckpoint,
-                          messages: turnMessages,
-                          transcript: nextTranscript,
-                        })
-                        checkpoint = nextCheckpoint
-                        persistedTranscript = nextTranscript
-                        stateVersion = Number(result.stateVersion)
-                        if (completedOutput) {
-                          const questionResult = await applyInterviewAction(sessionDb, {
-                            interviewId,
-                            userId: interviewUserId,
-                            expectedVersion: stateVersion,
-                            idempotencyKey: `${requestKey}:question`,
-                            action: 'question',
-                            payload: {
-                              questionText: completedOutput,
-                              questionType: normalizeInterviewerType(checkpoint.config?.interviewerType) === 'hr'
-                                ? 'behavioral'
-                                : normalizeInterviewerType(checkpoint.config?.interviewerType) === 'technical'
-                                  ? 'technical'
-                                  : 'experience',
-                              competency: 'live_interview',
-                              source: 'gemini_live',
-                              difficulty: currentDifficulty,
-                            },
-                          })
-                          stateVersion = Number(questionResult.stateVersion)
-                          currentQuestionId = questionResult.question?.id || currentQuestionId
-                        }
-                      } catch (error) {
-                        await releaseInterviewRequest(sessionDb, {
-                          interviewId,
-                          userId: interviewUserId,
-                          idempotencyKey: requestKey,
-                        }).catch(() => {})
-                        throw error
-                      }
-                    }).catch(async error => {
-                      // Release any action claim left pending by a failed model,
-                      // database, or connection operation so a reconnect can retry.
-                      const failedBase = persistRequestKey
-                      if (failedBase) {
-                        await Promise.all([
-                          failedBase,
-                          `${failedBase}:answer`,
-                          `${failedBase}:question`,
-                        ].map(idempotencyKey => releaseInterviewRequest(sessionDb, {
-                          interviewId,
-                          userId: interviewUserId,
-                          idempotencyKey,
-                        }).catch(() => {})))
-                      }
-                      console.error('[Live WS] Persist turn failed:', safeErrorMessage(error, 'Persistence failed'))
-                      sendJson(socket, { type: 'error', message: 'Interview state could not be saved' })
+                      stateVersion = result.stateVersion ?? stateVersion
+                      diagnostics.emit('live_turn_persisted', { requestId: requestKey, stateVersion })
+                      if (result.deadlineComplete) sendJson(socket, { type: 'deadline_complete' })
+                    }).catch(error => {
+                      diagnostics.emit('live_persist_failed', {
+                        requestId: requestKey, stage: error.stage || 'load',
+                        errorCode: error.code || error.name,
+                        errorMessage: safeErrorMessage(error, 'Persistence failed'),
+                        currentVersion: error.currentVersion,
+                      }, 'error')
+                      sendJson(socket, { type: 'error', code: 'LIVE_PERSIST_FAILED', fatal: false, message: 'Interview state could not be saved' })
                     })
                   }
                 }
               },
               onerror(event) {
                 const message = safeErrorMessage(event, 'Gemini Live connection error')
-                console.error('[Live WS] Gemini error:', message)
-                sendJson(socket, { type: 'error', message })
+                diagnostics.emit('live_upstream_error', { errorMessage: message }, 'error')
+                if (!closingLive) {
+                  sendJson(socket, { type: 'error', code: 'LIVE_UPSTREAM_ERROR', fatal: true, message })
+                  socket.close(1011, 'Gemini Live connection error')
+                  closeLive()
+                }
               },
               onclose(event) {
-                sendJson(socket, { type: 'closed', reason: event?.reason || 'Gemini Live connection closed' })
+                upstreamClosed = true
+                clearResponseTimer()
+                const reason = safeErrorMessage({ message: event?.reason }, 'Gemini Live connection closed')
+                diagnostics.emit('live_upstream_closed', {
+                  closeCode: event?.code, closeReason: reason, wasClean: event?.wasClean,
+                  pendingInputChars: inputTranscript.length, pendingOutputChars: outputTranscript.length,
+                  initiatedBy: closingLive || browserClosed ? 'server' : 'upstream',
+                }, closingLive || browserClosed ? 'info' : 'warn')
+                liveSession = null
+                if (!closingLive && !browserClosed) {
+                  // Close the browser transport too: older clients ignore the
+                  // JSON notification and would otherwise stay falsely connected.
+                  sendJson(socket, { type: 'closed', code: 'LIVE_UPSTREAM_CLOSED', closeCode: event?.code, reason })
+                  socket.close(1012, 'Gemini Live connection closed')
+                }
               },
             },
             config: {
@@ -422,15 +410,23 @@ export function attachInterviewLiveSocket(server, { allowedOrigins = [] } = {}) 
               },
               inputAudioTranscription: {},
               outputAudioTranscription: {},
+              contextWindowCompression: { slidingWindow: {} },
               systemInstruction: buildSystemInstruction(persistedConfig, persistedTranscript),
               thinkingConfig: { thinkingLevel: 'minimal' },
             },
           })
 
+          if (browserClosed || upstreamClosed || closingLive || socket.readyState !== WebSocket.OPEN) {
+            closeLive()
+            return
+          }
+
           authenticated = true
           connecting = false
           clearTimeout(authTimer)
-          sendJson(socket, { type: 'ready', model: LIVE_MODEL, interviewId, stateVersion })
+          diagnostics.emit('live_ready')
+          sendJson(socket, { type: 'ready', model: LIVE_MODEL, interviewId, stateVersion, connectionId })
+          if (persistedConfig.mode !== 'practice') expectResponse()
           if (persistedConfig.mode !== 'practice') liveSession.sendRealtimeInput({
             text: persistedTranscript.length
               ? 'Resume the saved interview naturally with the next appropriate question.'
@@ -443,13 +439,14 @@ export function attachInterviewLiveSocket(server, { allowedOrigins = [] } = {}) 
           return
         }
 
-        if (!liveSession) return
+        if (!liveSession || closingLive || upstreamClosed) return
         if (isBinary) {
           // In practice mode, microphone audio is transcription-only. Gemini may
           // internally detect a pause as a completed turn, but no resulting model
           // speech is allowed through until the application sends a control prompt.
           if (checkpoint?.config?.mode === 'practice') practiceSpeechAllowed = false
           const pcm = Buffer.isBuffer(raw) ? raw : Buffer.from(raw)
+          diagnostics.mark('inputAudio', pcm.byteLength)
           liveSession.sendRealtimeInput({
             audio: { data: pcm.toString('base64'), mimeType: 'audio/pcm;rate=16000' },
           })
@@ -462,18 +459,26 @@ export function attachInterviewLiveSocket(server, { allowedOrigins = [] } = {}) 
           if (checkpoint?.config?.mode === 'practice') {
             practiceSpeechAllowed = text.startsWith('[PRACTICE_CONTROL]')
           }
+          diagnostics.emit('live_text_input', { inputChars: text.length, speechAllowed: practiceSpeechAllowed })
+          expectResponse()
           liveSession.sendRealtimeInput({ text })
         } else if (message.type === 'audio_end') {
           if (checkpoint?.config?.mode === 'practice') practiceSpeechAllowed = false
           liveSession.sendRealtimeInput({ audioStreamEnd: true })
+          diagnostics.emit('live_audio_stream_ended')
+          expectResponse()
         } else if (message.type === 'interrupt') {
           liveSession.sendRealtimeInput({ activityStart: {} })
+        } else if (message.type === 'client_diagnostic') {
+          const allowedCodes = ['LIVE_AUDIO_PLAYBACK_FAILED', 'LIVE_AUDIO_CONTEXT_SUSPENDED', 'LIVE_MIC_FAILED']
+          if (allowedCodes.includes(message.code)) diagnostics.emit('live_client_audio_error', { errorCode: message.code }, 'warn')
         }
       } catch (error) {
         const message = safeErrorMessage(error, 'Live session error')
-        console.error('[Live WS] Message error:', message)
-        sendJson(socket, { type: 'error', message })
-        if (!authenticated) socket.close(1011, 'Live session setup failed')
+        diagnostics.emit('live_message_error', { stage: authenticated ? 'input' : 'setup', errorMessage: message }, 'error')
+        sendJson(socket, { type: 'error', code: authenticated ? 'LIVE_INPUT_FAILED' : 'LIVE_SETUP_FAILED', fatal: true, message })
+        socket.close(1011, authenticated ? 'Live input failed' : 'Live session setup failed')
+        closeLive()
       }
     })
   })
