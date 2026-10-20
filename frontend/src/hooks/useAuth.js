@@ -3,11 +3,20 @@ import { supabase } from '../lib/supabase'
 import { track } from '../lib/analytics'
 import { dashboardStore } from '../lib/dashboardStore'
 
+const DEV_AUTH_BYPASS = import.meta.env.DEV && import.meta.env.VITE_DEV_AUTH_BYPASS === 'true'
+const DEV_PREVIEW_USER = {
+  id: 'local-preview',
+  email: 'preview@flowlab.local',
+  user_metadata: { full_name: 'Local Preview' },
+}
+
 export function useAuth() {
-  const [user, setUser] = useState(null)
-  const [loading, setLoading] = useState(true)
+  const [user, setUser] = useState(DEV_AUTH_BYPASS ? DEV_PREVIEW_USER : null)
+  const [loading, setLoading] = useState(!DEV_AUTH_BYPASS)
 
   useEffect(() => {
+    if (DEV_AUTH_BYPASS) return undefined
+
     let mounted = true
 
     supabase.auth.getSession().then(({ data: { session } }) => {

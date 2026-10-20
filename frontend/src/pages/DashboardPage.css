@@ -382,17 +382,6 @@
 .fl-dashboard-stat-cream { background: #f7eed8; }
 .fl-dashboard-stat-pink { background: #fae7ed; }
 
-.fl-dashboard-section-nav {
-  border: 1px solid #e6e3dd;
-  background: #efeeeb;
-  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.72);
-}
-
-.fl-dashboard-tab-active {
-  background: #fff;
-  box-shadow: 0 5px 16px -11px rgb(68 67 75 / 0.38), inset 0 1px 0 rgb(255 255 255);
-}
-
 .flowlab-dashboard .brand-float {
   border-color: rgb(68 67 75 / 0.07);
   background: rgb(255 255 255 / 0.74);
@@ -438,13 +427,10 @@
 .dark .fl-dashboard-panel,
 .dark .fl-dashboard-latest,
 .dark .flowlab-dashboard .brand-float { background: rgb(var(--brand-card) / 0.82); }
-.dark .fl-dashboard-section-nav,
 .dark .flowlab-dashboard .lk-liquid { border-color: rgb(var(--brand-line)); background: rgb(var(--brand-inset)); }
 .dark .fl-dashboard-soft-button,
 .dark .fl-dashboard-action,
 .dark .fl-dashboard-primary { border-color: rgb(var(--brand-line)); background: rgb(var(--brand-inset)); color: rgb(var(--brand-ink)); }
-.dark .fl-dashboard-tab-active { background: rgb(var(--brand-card)); }
-
 @media (max-width: 1100px) {
   .fl-dashboard-coach { grid-template-columns: minmax(0, 1fr) 350px; gap: 10px; }
   .fl-dashboard-coach-character { width: 390px; height: 264px; }

@@ -4,12 +4,20 @@ import { useTranslation } from 'react-i18next'
 import { supabase } from '../lib/supabase'
 import { BRAND_ASSETS } from '../assets/brandAssets'
 
+const DEV_AUTH_BYPASS = import.meta.env.DEV && import.meta.env.VITE_DEV_AUTH_BYPASS === 'true'
+const DEV_PREVIEW_USER = { id: 'local-preview' }
+
 export default function ProtectedRoute({ children }) {
   const { t } = useTranslation()
   const location = useLocation()
-  const [state, setState] = useState({ user: null, loading: true })
+  const [state, setState] = useState({
+    user: DEV_AUTH_BYPASS ? DEV_PREVIEW_USER : null,
+    loading: !DEV_AUTH_BYPASS,
+  })
 
   useEffect(() => {
+    if (DEV_AUTH_BYPASS) return undefined
+
     let mounted = true
 
     supabase.auth.getSession().then(({ data: { session } }) => {

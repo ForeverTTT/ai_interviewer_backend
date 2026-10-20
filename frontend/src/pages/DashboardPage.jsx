@@ -6,8 +6,7 @@ import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import {
   AlertTriangle, ArrowRight, BarChart3, BriefcaseBusiness,
   Check, CheckCircle2, Clock3, FileClock, FileText, Flame, Loader2, PauseCircle,
-  PlayCircle, PlusCircle, Target, Trash2, BookmarkCheck,
-  Layers, History, RotateCcw, Eye, SkipForward,
+  PlayCircle, PlusCircle, Target, Trash2, SkipForward,
 } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
 import { supabase } from '../lib/supabase'
@@ -15,7 +14,6 @@ import { getBackendBaseUrl } from '../lib/backendBase'
 import { authenticatedFetch } from '../lib/authenticatedFetch'
 import { dashboardStore } from '../lib/dashboardStore'
 import { createInterviewRequestId } from '../lib/interviewEvents'
-import { normalizeCjkSpacing } from '../lib/textNormalization'
 import OfferSprintPanel from '../components/OfferSprintPanel'
 import './DashboardPage.css'
 
@@ -143,72 +141,6 @@ function statusLabel(interview, t) {
   return t('dashboard.growth.status.closed')
 }
 
-/**
- * 复习闪卡：最近收藏的题目，正面是题目，点一下在 3D 空间里翻到背面看答案要点。
- * 完整的筛选、笔记和再次练习都在题目收藏库里，这里只做「随手翻一翻」。
- */
-function ReviewFlashcards({ collections, t }) {
-  const [flipped, setFlipped] = useState({})
-  if (!collections.length) {
-    return (
-      <div className="brand-float flex min-h-52 flex-col items-center justify-center gap-4 px-6 py-10 text-center">
-        <Layers className="h-8 w-8 text-brand-muted" />
-        <p className="max-w-md text-[13px] leading-relaxed text-brand-muted">{t('dashboard.growth.collections.empty')}</p>
-        <Link to="/notes" className="lk-btn lk-btn-ghost">{t('dashboard.growth.collections.viewAll')}<ArrowRight className="h-3.5 w-3.5" /></Link>
-      </div>
-    )
-  }
-  return (
-    <section className="space-y-4">
-      <div className="flex flex-wrap items-end justify-between gap-3 px-1">
-        <div>
-          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-brand-muted">{t('dashboard.growth.collections.eyebrow')}</p>
-          <h2 className="mt-1.5 font-brand text-[17px] font-semibold text-brand-ink">{t('dashboard.growth.collections.title')}</h2>
-        </div>
-        <Link to="/notes" className="lk-btn lk-btn-ghost !py-2 !text-[12.5px]">{t('dashboard.growth.collections.viewAll')}<ArrowRight className="h-3.5 w-3.5" /></Link>
-      </div>
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3" data-track-mask data-track-section="dashboard-collections">
-        {collections.map((collection, index) => {
-          const isFlipped = Boolean(flipped[collection.id])
-          const answer = String(collection.answer_text || collection.answer || '').trim()
-          return (
-            <div key={collection.id} className="lk-perspective h-[220px]">
-              <motion.button
-                type="button"
-                onClick={() => setFlipped(cur => ({ ...cur, [collection.id]: !cur[collection.id] }))}
-                animate={{ rotateY: isFlipped ? 180 : 0 }}
-                transition={{ type: 'spring', stiffness: 120, damping: 18 }}
-                style={{ transformStyle: 'preserve-3d' }}
-                className="relative h-full w-full text-left"
-                aria-pressed={isFlipped}
-              >
-                <span className="absolute inset-0 flex flex-col rounded-[22px] border border-brand-sage/25 bg-gradient-to-br from-brand-sage/[0.18] via-brand-card to-brand-card p-5 shadow-sm [backface-visibility:hidden]">
-                  <span className="flex items-center justify-between">
-                    <span className="grid h-9 w-9 place-items-center rounded-xl bg-brand-card font-display text-[13px] font-semibold tabular-nums text-brand-ink shadow-sm">Q{index + 1}</span>
-                    <BookmarkCheck className="h-4 w-4 text-brand-muted" />
-                  </span>
-                  <span className="mt-4 line-clamp-4 font-sans text-[16px] font-medium leading-[1.65] tracking-[-0.01em] text-brand-ink">{normalizeCjkSpacing(collection.question_text)}</span>
-                  <span className="mt-auto flex items-center justify-between gap-2 pt-3 text-[11.5px] text-brand-muted">
-                    <span className="truncate">{collection.position}</span>
-                    <span className="flex shrink-0 items-center gap-1 font-medium text-brand-ink"><RotateCcw className="h-3 w-3" />{t('notes.reveal')}</span>
-                  </span>
-                </span>
-                <span className="absolute inset-0 flex flex-col rounded-[22px] border border-brand-ink/15 bg-brand-card p-5 shadow-sm [backface-visibility:hidden] [transform:rotateY(180deg)]">
-                  <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-brand-muted">{t('notes.answer')}</span>
-                  <span className="mt-2 line-clamp-5 text-[13px] leading-relaxed text-brand-ink">{normalizeCjkSpacing(answer) || '—'}</span>
-                  <span className="mt-auto flex items-center justify-between gap-2 pt-3 text-[11.5px] text-brand-muted">
-                    <span className="flex items-center gap-1"><Eye className="h-3 w-3" />{t('notes.hide')}</span>
-                  </span>
-                </span>
-              </motion.button>
-            </div>
-          )
-        })}
-      </div>
-    </section>
-  )
-}
-
 export default function DashboardPage() {
   const { t, i18n } = useTranslation()
   const shouldReduceMotion = useReducedMotion()
@@ -234,7 +166,6 @@ export default function DashboardPage() {
   const [taskBusy, setTaskBusy] = useState(false)
   const [coachTaskBusy, setCoachTaskBusy] = useState(null)
   const [coachTaskError, setCoachTaskError] = useState(false)
-  const [section, setSection] = useState('review')
   const [planEditRequest, setPlanEditRequest] = useState(0)
   const formalFinalizeRequestedRef = useRef(new Set())
   const sprintPanelRef = useRef(null)
@@ -742,55 +673,17 @@ export default function DashboardPage() {
 
         </motion.section>
 
-        {/* ───────── 下半区：只保留复习闪卡与面试记录；冲刺计划由顶部复盘学长统一管理 ───────── */}
-        <div className="flex justify-center pt-2">
-          <div className="fl-dashboard-section-nav inline-flex max-w-full gap-1 overflow-x-auto rounded-full p-1.5 scrollbar-hide" role="tablist" aria-label={t('dashboard.growth.title')}>
-            {[
-              { key: 'review', label: t('dashboard.growth.collections.title'), icon: Layers, count: growthOverview?.recentCollections?.length || 0 },
-              { key: 'history', label: t('dashboard.growth.history.title'), icon: History, count: interviews.length },
-            ].map(tab => {
-              const active = section === tab.key
-              const Icon = tab.icon
-              return (
-                <button
-                  key={tab.key}
-                  type="button"
-                  role="tab"
-                  aria-selected={active}
-                  onClick={() => setSection(tab.key)}
-                  className={`relative flex shrink-0 items-center gap-2 whitespace-nowrap rounded-full px-4 py-2 text-[13px] font-semibold transition-colors ${active ? 'text-brand-ink' : 'text-brand-muted hover:text-brand-ink'}`}
-                >
-                  {active && <motion.span layoutId="dashboard-section-pill" className="fl-dashboard-tab-active absolute inset-0 rounded-full" transition={{ type: 'spring', stiffness: 420, damping: 34 }} />}
-                  <Icon className="relative h-4 w-4" />
-                  <span className="relative">{tab.label}</span>
-                  {tab.count > 0 && <span className={`relative rounded-full px-1.5 text-[11px] tabular-nums ${active ? 'bg-white/15 dark:bg-black/15' : 'bg-brand-inset'}`}>{tab.count}</span>}
-                </button>
-              )
-            })}
-          </div>
-        </div>
-
-        <AnimatePresence mode="wait" initial={false}>
-          <motion.div
-            key={section}
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
-            transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
-            className="space-y-5"
-          >
-            {section === 'review' && (
-              <ReviewFlashcards collections={growthOverview?.recentCollections || []} t={t} />
-            )}
-
-            {section === 'history' && (
-              <>
-        {/* ───────── 复盘历史 ───────── */}
-                <section className="space-y-4" aria-labelledby="review-history-title">
+        {/* ───────── 面试复盘记录 ───────── */}
+        <motion.section
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
+          className="space-y-4"
+          aria-labelledby="review-history-title"
+        >
                   <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
                     <div className="min-w-0">
-                      <p className={EYEBROW}>{t('dashboard.growth.history.eyebrow')}</p>
-                      <h2 id="review-history-title" className={`mt-2 ${H2}`}>{t('dashboard.growth.history.title')}</h2>
+                      <h2 id="review-history-title" className={H2}>{t('dashboard.growth.history.title')}</h2>
                       <p className="mt-1.5 text-[12.5px] text-brand-muted">{t('dashboard.growth.history.subtitle')}</p>
                     </div>
                     <div className="flex shrink-0 gap-1 rounded-xl border border-brand-line bg-brand-inset p-1" role="group" aria-label={t('dashboard.growth.history.filterLabel')}>
@@ -891,11 +784,7 @@ export default function DashboardPage() {
                       })}
                     </div>
                   )}
-                </section>
-              </>
-            )}
-          </motion.div>
-        </AnimatePresence>
+        </motion.section>
       </main>
 
       <AnimatePresence>
