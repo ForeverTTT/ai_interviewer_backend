@@ -1,0 +1,30 @@
+{
+  "expo": {
+    "name": "FlowLab · 不卡壳实验室",
+    "slug": "flowlab-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/brand/flowlab-shell-app-icon-192.png",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.flowlab.career.preview"
+    },
+    "android": {
+      "package": "com.flowlab.career.preview",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/brand/flowlab-shell-app-icon-192.png",
+        "backgroundColor": "#FFFAF1"
+      },
+      "predictiveBackGestureEnabled": true
+    },
+    "web": {
+      "favicon": "./assets/brand/flowlab-shell-app-icon-192.png",
+      "bundler": "metro",
+      "output": "single",
+      "name": "FlowLab App UI"
+    },
+    "plugins": ["expo-router", "expo-font"],
+    "scheme": "flowlab-preview"
+  }
+}

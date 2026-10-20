@@ -1,0 +1,188 @@
+// UI fixtures only. Nothing in this module represents a real account or AI result.
+export const interviews = [
+  {
+    id: "1",
+    role: "Product Designer",
+    company: "SAP",
+    language: "英语",
+    date: "10 月 18 日",
+    duration: "20 分钟",
+    score: 82,
+    type: "综合面试",
+    color: "blue" as const,
+  },
+  {
+    id: "2",
+    role: "UX Design Intern",
+    company: "Zalando",
+    language: "德语",
+    date: "10 月 16 日",
+    duration: "15 分钟",
+    score: 76,
+    type: "HR 面试",
+    color: "pink" as const,
+  },
+  {
+    id: "3",
+    role: "Product Designer",
+    company: "Siemens",
+    language: "英语",
+    date: "10 月 14 日",
+    duration: "20 分钟",
+    score: 71,
+    type: "技术面试",
+    color: "green" as const,
+  },
+];
+export const questions = [
+  {
+    id: "q1",
+    category: "项目经历",
+    question: "讲一个你推动团队做出不同决定的例子。",
+    english: "Tell me about a time you influenced a team decision.",
+    answer:
+      "用 STAR 串联一个真实案例：先说明分歧和你的目标，再描述你收集的证据、沟通的行动，最后给出团队决定与实际结果。",
+    company: "SAP · 综合面试",
+  },
+  {
+    id: "q2",
+    category: "行为面试",
+    question: "你如何处理多个任务之间的优先级？",
+    english: "How do you prioritize competing tasks?",
+    answer:
+      "说明判断标准：用户影响、截止时间和投入成本。选一个真实的取舍案例，展示你如何与相关方对齐预期。",
+    company: "Zalando · HR 面试",
+  },
+  {
+    id: "q3",
+    category: "自我介绍",
+    question: "为什么想加入我们的团队？",
+    english: "Why would you like to join our team?",
+    answer:
+      "把公司的具体业务、岗位需要和你的一段经历连接起来。说明你能带来的价值，以及希望继续成长的方向。",
+    company: "Siemens · HR 面试",
+  },
+];
+export const experiences = [
+  {
+    id: "e1",
+    author: "一颗努力的荷包蛋",
+    avatar: "Y",
+    time: "2 小时前",
+    title: "拿到 SAP 面试后，我终于学会了讲自己的项目",
+    excerpt:
+      "以前总想把所有细节都说出来，后来才发现，面试官更想听到的是「你为什么这样做」。",
+    company: "SAP",
+    category: "产品 / 设计",
+    language: "英语",
+    likes: 28,
+    comments: 6,
+    color: "green" as const,
+    body: "这一轮主要围绕作品集展开。面试官没有要求我展示所有页面，而是让我挑一个最有挑战的决定。\n\n我用一个真实项目讲了三件事：当时遇到了什么问题、为什么选择这个方案、上线后发生了什么。说到结果时，面试官继续追问了数据来源。\n\n我的复盘：提前准备一段两分钟的项目故事，把自己的贡献说清楚。没有数据的地方就坦诚说明，不需要给每个结果都编一个数字。",
+    questions: [
+      "你在项目里最重要的贡献是什么？",
+      "如果重新做一次，你会改变什么？",
+    ],
+  },
+  {
+    id: "e2",
+    author: "在柏林慢慢来",
+    avatar: "L",
+    time: "昨天",
+    title: "德语 HR 面试：这 3 个问题值得提前开口练",
+    excerpt: "不是背得越长越好。把自己的动机讲清楚，比堆砌复杂的句子更有帮助。",
+    company: "Zalando",
+    category: "行为面试",
+    language: "德语",
+    likes: 42,
+    comments: 9,
+    color: "gold" as const,
+    body: "开场是简单的自我介绍，然后聊申请动机和团队合作。\n\n真正卡住我的不是单词，而是没想好该讲哪一件事。后来我把每个问题都准备成一个短故事，再请朋友随机追问。\n\n建议把答案录下来听一遍：是否回答了问题？有没有具体例子？听起来像自然的交流吗？",
+    questions: [
+      "Warum möchten Sie bei uns arbeiten?",
+      "Wie gehen Sie mit Feedback um?",
+    ],
+  },
+  {
+    id: "e3",
+    author: "今天也要练一下",
+    avatar: "M",
+    time: "2 天前",
+    title: "第一次 Werkstudent 面试，从紧张到聊得下去",
+    excerpt: "把一场练习拆成几个小目标，压力真的会小很多。",
+    company: "Siemens",
+    category: "学生工",
+    language: "英语",
+    likes: 16,
+    comments: 3,
+    color: "pink" as const,
+    body: "面试前我只给自己定了三个目标：讲清楚一个项目、准备好申请动机、主动问一个问题。\n\n中间有听不清的地方，我请面试官重复了一遍。对方很耐心，后面的交流也越来越自然。\n\n不需要表现得什么都会，清楚地说明自己的思路也很有价值。",
+    questions: [
+      "Tell us about yourself.",
+      "What would you like to learn here?",
+    ],
+  },
+];
+export const jobs = [
+  {
+    id: "j1",
+    company: "SAP",
+    initial: "SAP",
+    title: "Working Student · UX Design",
+    city: "Walldorf",
+    type: "学生工",
+    mode: "混合办公",
+    match: "设计研究 · Figma",
+    color: "blue" as const,
+    description:
+      "参与企业产品的用户研究与交互设计，与产品和工程团队一起，将复杂流程变得清晰易用。",
+    requirements: [
+      "正在就读设计或相关专业",
+      "熟悉 Figma 和基本设计流程",
+      "能够用英语清晰表达设计思路",
+    ],
+  },
+  {
+    id: "j2",
+    company: "Zalando",
+    initial: "Z",
+    title: "Product Design Intern",
+    city: "Berlin",
+    type: "实习",
+    mode: "混合办公",
+    match: "用户体验 · 电商",
+    color: "gold" as const,
+    description:
+      "与产品设计团队一起探索购物体验，参与原型制作、用户测试和设计迭代。",
+    requirements: [
+      "有展示思考过程的作品集",
+      "对数字产品和用户体验感兴趣",
+      "具备团队协作和沟通能力",
+    ],
+  },
+  {
+    id: "j3",
+    company: "Siemens",
+    initial: "S",
+    title: "Werkstudent · Digital Product",
+    city: "München",
+    type: "学生工",
+    mode: "办公室",
+    match: "数字产品 · 交互",
+    color: "green" as const,
+    description:
+      "协助数字化产品团队梳理用户需求，参与产品原型和内部工具的体验优化。",
+    requirements: [
+      "在校学生，每周可工作 16–20 小时",
+      "具备结构化分析与表达能力",
+      "英语流利，德语为加分项",
+    ],
+  },
+];
+export const dimensions = [
+  { label: "结构化表达", score: 86 },
+  { label: "经历与证据", score: 78 },
+  { label: "技术能力", score: 80 },
+  { label: "沟通与协作", score: 88 },
+  { label: "岗位匹配", score: 76 },
+];
