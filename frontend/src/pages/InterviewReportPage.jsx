@@ -726,12 +726,14 @@ function QaDeck({ cards, mode = 'card', t, collections, collectionBusy, onToggle
               {/* 题头：轮次 + 小结 + 本轮实际问题，问题本身就是最大的一行黑字 */}
               <div className="border-b border-brand-line bg-brand-inset px-6 py-4">
                 <div className="flex items-center gap-3">
-                  <span className="shrink-0 text-[11px] font-medium tabular-nums text-brand-muted">
-                    {t('report.qaRound', { n: i + 1 })}
-                  </span>
-                  {card.questionSummary && (
-                    <span className="min-w-0 flex-1 truncate text-[12.5px] text-brand-muted">{card.questionSummary}</span>
-                  )}
+                  <div className="flex min-w-0 flex-1 items-center gap-3">
+                    <span className="shrink-0 text-[11px] font-medium tabular-nums text-brand-muted">
+                      {t('report.qaRound', { n: i + 1 })}
+                    </span>
+                    {card.questionSummary && (
+                      <span className="min-w-0 truncate text-[12.5px] text-brand-muted">{card.questionSummary}</span>
+                    )}
+                  </div>
                   <CollectButton card={card} fallbackIndex={i} t={t} collections={collections} collectionBusy={collectionBusy} onToggleCollection={onToggleCollection} />
                 </div>
                 <p className="mt-2 whitespace-pre-wrap text-[15.5px] font-semibold leading-snug text-brand-ink">

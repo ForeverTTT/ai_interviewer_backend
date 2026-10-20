@@ -5,7 +5,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 import {
   LayoutDashboard, Mic, StickyNote, FilePenLine, UserCircle, Compass,
   BookOpen, BookMarked, Zap, LogOut, Briefcase, PanelLeftClose, PanelLeftOpen,
-  Menu, X, ChevronRight, Mail, ShieldCheck, CircleHelp,
+  Menu, X, ChevronDown, ChevronRight, Mail, ShieldCheck, CircleHelp,
   Handshake,
 } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
@@ -136,6 +136,30 @@ function SidebarContent({ collapsed, onToggleCollapse, onNavigate, onHelp, accou
   const navigate = useNavigate()
   const groups = useNavGroups()
   const { jobStatus, avatarSrc, tokens, toggleJobStatus } = account
+  const navRef = useRef(null)
+  const navContentRef = useRef(null)
+  const overflowHintRef = useRef(null)
+  const [hasMoreNavigation, setHasMoreNavigation] = useState(false)
+
+  useEffect(() => {
+    const nav = navRef.current
+    const content = navContentRef.current
+    if (!nav || !content) return undefined
+    const updateOverflow = () => {
+      // The hint must not create its own overflow when the window gets taller.
+      const availableHeight = nav.clientHeight + (overflowHintRef.current?.offsetHeight || 0)
+      setHasMoreNavigation(nav.scrollHeight - availableHeight - nav.scrollTop > 2)
+    }
+    const observer = new ResizeObserver(updateOverflow)
+    observer.observe(nav)
+    observer.observe(content)
+    nav.addEventListener('scroll', updateOverflow, { passive: true })
+    updateOverflow()
+    return () => {
+      observer.disconnect()
+      nav.removeEventListener('scroll', updateOverflow)
+    }
+  }, [])
 
   const displayName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || ''
   const seeking = jobStatus === 'seeking'
@@ -172,44 +196,62 @@ function SidebarContent({ collapsed, onToggleCollapse, onNavigate, onHelp, accou
       </div>
 
       {/* 导航分组 */}
-      <nav className={`mt-6 min-h-0 flex-1 space-y-6 overflow-y-auto scrollbar-hide ${collapsed ? 'px-2.5' : 'px-3'}`} aria-label={t('nav.menu')}>
-        {groups.map(group => (
-          <div key={group.id}>
-            {collapsed
-              ? <div className="mx-auto mb-2 h-px w-6 bg-brand-ink/10" aria-hidden="true" />
-              : <p className="mb-2 px-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-brand-muted/80">{group.label}</p>}
-            <ul className="space-y-0.5">
-              {group.items.map(item => {
-                const active = isItemActive(item, location)
-                const Icon = item.icon
-                return (
-                  <li key={item.to}>
-                    <Link
-                      to={item.to}
-                      onClick={onNavigate}
-                      title={collapsed ? item.label : undefined}
-                      aria-current={active ? 'page' : undefined}
-                      className={`group/nav relative flex items-center gap-3 rounded-2xl text-[13.5px] font-medium transition-colors ${collapsed ? 'h-11 justify-center' : 'px-3 py-2.5'} ${active ? 'text-brand-ink' : 'text-brand-ink/70 hover:text-brand-ink'}`}
-                    >
-                      {active && (
-                        <motion.span
-                          layoutId={`sidebar-active-${variant}`}
-                          className="flowlab-sidebar-active absolute inset-0 rounded-2xl"
-                          transition={{ type: 'spring', stiffness: 420, damping: 36 }}
-                        />
-                      )}
-                      {!active && <span className="absolute inset-0 rounded-2xl bg-white/0 transition-colors group-hover/nav:bg-white/35 dark:group-hover/nav:bg-white/[0.06]" />}
-                      <Icon className={`relative h-[18px] w-[18px] shrink-0 ${active ? 'text-brand-ink' : ''}`} strokeWidth={active ? 2.2 : 1.9} />
-                      {!collapsed && <span className="relative truncate">{item.label}</span>}
-                      {!collapsed && active && <span className={`relative ml-auto h-1.5 w-1.5 rounded-full ${item.dot}`} aria-hidden="true" />}
-                    </Link>
-                  </li>
-                )
-              })}
-            </ul>
-          </div>
-        ))}
+      <nav ref={navRef} className={`flowlab-sidebar-nav custom-scrollbar mt-6 min-h-0 flex-1 overflow-y-auto ${collapsed ? 'px-2.5' : 'px-3'}`} aria-label={t('nav.menu')}>
+        <div ref={navContentRef} className="space-y-6">
+          {groups.map(group => (
+            <div key={group.id}>
+              {collapsed
+                ? <div className="mx-auto mb-2 h-px w-6 bg-brand-ink/10" aria-hidden="true" />
+                : <p className="mb-2 px-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-brand-muted/80">{group.label}</p>}
+              <ul className="space-y-0.5">
+                {group.items.map(item => {
+                  const active = isItemActive(item, location)
+                  const Icon = item.icon
+                  return (
+                    <li key={item.to}>
+                      <Link
+                        to={item.to}
+                        onClick={onNavigate}
+                        title={collapsed ? item.label : undefined}
+                        aria-current={active ? 'page' : undefined}
+                        className={`group/nav relative flex items-center gap-3 rounded-2xl text-[13.5px] font-medium transition-colors ${collapsed ? 'h-11 justify-center' : 'px-3 py-2.5'} ${active ? 'text-brand-ink' : 'text-brand-ink/70 hover:text-brand-ink'}`}
+                      >
+                        {active && (
+                          <motion.span
+                            layoutId={`sidebar-active-${variant}`}
+                            className="flowlab-sidebar-active absolute inset-0 rounded-2xl"
+                            transition={{ type: 'spring', stiffness: 420, damping: 36 }}
+                          />
+                        )}
+                        {!active && <span className="absolute inset-0 rounded-2xl bg-white/0 transition-colors group-hover/nav:bg-white/35 dark:group-hover/nav:bg-white/[0.06]" />}
+                        <Icon className={`relative h-[18px] w-[18px] shrink-0 ${active ? 'text-brand-ink' : ''}`} strokeWidth={active ? 2.2 : 1.9} />
+                        {!collapsed && <span className="relative truncate">{item.label}</span>}
+                        {!collapsed && active && <span className={`relative ml-auto h-1.5 w-1.5 rounded-full ${item.dot}`} aria-hidden="true" />}
+                      </Link>
+                    </li>
+                  )
+                })}
+              </ul>
+            </div>
+          ))}
+        </div>
       </nav>
+      {hasMoreNavigation && (
+        <button
+          ref={overflowHintRef}
+          type="button"
+          aria-label={t('nav.moreFeatures')}
+          title={collapsed ? t('nav.moreFeatures') : undefined}
+          onClick={() => {
+            const nav = navRef.current
+            nav?.scrollBy({ top: nav.clientHeight * 0.75, behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth' })
+          }}
+          className="mx-3 flex min-h-10 shrink-0 items-center justify-center gap-1 rounded-lg text-[11px] font-medium text-brand-muted transition-colors hover:bg-white/40 hover:text-brand-ink lg:min-h-8"
+        >
+          {!collapsed && t('nav.moreFeatures')}
+          <ChevronDown className="h-3.5 w-3.5" aria-hidden="true" />
+        </button>
+      )}
 
       {/* 能量值 */}
       <div className={`${collapsed ? 'px-2.5' : 'px-3'} pb-3 pt-4`}>
