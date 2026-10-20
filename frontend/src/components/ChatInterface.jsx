@@ -17,6 +17,31 @@ import {
 const BACKEND_URL = getBackendBaseUrl()
 const CHAT_REQUEST_TIMEOUT_MS = 45_000
 
+const PUBLIC_BASE_URL = String(import.meta.env.BASE_URL || '/').replace(/\/?$/, '/')
+const DEFAULT_INTERVIEWER_PORTRAIT = `${PUBLIC_BASE_URL}images/interviewer-hr.png`
+const CHINESE_INTERVIEWER_PORTRAITS = Object.freeze({
+  balanced: `${PUBLIC_BASE_URL}images/interviewers/chinese-balanced.png`,
+  supportive: `${PUBLIC_BASE_URL}images/interviewers/chinese-supportive.png`,
+  demanding: `${PUBLIC_BASE_URL}images/interviewers/chinese-demanding.png`,
+  analytical: `${PUBLIC_BASE_URL}images/interviewers/chinese-analytical.png`,
+})
+
+function isChineseInterviewLanguage(language) {
+  const normalized = String(language || '').trim().toLowerCase()
+  return normalized === 'chinese'
+    || normalized === '中文'
+    || normalized === '普通话'
+    || normalized === 'mandarin'
+    || normalized === 'zh'
+    || normalized.startsWith('zh-')
+}
+
+export function getInterviewerPortraitSrc(language, interviewerStyle) {
+  if (!isChineseInterviewLanguage(language)) return DEFAULT_INTERVIEWER_PORTRAIT
+  return CHINESE_INTERVIEWER_PORTRAITS[interviewerStyle]
+    || CHINESE_INTERVIEWER_PORTRAITS.balanced
+}
+
 function newRequestId() {
   return globalThis.crypto?.randomUUID?.()
     || `req-${Date.now()}-${Math.random().toString(36).slice(2)}`
@@ -1247,7 +1272,7 @@ const ChatInterface = forwardRef(function ChatInterface({
         ? t('interview.digitalStateThinking')
         : t('interview.digitalStateIdle')
 
-  const HR_PORTRAIT_SRC = `${String(import.meta.env.BASE_URL || '/').replace(/\/?$/, '/')}images/interviewer-hr.png`
+  const interviewerPortraitSrc = getInterviewerPortraitSrc(language, interviewerStyle)
 
   const liveConnectionOk = nativeLiveEnabled ? live.connected : !initError
 
@@ -1454,7 +1479,7 @@ const ChatInterface = forwardRef(function ChatInterface({
               aria-label={t('interview.digitalHuman')}
             >
               <img
-                src={HR_PORTRAIT_SRC}
+                src={interviewerPortraitSrc}
                 alt=""
                 className={`absolute inset-0 h-full w-full object-cover object-[center_20%] transition-all duration-1000 ${tts.speaking ? 'scale-[1.05] opacity-100 blur-[0.5px]' : 'opacity-90'}`}
                 decoding="async"
