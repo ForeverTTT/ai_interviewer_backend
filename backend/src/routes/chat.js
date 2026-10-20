@@ -21,7 +21,7 @@ import {
 } from '../lib/interviewLearning.js'
 import { synthesizeSpeechVertex, getGcpProjectId } from '../lib/ttsVertex.js'
 import {
-  getInterviewerVoice,
+  getTtsVoice,
   getTtsDeliveryPrompt,
   normalizeInterviewerStyle,
 } from '../config/interviewerStyles.js'
@@ -447,7 +447,7 @@ router.post('/tts', requireAuth, async (req, res) => {
   if (!text?.trim()) return res.status(400).json({ error: 'text is required' })
 
   const style = normalizeInterviewerStyle(interviewerStyle)
-  const voiceName = TTS_VOICE_OVERRIDES[language] || getInterviewerVoice(style, language)
+  const voiceName = TTS_VOICE_OVERRIDES[language] || getTtsVoice(style, language)
   const prompt = buildTtsPrompt(text, language, style)
   const modelId = process.env.GEMINI_TTS_MODEL || 'gemini-2.5-flash-preview-tts'
   const isTtsModel = modelId.includes('tts')
@@ -577,7 +577,7 @@ router.post('/tts-stream', requireAuth, async (req, res) => {
     }
   }
 
-  const voiceName = TTS_VOICE_OVERRIDES[language] || getInterviewerVoice(style, language)
+  const voiceName = TTS_VOICE_OVERRIDES[language] || getTtsVoice(style, language)
   const prompt = buildTtsPrompt(text, language, style)
 
   const reqBody = isTtsModel

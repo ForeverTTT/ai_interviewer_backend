@@ -52,6 +52,15 @@ export function getInterviewerVoice(style, language = 'English') {
   return voices[language] || voices.English
 }
 
+// TTS can use its own voice for a language regardless of style; Live keeps the style voices.
+const TTS_VOICES = Object.freeze({
+  Chinese: 'Aoede',
+})
+
+export function getTtsVoice(style, language = 'English') {
+  return TTS_VOICES[language] || getInterviewerVoice(style, language)
+}
+
 export function getTtsDeliveryPrompt(style, language = 'English') {
   const id = normalizeInterviewerStyle(style)
   const delivery = {

@@ -4,6 +4,7 @@ import {
   getInterviewerStylePrompt,
   getInterviewerVoice,
   getTtsDeliveryPrompt,
+  getTtsVoice,
   normalizeInterviewerStyle,
 } from '../src/config/interviewerStyles.js'
 
@@ -33,4 +34,12 @@ test('style and language select a deterministic recommended voice', () => {
   assert.equal(getInterviewerVoice('supportive', 'Chinese'), 'Sulafat')
   assert.equal(getInterviewerVoice('demanding', 'Chinese'), 'Kore')
   assert.equal(getInterviewerVoice('analytical', 'Chinese'), 'Sadaltager')
+})
+
+test('Chinese TTS uses Aoede for every style while other languages follow the style voice', () => {
+  for (const style of ['balanced', 'supportive', 'demanding', 'analytical']) {
+    assert.equal(getTtsVoice(style, 'Chinese'), 'Aoede')
+  }
+  assert.equal(getTtsVoice('demanding', 'English'), getInterviewerVoice('demanding', 'English'))
+  assert.equal(getTtsVoice('balanced', 'Deutsch'), getInterviewerVoice('balanced', 'Deutsch'))
 })
