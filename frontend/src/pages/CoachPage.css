@@ -2,6 +2,7 @@
 
 .coach-page .community-shell {
   width: min(1080px, calc(100% - 40px));
+  margin-inline: auto;
 }
 
 .coach-hero {
