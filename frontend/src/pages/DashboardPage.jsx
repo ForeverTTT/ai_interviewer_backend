@@ -13,6 +13,7 @@ import { supabase } from '../lib/supabase'
 import { getBackendBaseUrl } from '../lib/backendBase'
 import { authenticatedFetch } from '../lib/authenticatedFetch'
 import { dashboardStore } from '../lib/dashboardStore'
+import { generateDashboardReport, mayAutoGenerateReport, reportGenerationState } from '../lib/dashboardReports'
 import { createInterviewRequestId } from '../lib/interviewEvents'
 import OfferSprintPanel from '../components/OfferSprintPanel'
 import './DashboardPage.css'
@@ -76,7 +77,11 @@ function explicitReportScore(interview) {
 
 function isGenerating(interview) {
   if (hasReport(interview)) return false
-  return interview?.status === 'finalizing' || interview?.finalize_status === 'processing'
+  return reportGenerationState(interview) === 'processing'
+}
+
+function reportNeedsAttention(interview) {
+  return !hasReport(interview) && ['failed', 'unknown'].includes(reportGenerationState(interview))
 }
 
 function effectiveSeconds(interview) {
@@ -126,6 +131,7 @@ function formatEffectiveDuration(seconds, t) {
 
 function getAction(interview, t) {
   if (hasReport(interview)) return { label: t('dashboard.growth.viewReport'), route: `/interview/${interview.id}/report`, icon: FileText, tone: 'primary' }
+  if (reportNeedsAttention(interview)) return { label: t('dashboard.growth.checkReportStatus'), route: `/interview/${interview.id}/report`, icon: FileClock, tone: 'muted' }
   if (isResumable(interview)) return { label: t('dashboard.growth.continuePractice'), route: `/interview/${interview.id}`, icon: PlayCircle, tone: 'dark' }
   if (isGenerating(interview)) return { label: t('dashboard.growth.generating'), route: null, icon: Loader2, tone: 'muted' }
   if (interview?.status === 'completed') return { label: t('dashboard.growth.checkReportStatus'), route: `/interview/${interview.id}/report`, icon: FileClock, tone: 'muted' }
@@ -134,6 +140,7 @@ function getAction(interview, t) {
 
 function statusLabel(interview, t) {
   if (hasReport(interview)) return t('dashboard.growth.status.reportReady')
+  if (reportNeedsAttention(interview)) return t(`dashboardReportStatus.${reportGenerationState(interview)}Label`)
   if (isGenerating(interview)) return t('dashboard.growth.status.generating')
   if (interview?.status === 'paused') return t('dashboard.growth.status.paused')
   if (isResumable(interview)) return t('dashboard.growth.status.inProgress')
@@ -211,32 +218,62 @@ export default function DashboardPage() {
           interview.mode !== 'formal'
           || hasReport(interview)
           || isGenerating(interview)
+          || !mayAutoGenerateReport(interview)
           || !RESUMABLE_STATUSES.has(interview.status)
           || formalFinalizeRequestedRef.current.has(interview.id)
         ) return
         formalFinalizeRequestedRef.current.add(interview.id)
-        setInterviews(current => current.map(item => item.id === interview.id
-          ? { ...item, status: 'finalizing', finalize_status: 'processing' }
-          : item))
-        void authenticatedFetch(`${getBackendBaseUrl()}/api/interviews/${interview.id}/finalize`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-Request-Id': createInterviewRequestId(),
-          },
-          body: JSON.stringify({ messages: [], reportUiLanguage: reportLanguageRef.current }),
-        }).then(async (finalizeResponse) => {
-          if (!finalizeResponse.ok || cancelled) return
-          const finalizeBody = await finalizeResponse.json().catch(() => ({}))
-          if (finalizeBody.interview && !cancelled) {
-            setInterviews(current => current.map(item => item.id === interview.id ? finalizeBody.interview : item))
-          }
-        }).catch(() => {})
+        const update = value => {
+          if (!cancelled) setInterviews(current => current.map(item => (
+            item.id !== interview.id || (hasReport(item) && !hasReport(value)) ? item : value
+          )))
+        }
+        void generateDashboardReport(interview, {
+          active: () => !cancelled,
+          update,
+          load: () => authenticatedFetch(`${getBackendBaseUrl()}/api/interviews/${interview.id}`),
+          generate: () => authenticatedFetch(`${getBackendBaseUrl()}/api/interviews/${interview.id}/finalize`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-Request-Id': createInterviewRequestId(),
+            },
+            body: JSON.stringify({ messages: [], reportUiLanguage: reportLanguageRef.current }),
+          }),
+        })
       })
     }
     void fetchInterviews()
     return () => { cancelled = true }
   }, [userId, setInterviews])
+
+  const generatingIds = interviews.filter(isGenerating).map(interview => interview.id).join(',')
+  useEffect(() => {
+    if (!userId || !generatingIds) return undefined
+    let cancelled = false
+    let timer
+    const controller = new AbortController()
+    const refresh = async () => {
+      await Promise.all(generatingIds.split(',').map(async id => {
+        let next
+        try {
+          const response = await authenticatedFetch(`${getBackendBaseUrl()}/api/interviews/${id}`, {
+            signal: AbortSignal.any([controller.signal, AbortSignal.timeout(10_000)]),
+          })
+          if (!response.ok) throw new Error('Report status unavailable')
+          next = (await response.json()).interview
+          if (!next) throw new Error('Missing report status')
+        } catch {
+          if (!cancelled) setInterviews(current => current.map(item => item.id === id ? { ...item, report_sync_failed: true } : item))
+          return
+        }
+        if (!cancelled) setInterviews(current => current.map(item => item.id === id ? next : item))
+      }))
+      if (!cancelled) timer = window.setTimeout(refresh, 3000)
+    }
+    timer = window.setTimeout(refresh, 3000)
+    return () => { cancelled = true; window.clearTimeout(timer); controller.abort() }
+  }, [generatingIds, userId, setInterviews])
 
   const metrics = useMemo(() => {
     const effectiveInterviews = interviews.filter(interview => interview.status === 'completed' || effectiveSeconds(interview) >= 480)
@@ -259,7 +296,7 @@ export default function DashboardPage() {
 
   const latestReviewCandidate = useMemo(() => (
     interviews.find(interview => isGenerating(interview))
-      || interviews.find(interview => hasReport(interview))
+      || interviews.find(interview => hasReport(interview) || reportNeedsAttention(interview))
       || interviews.find(interview => interview.status === 'completed')
       || interviews[0]
       || null
@@ -304,7 +341,7 @@ export default function DashboardPage() {
         : t('growthSprint.coach.empty')
   const readinessScore = readiness?.overallScore ?? (latestReport ? explicitReportScore(latestReport) : null)
   const filteredInterviews = useMemo(() => interviews.filter(interview => {
-    if (filter === 'reports') return hasReport(interview) || isGenerating(interview) || interview.status === 'completed'
+    if (filter === 'reports') return hasReport(interview) || isGenerating(interview) || reportNeedsAttention(interview) || interview.status === 'completed'
     if (filter === 'continue') return isResumable(interview)
     return true
   }), [filter, interviews])
@@ -662,6 +699,11 @@ export default function DashboardPage() {
                     {reportStrength(latestReviewCandidate) && <p className="mt-3 flex items-start gap-2 text-[12.5px] leading-relaxed text-brand-muted"><CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-brand-success" /><span><InlineRichText text={reportStrength(latestReviewCandidate)} /></span></p>}
                   </div>
                   <Link to={`/interview/${latestReviewCandidate.id}/report`} className="fl-dashboard-action inline-flex w-fit items-center gap-2 rounded-xl px-5 py-2.5 text-[12.5px] font-semibold">{t('dashboard.growth.viewReport')}<ArrowRight className="h-3.5 w-3.5" /></Link>
+                </div>
+              ) : reportNeedsAttention(latestReviewCandidate) ? (
+                <div className="mt-6 flex min-h-44 flex-col justify-between gap-5" role="status">
+                  <div><h3 className="text-[14px] font-semibold text-brand-ink">{t(`dashboardReportStatus.${reportGenerationState(latestReviewCandidate)}Title`)}</h3><p className="mt-2 text-[12.5px] leading-relaxed text-brand-muted">{t(`dashboardReportStatus.${reportGenerationState(latestReviewCandidate)}Body`)}</p></div>
+                  <Link to={`/interview/${latestReviewCandidate.id}/report`} className="fl-dashboard-action inline-flex w-fit items-center gap-2 rounded-xl px-5 py-2.5 text-[12.5px] font-semibold">{t('dashboard.growth.checkReportStatus')}<ArrowRight className="h-3.5 w-3.5" /></Link>
                 </div>
               ) : isResumable(latestReviewCandidate) ? (
                 <div className="mt-6 flex min-h-44 flex-col justify-between gap-5"><div><h3 className="text-[14px] font-semibold text-brand-ink">{t('dashboard.growth.latest.unfinishedTitle')}</h3><p className="mt-2 text-[12.5px] leading-relaxed text-brand-muted">{t('dashboard.growth.latest.unfinishedBody', { position: latestReviewCandidate.position })}</p></div><Link to={`/interview/${latestReviewCandidate.id}`} className="fl-dashboard-action inline-flex w-fit items-center gap-2 rounded-xl px-5 py-2.5 text-[12.5px] font-semibold">{t('dashboard.growth.continuePractice')}<ArrowRight className="h-3.5 w-3.5" /></Link></div>
