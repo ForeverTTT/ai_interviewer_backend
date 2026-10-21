@@ -86,6 +86,7 @@ ${practiceMode
     : `Conduct a realistic ${duration}-minute interview entirely in ${language}.
 The server-enforced deadline is in approximately ${remainingMinutes} minutes. Plan about ${plannedQuestions} core questions, pace the full interview to finish before that deadline, and shorten or skip optional follow-ups when time is running short.`}
 Speak naturally and concisely. Ask exactly one question at a time.
+Never mention the interview language or tell the candidate which language to answer in; simply speak it.
 ${speakingStyle}
 ${interviewerTypeInstruction(interviewerType)}
 ${history
@@ -433,7 +434,7 @@ export function attachInterviewLiveSocket(server, { allowedOrigins = [], service
               : persistedConfig.language === 'Deutsch'
                 ? 'Beginne jetzt das Vorstellungsgespräch.'
                 : persistedConfig.language === 'Chinese'
-                  ? '现在开始面试。请全程使用普通话和简体中文。'
+                  ? '现在开始面试，请你全程用普通话主持。'
                   : 'Begin the interview now.',
           })
           return

@@ -174,9 +174,9 @@ function parseJson(raw, label) {
 }
 
 function languageInstruction(language) {
-  if (language === 'Deutsch') return 'Write all candidate-visible text in German.'
-  if (language === 'Chinese') return 'Write all candidate-visible text in Simplified Chinese.'
-  return 'Write all candidate-visible text in English.'
+  const name = { Deutsch: 'German', Chinese: 'Simplified Chinese' }[language] || 'English'
+  // Without the second sentence the model leaks the rule into questions, e.g. "请用简体中文进行自我介绍".
+  return `Write all candidate-visible text in ${name}. Never mention the language itself in that text; do not ask the candidate to answer in ${name}.`
 }
 
 export async function generateInterviewQuestion({

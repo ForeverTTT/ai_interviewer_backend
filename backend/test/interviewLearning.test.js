@@ -78,6 +78,21 @@ test('question generation includes effective difficulty, RAG provenance, and com
   assert.match(capturedPrompt, /measured impact/)
 })
 
+test('question generation tells the model not to mention the interview language', async () => {
+  let capturedPrompt = ''
+  await generateInterviewQuestion({
+    config: { mode: 'practice', difficulty: 'medium', language: 'Chinese', position: '产品经理' },
+    checkpoint: {},
+    routeStage: 'opening',
+    invoke: async (_system, prompt) => {
+      capturedPrompt = prompt
+      return JSON.stringify({ questionText: '欢迎！请简单介绍一下你自己。', questionType: 'experience' })
+    },
+  })
+  assert.match(capturedPrompt, /Write all candidate-visible text in Simplified Chinese\./)
+  assert.match(capturedPrompt, /Never mention the language itself/)
+})
+
 test('progressive hints advance through all four levels', async () => {
   assert.equal(nextHintLevel([]), 'nudge')
   assert.equal(nextHintLevel([{ level: 'nudge' }]), 'structure')
