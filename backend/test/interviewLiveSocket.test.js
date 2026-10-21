@@ -139,3 +139,20 @@ test('closed during setup never reports ready or leaves a late upstream connecti
   assert.equal(closeCount, 1)
   assert.equal(logs.includes('live_ready'), false)
 })
+
+test('practice Live gets a compact read-aloud prompt without resume, job description or history', async t => {
+  let systemInstruction = ''
+  await fixture(t, {
+    loadSession: async () => ({
+      stateVersion: 1, transcript: [{ role: 'assistant', content: 'EARLIER-QUESTION' }], interview: { status: 'active' },
+      checkpoint: { config: { mode: 'practice', language: 'Chinese', jobDescription: 'JD-TEXT', resumeSnapshot: 'RESUME-TEXT' } },
+    }),
+    connectLive: async options => {
+      systemInstruction = options.config.systemInstruction
+      return { sendRealtimeInput: () => {}, close: () => {} }
+    },
+  })
+  assert.match(systemInstruction, /PRACTICE CONTROL MODE/)
+  assert.match(systemInstruction, /Speak entirely in Mandarin Chinese/)
+  assert.doesNotMatch(systemInstruction, /JD-TEXT|RESUME-TEXT|EARLIER-QUESTION/)
+})

@@ -80,11 +80,18 @@ function buildSystemInstruction(config = {}, transcript = []) {
 
 Voice delivery: sound like a natural face-to-face conversation, with semantic phrasing, subtle pauses, and varied intonation appropriate to the selected interviewer style. Avoid an announcer-like, customer-service, or robotic cadence.`
 
+  // Practice Live only reads questions the application chose, so it needs no resume, job description or history.
+  if (practiceMode) {
+    return `You are Anna Müller, an experienced interviewer at a German company.
+PRACTICE CONTROL MODE: This session is untimed and the application controls the question route. When a control message asks you to read a practice question, read only that question naturally and exactly once. After the candidate answers, remain completely silent and wait for the application's next control message. Never acknowledge the answer, ask a follow-up, or advance to another question on your own.
+Speak entirely in ${language}.
+Never mention the interview language or tell the candidate which language to answer in; simply speak it.
+${speakingStyle}`
+  }
+
   return `You are Anna Müller, an experienced interviewer at a German company.
-${practiceMode
-    ? `PRACTICE CONTROL MODE: This session is untimed and the application controls the question route. When a control message asks you to read a practice question, read only that question naturally and exactly once. After the candidate answers, remain completely silent and wait for the application's next control message. Never acknowledge the answer, ask a follow-up, or advance to another question on your own.`
-    : `Conduct a realistic ${duration}-minute interview entirely in ${language}.
-The server-enforced deadline is in approximately ${remainingMinutes} minutes. Plan about ${plannedQuestions} core questions, pace the full interview to finish before that deadline, and shorten or skip optional follow-ups when time is running short.`}
+Conduct a realistic ${duration}-minute interview entirely in ${language}.
+The server-enforced deadline is in approximately ${remainingMinutes} minutes. Plan about ${plannedQuestions} core questions, pace the full interview to finish before that deadline, and shorten or skip optional follow-ups when time is running short.
 Speak naturally and concisely. Ask exactly one question at a time.
 Never mention the interview language or tell the candidate which language to answer in; simply speak it.
 ${speakingStyle}
