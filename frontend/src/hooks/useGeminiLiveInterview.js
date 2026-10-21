@@ -270,9 +270,11 @@ export function useGeminiLiveInterview({
       stopMic()
       stopAudio()
       setError(nextError.message)
+      // Tells callers whether this drop is about to be retried, so they can stay quiet about it.
+      nextError.willRetry = retryable && retryCountRef.current < 3
       callbacksRef.current.onError?.(nextError)
       if (socket?.readyState === WebSocket.OPEN || socket?.readyState === WebSocket.CONNECTING) socket.close()
-      if (retryable && retryCountRef.current < 3) {
+      if (nextError.willRetry) {
         const delay = 1000 * 2 ** retryCountRef.current++
         retryTimerRef.current = window.setTimeout(() => {
           if (!disposed && !intentionalDisconnectRef.current) setConnectionGeneration(generation => generation + 1)

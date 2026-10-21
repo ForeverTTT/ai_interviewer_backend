@@ -1640,6 +1640,7 @@
       "progress": "Frage {{current}}/{{total}} · {{difficulty}} · {{type}}",
       "pause": "Pausieren",
       "resume": "Fortsetzen",
+      "repeatQuestion": "Nochmal vorlesen",
       "pausedMessage": "Das Training ist pausiert. Antworten, Hinweise, Notizen und der aktuelle Fortschritt sind gespeichert.",
       "loading": "Gespeichertes Training wird geladen…",
       "authMissing": "Die Anmeldung fehlt oder ist abgelaufen.",

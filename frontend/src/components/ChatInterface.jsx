@@ -826,14 +826,18 @@ const ChatInterface = forwardRef(function ChatInterface({
 
   const handleLiveError = useCallback((error) => {
     track('interview_live_error', { code: String(error?.code || error?.name || 'live_error') })
+    // Practice Live only reads questions aloud and has no context to lose, so a drop it is retrying stays silent.
+    if (isPractice && error?.willRetry) return
     setInitError(t('chat.connErr', { msg: error?.message || 'Gemini Live error' }))
     setIsStreaming(false)
     setCurrentAgent(null)
     releaseOpeningGate()
-  }, [releaseOpeningGate, t])
+  }, [releaseOpeningGate, t, isPractice])
 
+  // The server rejects Live for a paused interview, so practice only connects while it is running.
+  const practicePaused = isPractice && Boolean(practiceController.paused)
   const live = useGeminiLiveInterview({
-    enabled: nativeLiveEnabled,
+    enabled: nativeLiveEnabled && !practicePaused,
     config: {
       interviewId: persistInterviewId,
       position,
@@ -856,10 +860,12 @@ const ChatInterface = forwardRef(function ChatInterface({
 
   const autoMicStartedRef = useRef(false)
   const speechBaseForPracticeRef = useRef('')
+  // Not reset on reconnect: a silent reconnect must not read the question again mid-answer.
   const spokenPracticeQuestionRef = useRef(null)
+  // A paused practice never connects Live, whose ready event would otherwise reveal the workspace.
   useEffect(() => {
-    if (!live.connected) spokenPracticeQuestionRef.current = null
-  }, [live.connected])
+    if (practicePaused) onInterviewReadyRef.current?.()
+  }, [practicePaused])
   useEffect(() => {
     if (!nativeLiveEnabled) return
     if (!live.connected) {
@@ -871,13 +877,17 @@ const ChatInterface = forwardRef(function ChatInterface({
     void live.startMic()
   }, [nativeLiveEnabled, live.connected, live.startMic, isPractice])
 
+  const readPracticeQuestion = useCallback(question => live.sendText(
+    `[PRACTICE_CONTROL] Read this question exactly once in the interview language, without commentary: ${question.question_text}`,
+  ), [live.sendText])
+
   useEffect(() => {
     if (!isPractice || !live.connected || practiceController.paused || !practiceController.currentQuestion) return
     const question = practiceController.currentQuestion
     if (spokenPracticeQuestionRef.current === question.id) return
     spokenPracticeQuestionRef.current = question.id
-    live.sendText(`[PRACTICE_CONTROL] Read this question exactly once in the interview language, without commentary: ${question.question_text}`)
-  }, [isPractice, live.connected, live.sendText, practiceController])
+    readPracticeQuestion(question)
+  }, [isPractice, live.connected, readPracticeQuestion, practiceController])
 
   const tts = nativeLiveEnabled
     ? { speaking: live.speaking, stop: live.stopAudio, enqueue: () => {} }
@@ -1581,12 +1591,21 @@ const ChatInterface = forwardRef(function ChatInterface({
                 <div className="custom-scrollbar relative z-20 max-h-[58%] space-y-3 overflow-y-auto border-t border-brand-line bg-brand-inset p-4">
                   <div className="flex items-center justify-between gap-3">
                     <span className="text-[12.5px] font-semibold text-brand-ink">{t('interview.practice.title')}</span>
-                    <button type="button" disabled={practiceController.busy} onClick={() => {
-                      if (!practiceController.paused) live.stopMic()
-                      void practiceController.togglePause()
-                    }} className="rounded-lg border border-brand-line bg-brand-card px-2.5 py-1.5 text-[11.5px] font-bold text-brand-ink transition-colors hover:border-brand-ink">
-                      {practiceController.paused ? t('interview.practice.resume') : t('interview.practice.pause')}
-                    </button>
+                    <div className="flex items-center gap-2">
+                      {/* Disabled while recording: the server mutes Live speech whenever microphone audio arrives. */}
+                      <button type="button" disabled={!live.connected || stt.active || practiceController.paused || !practiceController.currentQuestion} onClick={() => {
+                        live.stopAudio()
+                        readPracticeQuestion(practiceController.currentQuestion)
+                      }} className="rounded-lg border border-brand-line bg-brand-card px-2.5 py-1.5 text-[11.5px] font-bold text-brand-ink transition-colors hover:border-brand-ink disabled:opacity-40">
+                        {t('interview.practice.repeatQuestion')}
+                      </button>
+                      <button type="button" disabled={practiceController.busy} onClick={() => {
+                        if (!practiceController.paused) live.stopMic()
+                        void practiceController.togglePause()
+                      }} className="rounded-lg border border-brand-line bg-brand-card px-2.5 py-1.5 text-[11.5px] font-bold text-brand-ink transition-colors hover:border-brand-ink">
+                        {practiceController.paused ? t('interview.practice.resume') : t('interview.practice.pause')}
+                      </button>
+                    </div>
                   </div>
 
                   <div className="text-[11.5px] text-brand-muted">

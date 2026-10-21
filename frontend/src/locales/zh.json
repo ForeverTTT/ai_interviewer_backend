@@ -1654,6 +1654,7 @@
       "progress": "第 {{current}}/{{total}} 题 · {{difficulty}} · {{type}}",
       "pause": "暂停",
       "resume": "继续",
+      "repeatQuestion": "再读一遍",
       "pausedMessage": "练习已暂停，当前题目、回答、提示和笔记均已保存。",
       "loading": "正在加载持久化练习…",
       "authMissing": "登录状态已失效。",

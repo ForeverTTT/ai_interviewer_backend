@@ -123,6 +123,7 @@ test('policy rejection never retries and repeated short-lived failures stop afte
   await rejected.flush()
   rejected.sockets[0].onclose({ code: 1008, reason: 'Interview is finalizing' })
   assert.equal([...rejected.timers.values()].some(x => x.ms === 1000), false)
+  assert.equal(rejected.errors.at(-1).willRetry, false)
   rejected.unmount()
   const f = mount()
   await f.flush()
@@ -136,6 +137,7 @@ test('policy rejection never retries and repeated short-lived failures stop afte
   await f.flush()
   assert.equal(f.sockets.length, 4)
   assert.equal(f.timers.size, 0)
+  assert.deepEqual(f.errors.map(error => error.willRetry), [true, true, true, false])
   f.unmount()
 })
 

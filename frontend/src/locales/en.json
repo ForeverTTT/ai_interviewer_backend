@@ -1650,6 +1650,7 @@
       "progress": "Question {{current}}/{{total}} · {{difficulty}} · {{type}}",
       "pause": "Pause",
       "resume": "Resume",
+      "repeatQuestion": "Read again",
       "pausedMessage": "Practice is paused. Your answers, hints, notes, and current progress are saved.",
       "loading": "Loading persistent practice session…",
       "authMissing": "Authentication session is missing.",
