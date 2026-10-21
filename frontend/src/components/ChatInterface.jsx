@@ -18,28 +18,10 @@ const BACKEND_URL = getBackendBaseUrl()
 const CHAT_REQUEST_TIMEOUT_MS = 45_000
 
 const PUBLIC_BASE_URL = String(import.meta.env.BASE_URL || '/').replace(/\/?$/, '/')
-const DEFAULT_INTERVIEWER_PORTRAIT = `${PUBLIC_BASE_URL}images/interviewer-hr.png`
-const CHINESE_INTERVIEWER_PORTRAITS = Object.freeze({
-  balanced: `${PUBLIC_BASE_URL}images/interviewers/chinese-balanced.png`,
-  supportive: `${PUBLIC_BASE_URL}images/interviewers/chinese-supportive.png`,
-  demanding: `${PUBLIC_BASE_URL}images/interviewers/chinese-demanding.png`,
-  analytical: `${PUBLIC_BASE_URL}images/interviewers/chinese-analytical.png`,
-})
+const INTERVIEWER_PORTRAIT = `${PUBLIC_BASE_URL}images/interviewer-hr.png`
 
-function isChineseInterviewLanguage(language) {
-  const normalized = String(language || '').trim().toLowerCase()
-  return normalized === 'chinese'
-    || normalized === '中文'
-    || normalized === '普通话'
-    || normalized === 'mandarin'
-    || normalized === 'zh'
-    || normalized.startsWith('zh-')
-}
-
-export function getInterviewerPortraitSrc(language, interviewerStyle) {
-  if (!isChineseInterviewLanguage(language)) return DEFAULT_INTERVIEWER_PORTRAIT
-  return CHINESE_INTERVIEWER_PORTRAITS[interviewerStyle]
-    || CHINESE_INTERVIEWER_PORTRAITS.balanced
+export function getInterviewerPortraitSrc() {
+  return INTERVIEWER_PORTRAIT
 }
 
 function newRequestId() {
@@ -1285,7 +1267,7 @@ const ChatInterface = forwardRef(function ChatInterface({
         ? t('interview.digitalStateThinking')
         : t('interview.digitalStateIdle')
 
-  const interviewerPortraitSrc = getInterviewerPortraitSrc(language, interviewerStyle)
+  const interviewerPortraitSrc = getInterviewerPortraitSrc()
 
   const liveConnectionOk = nativeLiveEnabled ? live.connected : !initError
 
