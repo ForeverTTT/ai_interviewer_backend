@@ -720,26 +720,25 @@ const ChatInterface = forwardRef(function ChatInterface({
     onInterviewReadyRef.current?.()
   }, [])
 
-  // Practice only reads fixed questions aloud, so it uses TTS and browser speech recognition instead of Live.
-  const nativeLiveEnabled = digitalHuman && !isPractice
+  const nativeLiveEnabled = digitalHuman
   const legacyTts = useStreamingTTS(language, interviewerStyle, ttsEnabled)
-  const practiceSetAnswerRef = useRef(null)
-  practiceSetAnswerRef.current = isPractice ? practiceController.setAnswer : null
   const legacyStt = useSpeechRecognition(
     language,
-    useCallback(t => {
-      const text = normalizeCjkSpacing(t)
-      if (practiceSetAnswerRef.current) practiceSetAnswerRef.current(text)
-      else setInput(text)
-    }, []),
+    useCallback(t => setInput(normalizeCjkSpacing(t)), []),
     useCallback(t => setInterimText(normalizeCjkSpacing(t)), []),
   )
 
   const handleLiveReady = useCallback(() => {
     setInitError(null)
+    if (isPractice) {
+      setIsStreaming(false)
+      setCurrentAgent(null)
+      onInterviewReadyRef.current?.()
+      return
+    }
     setCurrentAgent({ name: 'opening' })
     setIsStreaming(true)
-  }, [])
+  }, [isPractice])
 
   const handleLiveAudioStart = useCallback(() => {
     releaseOpeningGate()
@@ -748,6 +747,11 @@ const ChatInterface = forwardRef(function ChatInterface({
   const handleLiveInputTranscript = useCallback((text) => {
     const content = normalizeCjkSpacing(String(text || '').trim())
     if (!content) return
+    if (isPractice) {
+      setInterimText(content)
+      practiceController.setAnswer(normalizeCjkSpacing([speechBaseForPracticeRef.current, content].filter(Boolean).join(' ').trim()))
+      return
+    }
     setInterimText(content)
     let id = liveInputMessageIdRef.current
     if (!id) {
@@ -757,11 +761,12 @@ const ChatInterface = forwardRef(function ChatInterface({
     } else {
       setMessages(prev => prev.map(message => message.id === id ? { ...message, content } : message))
     }
-  }, [])
+  }, [isPractice, practiceController])
 
   const handleLiveOutputTranscript = useCallback((text) => {
     const content = sanitizeSquareBrackets(String(text || '').trim())
     if (!content) return
+    if (isPractice) return
     releaseOpeningGate()
     setIsStreaming(true)
     const agent = openingLatchRef.current ? 'opening' : 'explore'
@@ -774,13 +779,25 @@ const ChatInterface = forwardRef(function ChatInterface({
     } else {
       setMessages(prev => prev.map(message => message.id === id ? { ...message, content, agent } : message))
     }
-  }, [releaseOpeningGate])
+  }, [releaseOpeningGate, isPractice])
 
   const handleLiveTurnComplete = useCallback(({ inputText, outputText }) => {
     const inputId = liveInputMessageIdRef.current
     const outputId = liveOutputMessageIdRef.current
     const finalInput = normalizeCjkSpacing(String(inputText || '').trim())
     const finalOutput = sanitizeSquareBrackets(String(outputText || '').trim())
+
+    if (isPractice) {
+      if (finalInput) {
+        const accumulatedAnswer = normalizeCjkSpacing([speechBaseForPracticeRef.current, finalInput].filter(Boolean).join(' ').trim())
+        speechBaseForPracticeRef.current = accumulatedAnswer
+        practiceController.setAnswer(accumulatedAnswer)
+      }
+      setInterimText('')
+      setIsStreaming(false)
+      setCurrentAgent(null)
+      return
+    }
 
     setMessages(prev => {
       let next = prev.map(message => {
@@ -805,7 +822,7 @@ const ChatInterface = forwardRef(function ChatInterface({
     setCurrentAgent(null)
     releaseOpeningGate()
     if (finalInput) window.setTimeout(() => onCandidateAnswerSubmitted?.(), 0)
-  }, [releaseOpeningGate, onCandidateAnswerSubmitted])
+  }, [releaseOpeningGate, onCandidateAnswerSubmitted, isPractice, practiceController])
 
   const handleLiveError = useCallback((error) => {
     track('interview_live_error', { code: String(error?.code || error?.name || 'live_error') })
@@ -838,33 +855,29 @@ const ChatInterface = forwardRef(function ChatInterface({
   })
 
   const autoMicStartedRef = useRef(false)
+  const speechBaseForPracticeRef = useRef('')
+  const spokenPracticeQuestionRef = useRef(null)
+  useEffect(() => {
+    if (!live.connected) spokenPracticeQuestionRef.current = null
+  }, [live.connected])
   useEffect(() => {
     if (!nativeLiveEnabled) return
     if (!live.connected) {
       autoMicStartedRef.current = false
       return
     }
-    if (autoMicStartedRef.current) return
+    if (isPractice || autoMicStartedRef.current) return
     autoMicStartedRef.current = true
     void live.startMic()
-  }, [nativeLiveEnabled, live.connected, live.startMic])
+  }, [nativeLiveEnabled, live.connected, live.startMic, isPractice])
 
-  // The practice workspace is already loaded when this mounts; Live used to send this signal on connect.
   useEffect(() => {
-    if (isPractice) onInterviewReadyRef.current?.()
-  }, [isPractice])
-
-  const spokenPracticeQuestionRef = useRef(null)
-  useEffect(() => {
-    if (!isPractice || practiceController.paused || !practiceController.currentQuestion) return
+    if (!isPractice || !live.connected || practiceController.paused || !practiceController.currentQuestion) return
     const question = practiceController.currentQuestion
     if (spokenPracticeQuestionRef.current === question.id) return
     spokenPracticeQuestionRef.current = question.id
-    legacyTts.stop()
-    void supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.access_token) legacyTts.enqueue(question.question_text, session.access_token)
-    })
-  }, [isPractice, practiceController, legacyTts.stop, legacyTts.enqueue])
+    live.sendText(`[PRACTICE_CONTROL] Read this question exactly once in the interview language, without commentary: ${question.question_text}`)
+  }, [isPractice, live.connected, live.sendText, practiceController])
 
   const tts = nativeLiveEnabled
     ? { speaking: live.speaking, stop: live.stopAudio, enqueue: () => {} }
@@ -921,24 +934,24 @@ const ChatInterface = forwardRef(function ChatInterface({
 
   // ── 面试中途：防抖保存对话到 Supabase（结束面试时 finalize 会再写入完整稿）──
   useEffect(() => {
-    // Live turns are persisted on the server, and practice state through its
-    // workspace API. A second writer would advance state_version behind them.
-    if (!persistInterviewId || nativeLiveEnabled || isPractice) return
+    // Live turns are persisted on the server. A second writer would advance
+    // state_version behind the socket and can overwrite its checkpoint.
+    if (!persistInterviewId || nativeLiveEnabled) return
     const tmr = window.setTimeout(() => { void saveTranscriptToBackend() }, 6000)
     return () => window.clearTimeout(tmr)
-  }, [persistSig, persistInterviewId, saveTranscriptToBackend, nativeLiveEnabled, isPractice])
+  }, [persistSig, persistInterviewId, saveTranscriptToBackend, nativeLiveEnabled])
 
   useEffect(() => {
-    if (!persistInterviewId || nativeLiveEnabled || isPractice) return
+    if (!persistInterviewId || nativeLiveEnabled) return
     return () => { void saveTranscriptToBackend() }
-  }, [persistInterviewId, saveTranscriptToBackend, nativeLiveEnabled, isPractice])
+  }, [persistInterviewId, saveTranscriptToBackend, nativeLiveEnabled])
 
   // ── Kick off interview — AbortController prevents StrictMode double-fire ──
   // React 18 Strict Mode: effect runs → cleanup → effect runs again.
   // The AbortController lets the cleanup cancel the in-flight fetch from the
   // first run, so only the second run's fetch reaches the backend.
   useEffect(() => {
-    if (!position || nativeLiveEnabled || isPractice) return
+    if (!position || nativeLiveEnabled) return
 
     const controller = new AbortController()
     const trigger = language === 'Deutsch'
@@ -958,7 +971,7 @@ const ChatInterface = forwardRef(function ChatInterface({
       controller.abort()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [position, nativeLiveEnabled, isPractice])
+  }, [position, nativeLiveEnabled])
 
   // ── Core: call backend LangGraph via SSE ──────────────────────
   const runGraph = useCallback(async (messageHistory, isSystem = false, signal = null) => {
@@ -1354,7 +1367,10 @@ const ChatInterface = forwardRef(function ChatInterface({
         <button
           onClick={() => {
             if (stt.active) stt.stop()
-            else stt.start(isPractice ? practiceController.answer : input)
+            else {
+              if (isPractice) speechBaseForPracticeRef.current = String(practiceController.answer || '').trim()
+              stt.start(isPractice ? practiceController.answer : input)
+            }
           }}
           disabled={!stt.supported || interactionBusy || Boolean(practiceController?.paused)}
           aria-pressed={stt.active}
@@ -1432,7 +1448,6 @@ const ChatInterface = forwardRef(function ChatInterface({
           <button
             onClick={() => {
               setInitError(null)
-              if (isPractice) return
               isFirstMsg.current = true
               setMessages([])
               liveInputMessageIdRef.current = null
@@ -1567,10 +1582,7 @@ const ChatInterface = forwardRef(function ChatInterface({
                   <div className="flex items-center justify-between gap-3">
                     <span className="text-[12.5px] font-semibold text-brand-ink">{t('interview.practice.title')}</span>
                     <button type="button" disabled={practiceController.busy} onClick={() => {
-                      if (!practiceController.paused) {
-                        stt.stop()
-                        tts.stop()
-                      }
+                      if (!practiceController.paused) live.stopMic()
                       void practiceController.togglePause()
                     }} className="rounded-lg border border-brand-line bg-brand-card px-2.5 py-1.5 text-[11.5px] font-bold text-brand-ink transition-colors hover:border-brand-ink">
                       {practiceController.paused ? t('interview.practice.resume') : t('interview.practice.pause')}
@@ -1638,9 +1650,12 @@ const ChatInterface = forwardRef(function ChatInterface({
                     <button
                       onClick={() => {
                         if (stt.active) stt.stop()
-                        else stt.start(isPractice ? practiceController.answer : input)
+                        else {
+                          if (isPractice) speechBaseForPracticeRef.current = String(practiceController.answer || '').trim()
+                          stt.start(isPractice ? practiceController.answer : input)
+                        }
                       }}
-                      disabled={!stt.supported || interactionBusy || Boolean(practiceController?.paused) || Boolean(practiceController && !practiceController.canDraftAnswer)}
+                      disabled={interactionBusy || Boolean(practiceController?.paused) || Boolean(practiceController && !practiceController.canDraftAnswer)}
                       aria-pressed={stt.active}
                       aria-label={stt.active ? t('chat.micStop') : t('chat.micTitleNo')}
                       title={stt.active ? t('chat.micStop') : t('chat.micTitleNo')}
