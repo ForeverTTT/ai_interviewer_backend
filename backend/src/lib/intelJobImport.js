@@ -43,18 +43,32 @@ export function intelJobToRow(info) {
 }
 
 async function requestJson(url, options, fetchImpl) {
-  const response = await fetchImpl(url, {
-    ...options,
-    headers: {
-      accept: 'application/json, text/plain, */*',
-      referer: `${INTEL_ORIGIN}/${INTEL_SITE}`,
-      'user-agent': 'FlowLabJobsBot/1.0 (+https://flowlab-career.com)',
-      ...options?.headers,
-    },
-    signal: AbortSignal.timeout(20_000),
-  })
-  if (!response.ok) throw new Error(`英特尔 Workday 接口返回 HTTP ${response.status}`)
-  return response.json()
+  let lastError
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      const response = await fetchImpl(url, {
+        ...options,
+        headers: {
+          accept: 'application/json, text/plain, */*',
+          referer: `${INTEL_ORIGIN}/${INTEL_SITE}`,
+          'user-agent': 'FlowLabJobsBot/1.0 (+https://flowlab-career.com)',
+          ...options?.headers,
+        },
+        signal: AbortSignal.timeout(20_000),
+      })
+      if (!response.ok) throw new Error(`英特尔 Workday 接口返回 HTTP ${response.status}`)
+      const text = await response.text()
+      try {
+        return JSON.parse(text)
+      } catch {
+        throw new Error('英特尔 Workday 接口没有返回有效 JSON')
+      }
+    } catch (error) {
+      lastError = error
+      if (attempt < 3) await new Promise(resolve => setTimeout(resolve, attempt * 500))
+    }
+  }
+  throw lastError
 }
 
 async function postJobs(body, fetchImpl) {

@@ -90,16 +90,25 @@ function headers() {
 async function requestApi(path, { data, params, fetchImpl }) {
   const endpoint = new URL(`${BYD_API_ORIGIN}${path}`)
   for (const [key, value] of Object.entries(params || {})) endpoint.searchParams.set(key, value)
-  const response = await fetchImpl(endpoint, {
-    method: data ? 'POST' : 'GET',
-    headers: headers(),
-    ...(data ? { body: JSON.stringify(data) } : {}),
-    signal: AbortSignal.timeout(30_000),
-  })
-  if (!response.ok) throw new Error(`比亚迪招聘接口返回 HTTP ${response.status}`)
-  const payload = await response.json()
-  if (Number(payload?.code) !== 0) throw new Error(`比亚迪招聘接口返回异常：${payload?.msg || payload?.code || '未知错误'}`)
-  return payload
+  let lastError
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      const response = await fetchImpl(endpoint, {
+        method: data ? 'POST' : 'GET',
+        headers: headers(),
+        ...(data ? { body: JSON.stringify(data) } : {}),
+        signal: AbortSignal.timeout(30_000),
+      })
+      if (!response.ok) throw new Error(`比亚迪招聘接口返回 HTTP ${response.status}`)
+      const payload = await response.json()
+      if (Number(payload?.code) !== 0) throw new Error(`比亚迪招聘接口返回异常：${payload?.msg || payload?.code || '未知错误'}`)
+      return payload
+    } catch (error) {
+      lastError = error
+      if (attempt < 3) await new Promise(resolve => setTimeout(resolve, attempt * 500))
+    }
+  }
+  throw lastError
 }
 
 async function fetchDetails(summaries, { mode, lane, fetchImpl, detailConcurrency, wait }) {

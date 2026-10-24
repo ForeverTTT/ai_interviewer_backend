@@ -51,3 +51,22 @@ test('英特尔详情失败时不执行完整快照下架', async () => {
   assert.equal(result.complete, false)
   assert.equal(result.diagnostics.failures.length, 1)
 })
+
+test('英特尔接口临时返回 HTML 后会重试', async () => {
+  let discoveryCalls = 0
+  const fetchImpl = async (url, options = {}) => {
+    if (url.endsWith('/jobs')) {
+      const body = JSON.parse(options.body)
+      if (!body.appliedFacets.locations) {
+        discoveryCalls++
+        if (discoveryCalls === 1) return new Response('<!DOCTYPE html>', { status: 200, headers: { 'content-type': 'text/html' } })
+        return Response.json({ facets: [{ facetParameter: 'locationMainGroup', values: [{ values: [{ descriptor: 'PRC, Shanghai', id: 'cn' }] }] }] })
+      }
+      return Response.json({ total: 1, jobPostings: [{ externalPath: '/job/role-1' }] })
+    }
+    return Response.json({ jobPostingInfo: { id: '1', jobReqId: 'JR1', title: '岗位', jobDescription: '<p>完整 JD</p>' } })
+  }
+  const result = await fetchIntelChinaJobsSnapshot({ fetchImpl })
+  assert.equal(discoveryCalls, 2)
+  assert.equal(result.complete, true)
+})

@@ -111,3 +111,19 @@ test('比亚迪校园官网跨页重复岗位仍可形成完整去重快照', as
   assert.equal(result.fetchedJobs, 1)
   assert.equal(result.rows.length, 1)
 })
+
+test('比亚迪岗位详情临时请求失败后会重试', async () => {
+  let detailCalls = 0
+  const fetchImpl = async (url, options) => {
+    const path = new URL(url).pathname
+    if (path.endsWith('/queryPositionList')) {
+      return Response.json({ code: 0, data: [{ id: '1' }], page: { totalCount: 1, totalPage: 1 } })
+    }
+    detailCalls++
+    if (detailCalls === 1) throw new TypeError('fetch failed')
+    return Response.json({ code: 0, data: { id: '1', jobName: '岗位', positionInfoList: [{ id: 'd1', jobDuty: 'JD' }] } })
+  }
+  const result = await fetchBydJobsSnapshot({ mode: 'campus', fetchImpl })
+  assert.equal(detailCalls, 2)
+  assert.equal(result.complete, true)
+})

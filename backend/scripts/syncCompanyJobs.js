@@ -18,6 +18,7 @@ const { values: opts } = parseArgs({
     'dry-run': { type: 'boolean', default: false },
     sample: { type: 'boolean', default: false },
     force: { type: 'boolean', default: false },
+    'allow-source-failures': { type: 'boolean', default: false },
   },
 })
 
@@ -46,4 +47,13 @@ for (const result of results) {
     ? `  ✓ ${result.name}: ${result.rows} 条，写入 ${result.written}，关闭 ${result.deleted}`
     : `  ✗ ${result.name}: ${result.error}`)
 }
-if (results.some(result => !result.ok)) process.exitCode = 1
+const failures = results.filter(result => !result.ok)
+if (failures.length && opts['allow-source-failures']) {
+  for (const result of failures) {
+    const message = String(result.error || '未知错误').replace(/[\r\n]+/g, ' ')
+    console.warn(`::warning title=${result.name} 同步失败::${message}；数据库中的旧快照已保留`)
+  }
+  console.warn(`本轮有 ${failures.length} 个外部来源失败，其余来源已正常更新；失败来源旧岗位保持不变`)
+} else if (failures.length) {
+  process.exitCode = 1
+}

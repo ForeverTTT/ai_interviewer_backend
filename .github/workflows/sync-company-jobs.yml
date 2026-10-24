@@ -1,6 +1,15 @@
 name: Sync company career sites
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/sync-company-jobs.yml'
+      - 'backend/src/lib/bydJobImport.js'
+      - 'backend/src/lib/intelJobImport.js'
+      - 'backend/src/lib/legacyFeishuCleanup.js'
+      - 'backend/scripts/syncCompanyJobs.js'
+      - 'backend/scripts/cleanupLegacyFeishuJobs.js'
   schedule:
     # 每 12 小时拉取一次企业官网完整快照。单个来源失败不会下架其旧岗位。
     - cron: '23 */12 * * *'
@@ -54,9 +63,11 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           SOURCE: ${{ inputs.source && format('--source {0}', inputs.source) || '' }}
+          REPAIR_SOURCES: ${{ github.event_name == 'push' && '--source intel-china-all --source byd-graduate' || '' }}
           DRY_RUN: ${{ inputs.dry_run && '--dry-run' || '' }}
           FORCE: ${{ inputs.force && '--force' || '' }}
-        run: node scripts/syncCompanyJobs.js $SOURCE $DRY_RUN $FORCE
+          ALLOW_FAILURES: ${{ !inputs.source && '--allow-source-failures' || '' }}
+        run: node scripts/syncCompanyJobs.js $SOURCE $REPAIR_SOURCES $DRY_RUN $FORCE $ALLOW_FAILURES
 
   refresh-directory:
     name: Refresh company source directory
@@ -89,6 +100,7 @@ jobs:
         run: npm run jobs:expire
 
       - name: Refresh company source directory
+        if: ${{ github.event_name != 'push' }}
         working-directory: backend
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
@@ -96,11 +108,19 @@ jobs:
         run: node scripts/discoverCompanyJobSources.js
 
       - name: Activate newly supported public ATS sources
+        if: ${{ github.event_name != 'push' }}
         working-directory: backend
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: node scripts/reclassifyCompanyJobSources.js
+
+      - name: Remove legacy Feishu-only jobs
+        working-directory: backend
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: npm run jobs:cleanup-feishu
 
   audit:
     name: Audit complete job board
