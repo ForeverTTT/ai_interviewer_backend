@@ -25,6 +25,8 @@ import { fetchXiaohongshuJobsSnapshot } from './xiaohongshuJobImport.js'
 import { fetchIntelChinaJobsSnapshot } from './intelJobImport.js'
 import { fetchBilibiliJobsSnapshot } from './bilibiliJobImport.js'
 import { fetchKuaishouSocialSnapshot } from './kuaishouSocialJobImport.js'
+import { fetchNeteaseCampusSnapshot } from './neteaseJobImport.js'
+import { fetchAntJobsSnapshot } from './antJobImport.js'
 
 const waitMs = ms => new Promise(resolve => setTimeout(resolve, ms))
 
@@ -158,6 +160,14 @@ export const companyJobAdapters = {
     ...runtime,
   }),
   'kuaishou-social': (source, runtime) => fetchKuaishouSocialSnapshot({
+    ...source.options,
+    ...runtime,
+  }),
+  'netease-campus': (source, runtime) => fetchNeteaseCampusSnapshot({
+    ...source.options,
+    ...runtime,
+  }),
+  'ant-official': (source, runtime) => fetchAntJobsSnapshot({
     ...source.options,
     ...runtime,
   }),

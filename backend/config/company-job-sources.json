@@ -143,6 +143,58 @@
       "options": { "mode": "social", "pageSize": 50 }
     },
     {
+      "id": "netease-internet-graduate-2027",
+      "name": "网易互联网2027届校园招聘官网",
+      "companyName": "网易",
+      "adapter": "netease-campus",
+      "sourceType": "official",
+      "fallbackCategory": "秋招",
+      "enabled": false,
+      "requestDelayMs": 120,
+      "minKeepRatio": 0.55,
+      "options": {
+        "projectId": 103,
+        "projectName": "网易互联网2027届校园招聘",
+        "pageSize": 50
+      }
+    },
+    {
+      "id": "ant-experienced",
+      "name": "蚂蚁集团招聘官网 · 社招",
+      "companyName": "蚂蚁集团",
+      "adapter": "ant-official",
+      "sourceType": "official",
+      "fallbackCategory": "社招",
+      "enabled": true,
+      "requestDelayMs": 120,
+      "minKeepRatio": 0.55,
+      "options": { "mode": "social", "pageSize": 10 }
+    },
+    {
+      "id": "ant-graduate",
+      "name": "蚂蚁集团招聘官网 · 当前校招",
+      "companyName": "蚂蚁集团",
+      "adapter": "ant-official",
+      "sourceType": "official",
+      "fallbackCategory": "秋招",
+      "enabled": true,
+      "requestDelayMs": 120,
+      "minKeepRatio": 0.55,
+      "options": { "mode": "graduate", "pageSize": 10 }
+    },
+    {
+      "id": "ant-intern",
+      "name": "蚂蚁集团招聘官网 · 当前实习",
+      "companyName": "蚂蚁集团",
+      "adapter": "ant-official",
+      "sourceType": "official",
+      "fallbackCategory": "实习",
+      "enabled": true,
+      "requestDelayMs": 120,
+      "minKeepRatio": 0.55,
+      "options": { "mode": "intern", "pageSize": 10 }
+    },
+    {
       "id": "bilibili-campus",
       "name": "哔哩哔哩招聘官网 · 校招与实习",
       "companyName": "哔哩哔哩",
