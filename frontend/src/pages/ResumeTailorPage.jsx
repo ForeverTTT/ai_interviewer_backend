@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { BRAND_ASSETS } from '../assets/brandAssets'
 import {
@@ -62,6 +62,7 @@ function ResultActions({ title, text, fileName, t }) {
 
 export default function ResumeTailorPage() {
   const { t } = useTranslation()
+  const location = useLocation()
   const backendUrl = getBackendBaseUrl()
   const fileRef = useRef(null)
   const lastAnalyzedRef = useRef('')
@@ -84,6 +85,22 @@ export default function ResumeTailorPage() {
   const [letterLoading, setLetterLoading] = useState(false)
   const [activeOutput, setActiveOutput] = useState('resume')
   const [notice, setNotice] = useState(null)
+
+  useEffect(() => {
+    const jobId = new URLSearchParams(location.search).get('jobId')
+    if (!jobId) return undefined
+    let cancelled = false
+    ;(async () => {
+      try {
+        const res = await authenticatedFetch(`${backendUrl}/api/jobs/${jobId}`)
+        const body = await res.json().catch(() => ({}))
+        if (!res.ok || cancelled || !body.handoff) return
+        setPosition(prev => prev || body.handoff.position || '')
+        setJobDescription(prev => prev || body.handoff.jobDescription || '')
+      } catch { /* 用户仍可手动粘贴 JD */ }
+    })()
+    return () => { cancelled = true }
+  }, [backendUrl, location.search])
 
   useEffect(() => {
     let cancelled = false

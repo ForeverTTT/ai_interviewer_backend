@@ -1,5 +1,7 @@
 import { createHash } from 'node:crypto'
 import { classifyPositions, classifyIndustry } from './jobTaxonomy.js'
+import { canonicalJobKey, jobSourceKey, splitJobTitles } from './jobIdentity.js'
+import { assessJobQuality } from './jobQuality.js'
 
 /**
  * 飞书多维表格导出 CSV → 数据库行。
@@ -104,12 +106,20 @@ function stableKey(...parts) {
 // 没写截止日期（招满为止 / 尽快投递）的岗位，超过这么多天没更新就当作已经结束（「只看未截止」）
 export const STALE_AFTER_DAYS = 180
 
+const SOURCE_PRIORITY = { user: 20, feishu: 50, ats: 80, official: 100 }
+
 export const JOB_FIELD_ALIASES = {
   company: ['公司', '公司名称', '企业名称', '企业'],
   company_type: ['企业类型', '公司类型', '企业性质'],
   graduation_years: ['招聘届次', '届次', '面向届别'],
   industries: ['行业类别', '行业', '所属行业'],
   positions: ['招聘岗位', '岗位', '岗位名称', '职位'],
+  job_description: ['职位描述', '岗位描述', '职位详情', 'JD', '工作职责', '岗位职责', '任职要求', '岗位要求', '职位要求'],
+  jd_url: ['职位详情链接', '岗位详情链接', 'JD链接', '职位链接'],
+  department: ['部门', '事业部', '业务线'],
+  employment_type: ['工作类型', '用工类型', '雇佣类型'],
+  source_job_id: ['职位ID', '岗位ID', 'Job ID', 'Requisition ID'],
+  canonical_discriminator: ['岗位身份标识'],
   locations: ['工作地点', '地点', '城市', '工作城市'],
   deadline: ['截止时间', '截止日期', '投递截止'],
   education: ['学历要求', '学历'],
@@ -119,7 +129,8 @@ export const JOB_FIELD_ALIASES = {
   announcement_url: ['公告链接', '公告'],
   batch: ['批次', '招聘批次', '招聘类型'],
   notes: ['备注', '说明'],
-  start_date: ['开始时间', '开始日期', '发布时间'],
+  start_date: ['开始时间', '开始日期'],
+  published_at: ['发布时间', '发布日期', '上线日期'],
   source_updated_at: ['更新时间', '更新日期'],
 }
 
@@ -134,6 +145,19 @@ function pick(row, aliases) {
     }
   }
   return null
+}
+
+function pickAll(row, aliases) {
+  const values = []
+  for (const alias of aliases) {
+    for (const key of Object.keys(row)) {
+      if (key === alias || key.replace(/\s*\(\d+\)$/, '') === alias) {
+        const value = clean(row[key])
+        if (value && !values.includes(value)) values.push(value)
+      }
+    }
+  }
+  return values
 }
 
 /**
@@ -218,11 +242,14 @@ function isInstructionRow(row) {
   return Object.values(row).some(v => /使用说明|使用指南|如何筛选|看上面教程/.test(String(v || '')))
 }
 
-export function mapJobRow(row, { category: fallbackCategory, source }) {
+export function mapJobRow(row, { category: fallbackCategory, source, sourceType = 'feishu' }) {
   const company = pick(row, JOB_FIELD_ALIASES.company)
-  if (!company || isInstructionRow(row)) return null
-
   const positions = pick(row, JOB_FIELD_ALIASES.positions)
+  // “使用说明”检测只属于人工维护的飞书汇总表。官网 ATS 的完整 JD
+  // 可能正常包含“使用指南”等字样，不能因此把真实岗位整行丢掉。
+  if (!company || !positions || (sourceType === 'feishu' && isInstructionRow(row))) return null
+
+  const jobTitle = positions
   const applyText = pick(row, JOB_FIELD_ALIASES.apply_url)
   // 投递链接没有网址（邮箱投递、见公告 …）时用公告链接，再不行找第一个像网址的格子
   let applyUrl = extractUrl(applyText) || extractUrl(pick(row, JOB_FIELD_ALIASES.announcement_url))
@@ -244,19 +271,27 @@ export function mapJobRow(row, { category: fallbackCategory, source }) {
   const category = hasBatchColumn ? normalizeBatch(pick(row, JOB_FIELD_ALIASES.batch)) || '其他' : fallbackCategory
   const graduationYears = normalizeGraduationYears(pick(row, JOB_FIELD_ALIASES.graduation_years))
   const startDate = parseDate(pick(row, JOB_FIELD_ALIASES.start_date))
+  const publishedAt = parseDate(pick(row, JOB_FIELD_ALIASES.published_at))
 
-  return {
-    // 同一家公司常用同一个网申入口发好几条（不同届、不同批），只用链接做 key 会把它们合并掉
-    external_key: stableKey('job', category, company, applyUrl, positions, graduationYears.join(','), startDate),
+  const locations = splitMulti(pick(row, JOB_FIELD_ALIASES.locations))
+  const sourceJobId = pick(row, JOB_FIELD_ALIASES.source_job_id) || clean(row.__source_record_id)
+  const canonicalDiscriminator = pick(row, JOB_FIELD_ALIASES.canonical_discriminator)
+  const jdUrl = extractUrl(pick(row, JOB_FIELD_ALIASES.jd_url)) || extractUrl(pick(row, JOB_FIELD_ALIASES.announcement_url))
+  const base = {
     category,
     company,
     company_type: normalizeCompanyType(pick(row, JOB_FIELD_ALIASES.company_type)),
     graduation_years: graduationYears,
     industries,
     industry_keys: industryKeysFor(industries, company, category),
-    positions,
-    job_functions: classifyPositions(positions),
-    locations: splitMulti(pick(row, JOB_FIELD_ALIASES.locations)),
+    positions: jobTitle,
+    job_title: jobTitle,
+    job_description: pickAll(row, JOB_FIELD_ALIASES.job_description).join('\n\n') || null,
+    jd_url: jdUrl,
+    department: pick(row, JOB_FIELD_ALIASES.department),
+    employment_type: pick(row, JOB_FIELD_ALIASES.employment_type),
+    job_functions: classifyPositions(jobTitle),
+    locations,
     deadline,
     deadline_date: parseDate(deadline),
     education: pick(row, JOB_FIELD_ALIASES.education),
@@ -265,9 +300,53 @@ export function mapJobRow(row, { category: fallbackCategory, source }) {
     apply_url: applyUrl,
     notes: [withoutBoilerplate(pick(row, JOB_FIELD_ALIASES.notes)), applyNote].filter(Boolean).join(' · ') || null,
     start_date: startDate,
+    published_at: publishedAt,
     source,
+    source_type: sourceType,
+    source_priority: SOURCE_PRIORITY[sourceType] || SOURCE_PRIORITY.feishu,
+    source_job_id: sourceJobId,
     source_updated_at: parseDate(pick(row, JOB_FIELD_ALIASES.source_updated_at)),
+    status: 'open',
+    is_legacy_aggregate: splitJobTitles(positions).length > 1 || String(positions || '').length > 80,
   }
+  Object.assign(base, assessJobQuality({
+    sourceType,
+    jobDescription: base.job_description,
+    applyUrl: base.apply_url,
+    jdUrl: base.jd_url,
+    isLegacyAggregate: base.is_legacy_aggregate,
+  }))
+  base.external_key = canonicalJobKey({ ...base, canonical_discriminator: canonicalDiscriminator })
+  base.canonical_key = base.external_key
+  base.source_key = jobSourceKey(base)
+  return base
+}
+
+/** 一行里明确列出多个岗位时拆成多条；共享公司、地点和投递信息。 */
+export function mapJobRows(row, options) {
+  const first = mapJobRow(row, options)
+  if (!first) return []
+  const titles = splitJobTitles(pick(row, JOB_FIELD_ALIASES.positions))
+  return titles.map(title => {
+    const job = {
+      ...first,
+      positions: title,
+      job_title: title,
+      job_functions: classifyPositions(title),
+      is_legacy_aggregate: titles.length === 1 && title.length > 80,
+    }
+    Object.assign(job, assessJobQuality({
+      sourceType: job.source_type,
+      jobDescription: job.job_description,
+      applyUrl: job.apply_url,
+      jdUrl: job.jd_url,
+      isLegacyAggregate: job.is_legacy_aggregate,
+    }))
+    job.external_key = canonicalJobKey({ ...job, canonical_discriminator: pick(row, JOB_FIELD_ALIASES.canonical_discriminator) })
+    job.canonical_key = job.external_key
+    job.source_key = jobSourceKey(job)
+    return job
+  })
 }
 
 /** 返回 CSV 中没被任何别名认领的列，方便导入前核对 */

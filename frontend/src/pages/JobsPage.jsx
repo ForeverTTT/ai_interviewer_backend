@@ -1,23 +1,25 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import {
   Search, MapPin, Clock, GraduationCap, ExternalLink, Loader2,
-  BookOpen, PenLine, ChevronDown, CalendarClock, LayoutGrid, List,
-  ArrowUp, ArrowDown, ArrowUpDown,
+  BookOpen, PenLine, CalendarClock, LayoutGrid, List,
+  ArrowUp, ArrowDown, ArrowUpDown, ArrowRight, ChevronDown,
 } from 'lucide-react'
 import { getBackendBaseUrl } from '../lib/backendBase'
 import { supabase } from '../lib/supabase'
 import { track } from '../lib/analytics'
 import { BRAND_ASSETS } from '../assets/brandAssets'
 import FilterSelect from '../components/FilterSelect'
+import { daysUntilChinaDeadline } from '../lib/chinaDate'
+import { createJobsListSearch, parseJobsListState } from '../lib/jobsListState'
 import './CommunityPages.css'
 
 const PAGE_SIZE = 24
-const DAY_MS = 24 * 60 * 60 * 1000
 const VIEW_KEY = 'landit_jobs_view'
 const LIST_COLUMNS = 'md:grid-cols-[minmax(150px,1.1fr)_minmax(0,2.2fr)_minmax(110px,1fr)_minmax(110px,0.9fr)_140px]'
+let jobsPageCache = null
 
 function readView() {
   try {
@@ -61,7 +63,7 @@ async function authedFetch(path) {
 function DeadlineBadge({ job, t }) {
   if (!job.deadline) return null
   const daysLeft = job.deadline_date
-    ? Math.ceil((new Date(`${job.deadline_date}T23:59:59`) - Date.now()) / DAY_MS)
+    ? daysUntilChinaDeadline(job.deadline_date)
     : null
   const urgent = daysLeft !== null && daysLeft >= 0 && daysLeft <= 7
   const expired = daysLeft !== null && daysLeft < 0
@@ -77,10 +79,8 @@ function DeadlineBadge({ job, t }) {
 // 卡片上最多显示几个岗位类别，多的折成 +N，避免标签换行太多
 const MAX_CARD_FUNCTIONS = 3
 
-function JobCard({ job, t }) {
-  const [expanded, setExpanded] = useState(false)
-  const positions = job.positions || ''
-  const long = positions.length > 60
+function JobCard({ job, t, jobsReturnTo }) {
+  const title = job.job_title || job.positions || t('jobs.untitled')
 
   return (
     <motion.article
@@ -91,11 +91,10 @@ function JobCard({ job, t }) {
     >
       <div className="min-w-0">
         <h3 className="font-brand text-[17px] font-semibold leading-tight tracking-[-0.01em] text-brand-ink sm:text-[19px]">
-          {job.company}
+          {title}
         </h3>
-        {job.industries?.length > 0 && (
-          <p className="mt-1 text-[12px] text-brand-muted">{job.industries.join(' · ')}</p>
-        )}
+        <p className="mt-1 text-[13px] font-semibold text-brand-muted">{job.company}</p>
+        <p className="mt-1 text-[12px] text-brand-muted">{[job.department, ...(job.industries || [])].filter(Boolean).join(' · ')}</p>
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
@@ -130,24 +129,6 @@ function JobCard({ job, t }) {
         )}
       </div>
 
-      {positions && (
-        <div>
-          <p className={`whitespace-pre-line text-[13.5px] leading-relaxed text-brand-ink ${expanded ? '' : 'line-clamp-2'}`}>
-            {positions}
-          </p>
-          {long && (
-            <button
-              type="button"
-              onClick={() => setExpanded(v => !v)}
-              className="mt-1 inline-flex items-center gap-1 text-[12px] font-semibold text-brand-muted hover:text-brand-ink"
-            >
-              {expanded ? t('jobs.collapse') : t('jobs.expand')}
-              <ChevronDown className={`h-3 w-3 transition-transform ${expanded ? 'rotate-180' : ''}`} />
-            </button>
-          )}
-        </div>
-      )}
-
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[12.5px] text-brand-muted">
         {job.locations?.length > 0 && (
           <span className="flex items-center gap-1">
@@ -162,10 +143,12 @@ function JobCard({ job, t }) {
             {job.education}
           </span>
         )}
-        {job.source_updated_at && (
+        {(job.published_at || job.source_updated_at) && (
           <span className="flex items-center gap-1">
             <Clock className="h-3.5 w-3.5" />
-            {t('jobs.updatedAt', { date: job.source_updated_at })}
+            {job.published_at
+              ? t('jobs.publishedAt', { date: job.published_at })
+              : t('jobs.updatedAt', { date: job.source_updated_at })}
           </span>
         )}
       </div>
@@ -177,13 +160,17 @@ function JobCard({ job, t }) {
       )}
 
       <div className="mt-auto flex flex-wrap items-center gap-2 pt-1">
+        <Link to={`/jobs/${job.id}`} state={{ jobsReturnTo }} className="lk-btn lk-btn-primary">
+          {t('jobs.viewDetail')}
+          <ArrowRight className="h-3.5 w-3.5" />
+        </Link>
         {job.apply_url && (
           <a
             href={job.apply_url}
             target="_blank"
             rel="noopener noreferrer"
             onClick={() => track('job_apply_clicked', { category: job.category, companyType: job.company_type })}
-            className="lk-btn lk-btn-primary"
+            className="lk-btn lk-btn-ghost"
           >
             {t('jobs.apply')}
             <ExternalLink className="h-3.5 w-3.5" />
@@ -199,17 +186,18 @@ function JobCard({ job, t }) {
 }
 
 /** 列表视图的一行：桌面端按表头分列，手机上叠成几行 */
-function JobRow({ job, t }) {
+function JobRow({ job, t, jobsReturnTo }) {
+  const title = job.job_title || job.positions || t('jobs.untitled')
   return (
     <div className={`grid gap-x-5 gap-y-2 border-t border-brand-line px-5 py-4 first:border-t-0 md:items-center ${LIST_COLUMNS}`}>
       <div className="min-w-0">
-        <p className="truncate font-brand text-[15px] font-semibold text-brand-ink">{job.company}</p>
+        <Link to={`/jobs/${job.id}`} state={{ jobsReturnTo }} className="truncate font-brand text-[15px] font-semibold text-brand-ink hover:underline">{title}</Link>
         <p className="mt-0.5 truncate text-[12px] text-brand-muted">
-          {[job.company_type, ...formatGraduationYears(job.graduation_years)].filter(Boolean).join(' · ')}
+          {job.company}
         </p>
       </div>
       <div className="min-w-0">
-        <p className="truncate text-[13.5px] text-brand-ink" title={job.positions || ''}>{job.positions}</p>
+        <p className="truncate text-[13.5px] text-brand-ink">{[job.company_type, job.department].filter(Boolean).join(' · ')}</p>
         {job.job_functions?.length > 0 && (
           <p className="mt-0.5 truncate text-[12px] text-brand-muted">
             {job.job_functions.map(fn => t(`taxonomy.fn.${fn}`, fn)).join(' · ')}
@@ -224,15 +212,24 @@ function JobRow({ job, t }) {
         <DeadlineBadge job={job} t={t} />
       </div>
       <div className="flex items-center gap-2 md:justify-end">
+        <Link
+          to={`/jobs/${job.id}`}
+          state={{ jobsReturnTo }}
+          className="inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-brand-ink px-3.5 py-1.5 text-[12px] font-bold text-brand-on-ink transition-opacity hover:opacity-90"
+        >
+          {t('jobs.viewDetail')}
+          <ArrowRight className="h-3 w-3" />
+        </Link>
         {job.apply_url && (
           <a
             href={job.apply_url}
             target="_blank"
             rel="noopener noreferrer"
             onClick={() => track('job_apply_clicked', { category: job.category, companyType: job.company_type })}
-            className="inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-brand-ink px-3.5 py-1.5 text-[12px] font-bold text-brand-on-ink transition-opacity hover:opacity-90"
+            className="grid h-8 w-8 place-items-center rounded-full border border-brand-line text-brand-muted transition-colors hover:border-brand-ink hover:text-brand-ink"
+            title={t('jobs.apply')}
+            aria-label={t('jobs.apply')}
           >
-            {t('jobs.apply')}
             <ExternalLink className="h-3 w-3" />
           </a>
         )}
@@ -251,18 +248,28 @@ function JobRow({ job, t }) {
 
 export default function JobsPage() {
   const { t } = useTranslation()
+  const [urlParams, setUrlParams] = useSearchParams()
+  const initialRef = useRef(null)
+  if (!initialRef.current) {
+    const query = urlParams.toString()
+    const cached = jobsPageCache?.query === query ? jobsPageCache : null
+    initialRef.current = { parsed: parseJobsListState(urlParams, readView()), cached }
+  }
+  const initial = initialRef.current.cached || initialRef.current.parsed
   const [facets, setFacets] = useState(null)
-  const [filters, setFilters] = useState({ category: '', industry: [], fn: [], companyType: [], year: [], city: [], open: true, sort: 'updated' })
-  const [searchInput, setSearchInput] = useState('')
-  const [search, setSearch] = useState('')
-  const [jobs, setJobs] = useState([])
-  const [total, setTotal] = useState(0)
-  const [page, setPage] = useState(1)
-  const [loading, setLoading] = useState(true)
+  const [filters, setFilters] = useState(initial.filters)
+  const [searchInput, setSearchInput] = useState(initial.search)
+  const [search, setSearch] = useState(initial.search)
+  const [jobs, setJobs] = useState(initial.jobs || [])
+  const [total, setTotal] = useState(initial.total || 0)
+  const [page, setPage] = useState(initial.page || 1)
+  const [loading, setLoading] = useState(!initialRef.current.cached)
   const [loadingMore, setLoadingMore] = useState(false)
-  const [error, setError] = useState(false)
-  const [view, setView] = useState(readView)
+  const [error, setError] = useState(initial.error || false)
+  const [view, setView] = useState(initial.view)
   const requestId = useRef(0)
+  const didInitialLoad = useRef(false)
+  const cacheSnapshot = useRef(null)
   // 届次筛选项是分组（2025届及更早 …），查询时要换成组里实际的届次；用 ref 免得筛选项加载完又多查一次
   const yearGroupsRef = useRef([])
 
@@ -283,16 +290,21 @@ export default function JobsPage() {
     authedFetch('/api/jobs/facets').then(data => {
       yearGroupsRef.current = data.years || []
       setFacets(data)
-    }).catch(() => setFacets({ categories: [], industries: [], functions: [], companyTypes: [], years: [], cities: [], sources: [] }))
+    }).catch(() => setFacets({ categories: [], industries: [], functions: [], companyTypes: [], years: [], cities: [] }))
   }, [])
 
   useEffect(() => {
-    const timer = setTimeout(() => setSearch(searchInput.trim()), 300)
+    const timer = setTimeout(() => {
+      const nextSearch = searchInput.trim()
+      if (nextSearch !== search) {
+        setPage(1)
+        setSearch(nextSearch)
+      }
+    }, 300)
     return () => clearTimeout(timer)
-  }, [searchInput])
+  }, [search, searchInput])
 
-  const load = useCallback(async (nextPage) => {
-    const id = ++requestId.current
+  const fetchPage = useCallback(async (nextPage) => {
     const params = new URLSearchParams({ page: String(nextPage), pageSize: String(PAGE_SIZE), open: String(filters.open), sort: filters.sort })
     if (search) params.set('q', search)
     if (filters.category) params.set('category', filters.category)
@@ -304,10 +316,15 @@ export default function JobsPage() {
       const members = filters.year.flatMap(key => yearGroupsRef.current.find(g => g.value === key)?.members || [key])
       params.set('year', [...new Set(members)].join(','))
     }
+    return authedFetch(`/api/jobs?${params}`)
+  }, [filters, search])
+
+  const load = useCallback(async (nextPage) => {
+    const id = ++requestId.current
     if (nextPage === 1) setLoading(true)
     else setLoadingMore(true)
     try {
-      const data = await authedFetch(`/api/jobs?${params}`)
+      const data = await fetchPage(nextPage)
       if (id !== requestId.current) return
       setJobs(prev => (nextPage === 1 ? data.jobs : [...prev, ...data.jobs]))
       setTotal(data.total)
@@ -321,13 +338,59 @@ export default function JobsPage() {
         setLoadingMore(false)
       }
     }
-  }, [filters, search])
+  }, [fetchPage])
 
   useEffect(() => {
+    if (!facets) return
+    if (!didInitialLoad.current) {
+      didInitialLoad.current = true
+      if (initialRef.current.cached) return
+      const targetPage = initialRef.current.parsed.page
+      if (targetPage === 1) {
+        load(1)
+        return
+      }
+      const id = ++requestId.current
+      setLoading(true)
+      Promise.all(Array.from({ length: targetPage }, (_, index) => fetchPage(index + 1)))
+        .then(pages => {
+          if (id !== requestId.current) return
+          setJobs(pages.flatMap(result => result.jobs))
+          setTotal(pages[0]?.total || 0)
+          setPage(targetPage)
+          setError(false)
+        })
+        .catch(() => { if (id === requestId.current) setError(true) })
+        .finally(() => { if (id === requestId.current) setLoading(false) })
+      return
+    }
     load(1)
-  }, [load])
+  }, [facets, fetchPage, load])
 
-  const setFilter = (key, value) => setFilters(prev => ({ ...prev, [key]: value }))
+  const currentParams = createJobsListSearch({ search, filters, view, page })
+  const currentQuery = currentParams.toString()
+  const jobsReturnTo = `/jobs${currentQuery ? `?${currentQuery}` : ''}`
+
+  useEffect(() => {
+    if (urlParams.toString() !== currentQuery) setUrlParams(currentParams, { replace: true })
+  }, [currentQuery, currentParams, setUrlParams, urlParams])
+
+  cacheSnapshot.current = { query: currentQuery, search, filters, view, page, jobs, total, error, scrollY: window.scrollY }
+  useEffect(() => () => {
+    jobsPageCache = { ...cacheSnapshot.current, scrollY: window.scrollY }
+  }, [])
+
+  useLayoutEffect(() => {
+    const scrollY = initialRef.current.cached?.scrollY
+    if (!Number.isFinite(scrollY) || scrollY <= 0) return
+    const frame = window.requestAnimationFrame(() => window.scrollTo(0, scrollY))
+    return () => window.cancelAnimationFrame(frame)
+  }, [])
+
+  const setFilter = (key, value) => {
+    setPage(1)
+    setFilters(prev => ({ ...prev, [key]: value }))
+  }
   const yearLabel = (key) => {
     const group = facets?.years?.find(g => g.value === key)
     if (key === 'earlier') return t('jobs.yearEarlier', { year: group?.year })
@@ -348,7 +411,6 @@ export default function JobsPage() {
               <p className="mt-5 text-[12.5px] text-brand-muted">
                 {t('jobs.stats', { n: facets.total })}
                 {facets.lastUpdated && ` · ${t('jobs.lastUpdated', { date: facets.lastUpdated })}`}
-                {facets.sources?.length > 0 && ` · ${t('jobs.source', { source: facets.sources.join('、') })}`}
               </p>
             )}
           </motion.div>
@@ -405,16 +467,19 @@ export default function JobsPage() {
               {!loading && !error && (
                 <span className="text-[12.5px] font-semibold text-brand-muted">{t('jobs.resultCount', { n: total })}</span>
               )}
-              <select
-                value={filters.sort}
-                onChange={e => setFilter('sort', e.target.value)}
-                aria-label={t('jobs.sortLabel')}
-                className="h-[36px] rounded-full border border-brand-line bg-brand-card px-3 text-[12px] font-bold text-brand-ink focus:border-brand-ink focus:outline-none"
-              >
-                <option value="updated">{t('jobs.sortUpdated')}</option>
-                <option value="deadline_asc">{t('jobs.sortDeadlineAsc')}</option>
-                <option value="deadline_desc">{t('jobs.sortDeadlineDesc')}</option>
-              </select>
+              <div className="relative shrink-0">
+                <select
+                  value={filters.sort}
+                  onChange={e => setFilter('sort', e.target.value)}
+                  aria-label={t('jobs.sortLabel')}
+                  className="h-[36px] min-w-[126px] appearance-none rounded-full border border-brand-line bg-brand-card py-0 pl-4 pr-10 text-[12px] font-bold text-brand-ink focus:border-brand-ink focus:outline-none"
+                >
+                  <option value="updated">{t('jobs.sortUpdated')}</option>
+                  <option value="deadline_asc">{t('jobs.sortDeadlineAsc')}</option>
+                  <option value="deadline_desc">{t('jobs.sortDeadlineDesc')}</option>
+                </select>
+                <ChevronDown aria-hidden="true" className="pointer-events-none absolute right-3.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-brand-muted" />
+              </div>
               <div className="flex rounded-full border border-brand-line bg-brand-card p-1" role="group" aria-label={t('jobs.viewLabel')}>
                 {[['card', LayoutGrid, t('jobs.viewCard')], ['list', List, t('jobs.viewList')]].map(([key, Icon, label]) => (
                   <button
@@ -453,8 +518,8 @@ export default function JobsPage() {
             ) : view === 'list' ? (
               <div className="experience-card overflow-hidden">
                 <div className={`hidden gap-x-5 border-b border-brand-line bg-brand-inset px-5 py-2.5 text-[11.5px] font-bold text-brand-muted md:grid ${LIST_COLUMNS}`}>
-                  <span>{t('jobs.colCompany')}</span>
                   <span>{t('jobs.colPositions')}</span>
+                  <span>{t('jobs.colCompany')}</span>
                   <span>{t('jobs.city')}</span>
                   <button
                     type="button"
@@ -469,11 +534,11 @@ export default function JobsPage() {
                   </button>
                   <span />
                 </div>
-                {jobs.map(job => <JobRow key={job.id} job={job} t={t} />)}
+                {jobs.map(job => <JobRow key={job.id} job={job} t={t} jobsReturnTo={jobsReturnTo} />)}
               </div>
             ) : (
               <div className="experience-grid job-grid min-w-0">
-                {jobs.map(job => <JobCard key={job.id} job={job} t={t} />)}
+                {jobs.map(job => <JobCard key={job.id} job={job} t={t} jobsReturnTo={jobsReturnTo} />)}
               </div>
             )}
             {hasMore && (

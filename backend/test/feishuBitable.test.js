@@ -134,26 +134,40 @@ test('client surfaces Feishu error codes', async () => {
 
 /** 只实现 importJobTables 用到的那几个 supabase 链式调用 */
 function fakeSupabase(existingKeys) {
-  const writes = { upserted: [], deleted: [] }
+  const writes = { upserted: [], deleted: [], deactivated: [] }
   const supabase = {
-    from: () => ({
-      select: () => ({ eq: () => ({ order: () => ({ range: async () => ({ data: existingKeys.map(k => ({ external_key: k })), error: null }) }) }) }),
+    from: table => ({
+      delete: () => ({
+        lt: async () => ({ count: 0, error: null }),
+      }),
+      select: () => {
+        const chain = {
+          eq: () => chain,
+          order: () => chain,
+          range: async () => ({ data: table === 'job_posting_sources' ? existingKeys.map(k => ({ source_key: k })) : [], error: null }),
+        }
+        return chain
+      },
       upsert: async rows => { writes.upserted.push(...rows); return { error: null } },
-      delete: () => ({ in: async (_col, keys) => { writes.deleted.push(...keys); return { error: null } } }),
     }),
+    rpc: async (_name, args) => {
+      const missing = existingKeys.filter(key => !args.p_source_keys.includes(key))
+      writes.deactivated.push(...missing)
+      return { data: missing.length, error: null }
+    },
   }
   return { supabase, writes }
 }
 
 const quiet = () => {}
 
-test('replace deletes jobs that are gone from the table', async () => {
+test('replace deactivates missing sources and closes orphaned jobs', async () => {
   const row = recordToRow(record, fields)
-  const key = mapJobRow(row, { category: 'x', source: 'S' }).external_key
+  const key = mapJobRow(row, { category: 'x', source: 'S' }).source_key
   const { supabase, writes } = fakeSupabase([key, 'old-1'])
   const result = await importJobTables([{ label: 't', rows: [row], fallback: 'x' }], { supabase, source: 'S', replace: true, minKeepRatio: 0.5, log: quiet })
   assert.deepEqual(result, { written: 1, deleted: 1 })
-  assert.deepEqual(writes.deleted, ['old-1'])
+  assert.deepEqual(writes.deactivated, ['old-1'])
 })
 
 test('a suspiciously small sync writes nothing', async () => {
@@ -165,4 +179,45 @@ test('a suspiciously small sync writes nothing', async () => {
   )
   assert.equal(writes.upserted.length, 0)
   assert.equal(writes.deleted.length, 0)
+})
+
+test('ATS API rows stay one job even when the title contains a comma', async () => {
+  const { supabase, writes } = fakeSupabase([])
+  const result = await importJobTables([{
+    label: 'ATS',
+    fallback: '其他',
+    rows: [{
+      公司: '示例科技',
+      招聘岗位: '算法工程师,大模型方向',
+      职位描述: '负责完整的算法研发与产品落地工作。',
+      职位ID: 'ats-1',
+      职位详情链接: 'https://jobs.example.com/job/ats-1',
+    }],
+  }], { supabase, source: 'ATS 公开招聘页', sourceType: 'ats', log: quiet })
+  assert.equal(result.written, 1)
+  assert.equal(writes.upserted.length, 1)
+  assert.equal(writes.upserted[0].job_title, '算法工程师,大模型方向')
+})
+
+test('expired rows are not written back during a company sync', async () => {
+  const { supabase, writes } = fakeSupabase([])
+  const result = await importJobTables([{
+    label: 'ATS',
+    fallback: '其他',
+    rows: [{
+      公司: '示例科技',
+      招聘岗位: '已截止工程师',
+      截止时间: '2026-10-23',
+      职位ID: 'expired-1',
+      职位详情链接: 'https://jobs.example.com/job/expired-1',
+    }],
+  }], {
+    supabase,
+    source: 'ATS 公开招聘页',
+    sourceType: 'ats',
+    now: Date.UTC(2026, 9, 23, 16, 30),
+    log: quiet,
+  })
+  assert.equal(result.written, 0)
+  assert.equal(writes.upserted.length, 0)
 })

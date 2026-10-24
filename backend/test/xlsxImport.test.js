@@ -6,7 +6,8 @@ import { readXlsx } from '../src/lib/xlsx.js'
 import {
   mapJobRow, parseDate, normalizeBatch, normalizeCompanyType, normalizeGraduationYears, withoutBoilerplate,
 } from '../src/lib/feishuImport.js'
-import { openFilter } from '../src/routes/jobs.js'
+import { statusForDeadline } from '../src/lib/jobImport.js'
+import { isJobExpired, openFilter } from '../src/routes/jobs.js'
 
 // 编的示例数据，生成方式见 fixture 里的说明（共享字符串、内联富文本、日期序列号、重名表头、说明行 …）
 const sheets = readXlsx(readFileSync(new URL('./fixtures/jobs-sample.xlsx', import.meta.url)))
@@ -85,4 +86,20 @@ test('open filter treats undated postings as closed after six months without upd
     openFilter(now),
     'deadline_date.gte.2026-10-10,and(deadline_date.is.null,or(source_updated_at.is.null,source_updated_at.gte.2026-04-13))',
   )
+})
+
+test('expired jobs use the parsed deadline date', () => {
+  const now = Date.UTC(2026, 9, 24, 12)
+  assert.equal(isJobExpired({ deadline_date: '2026-10-23' }, now), true)
+  assert.equal(isJobExpired({ deadline_date: '2026-10-24' }, now), false)
+  assert.equal(isJobExpired({ deadline_date: null }, now), false)
+  assert.equal(statusForDeadline('2026-10-23', now), 'closed')
+  assert.equal(statusForDeadline('2026-10-24', now), 'open')
+})
+
+test('expiry switches at midnight in mainland China', () => {
+  const afterChinaMidnight = Date.UTC(2026, 9, 23, 16, 30)
+  assert.equal(isJobExpired({ deadline_date: '2026-10-23' }, afterChinaMidnight), true)
+  assert.equal(isJobExpired({ deadline_date: '2026-10-24' }, afterChinaMidnight), false)
+  assert.match(openFilter(afterChinaMidnight), /^deadline_date\.gte\.2026-10-24,/)
 })

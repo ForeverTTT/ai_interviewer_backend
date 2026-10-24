@@ -1,0 +1,1026 @@
+{
+  "sources": [
+    {
+      "id": "intel-china-all",
+      "name": "英特尔招聘官网 · 社招/校招/实习",
+      "companyName": "英特尔",
+      "adapter": "intel-workday",
+      "sourceType": "official",
+      "fallbackCategory": "其他",
+      "enabled": true,
+      "requestDelayMs": 120,
+      "minKeepRatio": 0.55,
+      "options": { "pageSize": 20 }
+    },
+    {
+      "id": "qualcomm-china-all",
+      "name": "高通招聘官网 · 社招/校招/实习",
+      "companyName": "高通",
+      "adapter": "eightfold-pcsx",
+      "sourceType": "official",
+      "fallbackCategory": "其他",
+      "enabled": true,
+      "requestDelayMs": 120,
+      "minKeepRatio": 0.55,
+      "options": {
+        "origin": "https://careers.qualcomm.com",
+        "domain": "qualcomm.com",
+        "location": "China",
+        "locale": "en",
+        "companyType": "外企/合资",
+        "industryCategory": "电子/通信/半导体",
+        "pageSize": 10
+      }
+    },
+    {
+      "id": "xiaohongshu-experienced",
+      "name": "小红书招聘官网 · 社招",
+      "companyName": "小红书",
+      "adapter": "xiaohongshu-official",
+      "sourceType": "official",
+      "fallbackCategory": "社招",
+      "enabled": true,
+      "requestDelayMs": 120,
+      "minKeepRatio": 0.55,
+      "options": { "mode": "social", "pageSize": 10 }
+    },
+    {
+      "id": "xiaohongshu-graduate",
+      "name": "小红书招聘官网 · 校招",
+      "companyName": "小红书",
+      "adapter": "xiaohongshu-official",
+      "sourceType": "official",
+      "fallbackCategory": "秋招",
+      "enabled": true,
+      "requestDelayMs": 120,
+      "minKeepRatio": 0.55,
+      "options": { "mode": "campus", "pageSize": 10 }
+    },
+    {
+      "id": "xiaohongshu-intern",
+      "name": "小红书招聘官网 · 实习",
+      "companyName": "小红书",
+      "adapter": "xiaohongshu-official",
+      "sourceType": "official",
+      "fallbackCategory": "实习",
+      "enabled": true,
+      "requestDelayMs": 120,
+      "minKeepRatio": 0.55,
+      "options": { "mode": "intern", "pageSize": 10 }
+    },
+    {
+      "id": "horizon-experienced",
+      "name": "地平线招聘官网 · 社招",
+      "companyName": "地平线",
+      "adapter": "hotjob-wecruit",
+      "seedUrl": "https://wecruit.hotjob.cn/SU64819a4f2f9d2433ba8b043a/pb/social.html",
+      "sourceType": "official",
+      "fallbackCategory": "社招",
+      "enabled": true,
+      "requestDelayMs": 450,
+      "minKeepRatio": 0.55,
+      "options": { "recruitTypes": [2], "pageSize": 15, "detailConcurrency": 3, "requestIntervalMs": 450 }
+    },
+    {
+      "id": "horizon-campus",
+      "name": "地平线招聘官网 · 校招与实习",
+      "companyName": "地平线",
+      "adapter": "hotjob-wecruit",
+      "seedUrl": "https://wecruit.hotjob.cn/SU6409ef49bef57c635fd390a6/pb/school.html",
+      "sourceType": "official",
+      "fallbackCategory": "其他",
+      "enabled": true,
+      "requestDelayMs": 450,
+      "minKeepRatio": 0.55,
+      "options": { "recruitTypes": [1, 12], "pageSize": 15, "detailConcurrency": 3, "requestIntervalMs": 450 }
+    },
+    {
+      "id": "lenovo-experienced",
+      "name": "联想招聘官网 · 社招",
+      "companyName": "联想",
+      "adapter": "lenovo-social",
+      "sourceType": "official",
+      "fallbackCategory": "社招",
+      "enabled": true,
+      "requestDelayMs": 120,
+      "minKeepRatio": 0.55,
+      "options": { "detailConcurrency": 8 }
+    },
+    {
+      "id": "kuaishou-campus",
+      "name": "快手校园招聘官网 · 校招与实习",
+      "companyName": "快手",
+      "adapter": "kuaishou-campus",
+      "sourceType": "official",
+      "fallbackCategory": "其他",
+      "enabled": true,
+      "requestDelayMs": 120,
+      "minKeepRatio": 0.55,
+      "options": { "pageSize": 1000 }
+    },
+    {
+      "id": "jd-experienced",
+      "name": "京东招聘官网 · 社招",
+      "companyName": "京东",
+      "adapter": "jd-official",
+      "sourceType": "official",
+      "fallbackCategory": "社招",
+      "enabled": true,
+      "requestDelayMs": 120,
+      "minKeepRatio": 0.55,
+      "options": { "mode": "social", "pageSize": 100 }
+    },
+    {
+      "id": "jd-graduate",
+      "name": "京东校园招聘官网 · 校招",
+      "companyName": "京东",
+      "adapter": "jd-official",
+      "sourceType": "official",
+      "fallbackCategory": "秋招",
+      "enabled": true,
+      "requestDelayMs": 120,
+      "minKeepRatio": 0.55,
+      "options": { "mode": "graduate", "pageSize": 10 }
+    },
+    {
+      "id": "jd-intern",
+      "name": "京东校园招聘官网 · 实习",
+      "companyName": "京东",
+      "adapter": "jd-official",
+      "sourceType": "official",
+      "fallbackCategory": "实习",
+      "enabled": true,
+      "requestDelayMs": 120,
+      "minKeepRatio": 0.55,
+      "options": { "mode": "intern", "pageSize": 10 }
+    },
+    {
+      "id": "lixiang-experienced",
+      "name": "理想汽车招聘官网 · 社招",
+      "companyName": "理想汽车",
+      "adapter": "lixiang-official",
+      "sourceType": "official",
+      "fallbackCategory": "社招",
+      "enabled": true,
+      "requestDelayMs": 120,
+      "minKeepRatio": 0.55,
+      "options": {
+        "mode": "social",
+        "pageSize": 100,
+        "detailConcurrency": 8
+      }
+    },
+    {
+      "id": "lixiang-graduate",
+      "name": "理想汽车招聘官网 · 校招",
+      "companyName": "理想汽车",
+      "adapter": "lixiang-official",
+      "sourceType": "official",
+      "fallbackCategory": "秋招",
+      "enabled": true,
+      "requestDelayMs": 120,
+      "minKeepRatio": 0.55,
+      "options": {
+        "mode": "graduate",
+        "pageSize": 100,
+        "detailConcurrency": 8
+      }
+    },
+    {
+      "id": "lixiang-intern",
+      "name": "理想汽车招聘官网 · 实习",
+      "companyName": "理想汽车",
+      "adapter": "lixiang-official",
+      "sourceType": "official",
+      "fallbackCategory": "实习",
+      "enabled": true,
+      "requestDelayMs": 120,
+      "minKeepRatio": 0.55,
+      "options": {
+        "mode": "intern",
+        "pageSize": 100,
+        "detailConcurrency": 8
+      }
+    },
+    {
+      "id": "byd-experienced",
+      "name": "比亚迪招聘官网 · 社招",
+      "companyName": "比亚迪",
+      "adapter": "byd-official",
+      "sourceType": "official",
+      "fallbackCategory": "社招",
+      "enabled": true,
+      "requestDelayMs": 120,
+      "minKeepRatio": 0.55,
+      "options": {
+        "mode": "social",
+        "pageSize": 500,
+        "detailConcurrency": 8
+      }
+    },
+    {
+      "id": "byd-graduate",
+      "name": "比亚迪招聘官网 · 校招",
+      "companyName": "比亚迪",
+      "adapter": "byd-official",
+      "sourceType": "official",
+      "fallbackCategory": "秋招",
+      "enabled": true,
+      "requestDelayMs": 120,
+      "minKeepRatio": 0.55,
+      "options": {
+        "mode": "campus",
+        "lane": "graduate",
+        "pageSize": 10,
+        "detailConcurrency": 8
+      }
+    },
+    {
+      "id": "byd-intern",
+      "name": "比亚迪招聘官网 · 实习",
+      "companyName": "比亚迪",
+      "adapter": "byd-official",
+      "sourceType": "official",
+      "fallbackCategory": "实习",
+      "enabled": true,
+      "requestDelayMs": 120,
+      "minKeepRatio": 0.55,
+      "options": {
+        "mode": "campus",
+        "lane": "intern",
+        "pageSize": 10,
+        "detailConcurrency": 8
+      }
+    },
+    {
+      "id": "mihoyo-experienced",
+      "name": "米哈游招聘官网 · 社招",
+      "companyName": "米哈游",
+      "adapter": "mihoyo-official",
+      "sourceType": "official",
+      "fallbackCategory": "社招",
+      "enabled": true,
+      "requestDelayMs": 120,
+      "minKeepRatio": 0.55,
+      "options": {
+        "mode": "social",
+        "pageSize": 100,
+        "detailConcurrency": 6
+      }
+    },
+    {
+      "id": "mihoyo-campus",
+      "name": "米哈游招聘官网 · 校招与实习",
+      "companyName": "米哈游",
+      "adapter": "mihoyo-official",
+      "sourceType": "official",
+      "fallbackCategory": "其他",
+      "enabled": true,
+      "requestDelayMs": 120,
+      "minKeepRatio": 0.55,
+      "options": {
+        "mode": "campus",
+        "pageSize": 100,
+        "detailConcurrency": 6
+      }
+    },
+    {
+      "id": "vivo-experienced",
+      "name": "vivo 招聘官网 · 社招",
+      "companyName": "vivo",
+      "adapter": "vivo-official",
+      "sourceType": "official",
+      "fallbackCategory": "社招",
+      "enabled": true,
+      "requestDelayMs": 120,
+      "minKeepRatio": 0.55,
+      "options": {
+        "pageSize": 100
+      }
+    },
+    {
+      "id": "vivo-graduate",
+      "name": "vivo 招聘官网 · 校招",
+      "companyName": "vivo",
+      "adapter": "zhiye-public",
+      "sourceType": "official",
+      "fallbackCategory": "秋招",
+      "enabled": true,
+      "seedUrl": "https://hr-campus.vivo.com/campus/jobs",
+      "requestDelayMs": 120,
+      "minKeepRatio": 0.55,
+      "options": {
+        "categoryId": "2",
+        "detailPath": "/campus/detail",
+        "pageSize": 100,
+        "companyType": "民企",
+        "industryCategory": "互联网/科技"
+      }
+    },
+    {
+      "id": "vivo-intern",
+      "name": "vivo 招聘官网 · 实习",
+      "companyName": "vivo",
+      "adapter": "zhiye-public",
+      "sourceType": "official",
+      "fallbackCategory": "实习",
+      "enabled": true,
+      "seedUrl": "https://hr-campus.vivo.com/intern/jobs",
+      "requestDelayMs": 120,
+      "minKeepRatio": 0.55,
+      "options": {
+        "categoryId": "3",
+        "detailPath": "/intern/detail",
+        "pageSize": 100,
+        "companyType": "民企",
+        "industryCategory": "互联网/科技"
+      }
+    },
+    {
+      "id": "nvidia-china-all",
+      "name": "英伟达招聘官网 · 社招、校招与实习",
+      "companyName": "英伟达",
+      "adapter": "eightfold-pcsx",
+      "sourceType": "official",
+      "fallbackCategory": "其他",
+      "enabled": true,
+      "requestDelayMs": 120,
+      "minKeepRatio": 0.55,
+      "options": {
+        "origin": "https://jobs.nvidia.com",
+        "domain": "nvidia.com",
+        "location": "China",
+        "locale": "en",
+        "pageSize": 10,
+        "companyType": "外企",
+        "industryCategory": "电子/通信/半导体"
+      }
+    },
+    {
+      "id": "lenovo-campus",
+      "name": "联想招聘官网 · 校招、人才项目与实习",
+      "companyName": "联想",
+      "adapter": "lenovo-official",
+      "sourceType": "official",
+      "fallbackCategory": "其他",
+      "enabled": true,
+      "requestDelayMs": 150,
+      "minKeepRatio": 0.55,
+      "options": {
+        "projectTypes": [
+          1,
+          2,
+          3
+        ],
+        "pageSize": 100
+      }
+    },
+    {
+      "id": "oppo-experienced",
+      "name": "OPPO 招聘官网 · 社招",
+      "companyName": "OPPO",
+      "adapter": "oppo-official",
+      "sourceType": "official",
+      "fallbackCategory": "社招",
+      "enabled": true,
+      "requestDelayMs": 150,
+      "minKeepRatio": 0.55,
+      "options": {
+        "mode": "social",
+        "pageSize": 100
+      }
+    },
+    {
+      "id": "oppo-campus",
+      "name": "OPPO 招聘官网 · 校招与实习",
+      "companyName": "OPPO",
+      "adapter": "oppo-official",
+      "sourceType": "official",
+      "fallbackCategory": "其他",
+      "enabled": true,
+      "requestDelayMs": 150,
+      "minKeepRatio": 0.55,
+      "options": {
+        "mode": "campus",
+        "pageSize": 100
+      }
+    },
+    {
+      "id": "nio-experienced",
+      "name": "蔚来招聘官网 · 社招",
+      "companyName": "蔚来",
+      "adapter": "feishu-career",
+      "sourceType": "official",
+      "fallbackCategory": "社招",
+      "enabled": true,
+      "seedUrl": "https://nio.jobs.feishu.cn/",
+      "requestDelayMs": 150,
+      "minKeepRatio": 0.55,
+      "options": {
+        "pageSize": 100
+      }
+    },
+    {
+      "id": "poizon-experienced",
+      "name": "得物招聘官网 · 社招",
+      "companyName": "得物",
+      "adapter": "feishu-career",
+      "sourceType": "official",
+      "fallbackCategory": "社招",
+      "enabled": true,
+      "seedUrl": "https://poizon.jobs.feishu.cn/",
+      "requestDelayMs": 150,
+      "minKeepRatio": 0.55,
+      "options": {
+        "pageSize": 100
+      }
+    },
+    {
+      "id": "xiaopeng-experienced",
+      "name": "小鹏汽车招聘官网 · 社招",
+      "companyName": "小鹏汽车",
+      "adapter": "feishu-career",
+      "sourceType": "official",
+      "fallbackCategory": "社招",
+      "enabled": true,
+      "seedUrl": "https://xiaopeng.jobs.feishu.cn/",
+      "requestDelayMs": 150,
+      "minKeepRatio": 0.55,
+      "options": {
+        "pageSize": 100
+      }
+    },
+    {
+      "id": "lilith-experienced",
+      "name": "莉莉丝游戏招聘官网 · 社招",
+      "companyName": "莉莉丝游戏",
+      "adapter": "feishu-career",
+      "sourceType": "official",
+      "fallbackCategory": "社招",
+      "enabled": true,
+      "seedUrl": "https://lilithgames.jobs.feishu.cn/",
+      "requestDelayMs": 150,
+      "minKeepRatio": 0.55,
+      "options": {
+        "pageSize": 100
+      }
+    },
+    {
+      "id": "lilith-graduate",
+      "name": "莉莉丝游戏招聘官网 · 校招",
+      "companyName": "莉莉丝游戏",
+      "adapter": "feishu-career",
+      "sourceType": "official",
+      "fallbackCategory": "其他",
+      "enabled": true,
+      "seedUrl": "https://lilithgames.jobs.feishu.cn/campus/position",
+      "requestDelayMs": 150,
+      "minKeepRatio": 0.55,
+      "options": {
+        "pageSize": 100
+      }
+    },
+    {
+      "id": "didi-experienced",
+      "name": "滴滴招聘官网 · 社招",
+      "companyName": "滴滴",
+      "adapter": "moka-public",
+      "sourceType": "official",
+      "fallbackCategory": "社招",
+      "enabled": true,
+      "seedUrl": "https://app.mokahr.com/apply/didiglobal#/jobs",
+      "requestDelayMs": 150,
+      "minKeepRatio": 0.55,
+      "options": {
+        "pageSize": 100
+      }
+    },
+    {
+      "id": "cambricon-experienced",
+      "name": "寒武纪招聘官网 · 社招",
+      "companyName": "寒武纪",
+      "adapter": "moka-public",
+      "sourceType": "official",
+      "fallbackCategory": "社招",
+      "enabled": true,
+      "seedUrl": "https://app.mokahr.com/apply/cambricon#/jobs",
+      "requestDelayMs": 150,
+      "minKeepRatio": 0.55,
+      "options": {
+        "pageSize": 100
+      }
+    },
+    {
+      "id": "geely-experienced",
+      "name": "吉利汽车招聘官网 · 社招",
+      "companyName": "吉利汽车",
+      "adapter": "moka-public",
+      "sourceType": "official",
+      "fallbackCategory": "社招",
+      "enabled": true,
+      "seedUrl": "https://app.mokahr.com/apply/geely#/jobs",
+      "requestDelayMs": 150,
+      "minKeepRatio": 0.55,
+      "options": {
+        "pageSize": 100
+      }
+    },
+    {
+      "id": "funplus-experienced",
+      "name": "FunPlus 招聘官网 · 社招",
+      "companyName": "FunPlus",
+      "adapter": "moka-public",
+      "sourceType": "official",
+      "fallbackCategory": "社招",
+      "enabled": true,
+      "seedUrl": "https://app.mokahr.com/apply/funplus01#/jobs",
+      "requestDelayMs": 150,
+      "minKeepRatio": 0.55,
+      "options": {
+        "pageSize": 100
+      }
+    },
+    {
+      "id": "pwrd-experienced",
+      "name": "完美世界招聘官网 · 社招",
+      "companyName": "完美世界",
+      "adapter": "moka-public",
+      "sourceType": "official",
+      "fallbackCategory": "社招",
+      "enabled": true,
+      "seedUrl": "https://app.mokahr.com/apply/pwrd#/jobs",
+      "requestDelayMs": 150,
+      "minKeepRatio": 0.55,
+      "options": {
+        "pageSize": 100
+      }
+    },
+    {
+      "id": "dji-experienced",
+      "name": "大疆招聘官网 · 社招",
+      "companyName": "大疆",
+      "adapter": "moka-public",
+      "sourceType": "official",
+      "fallbackCategory": "社招",
+      "enabled": true,
+      "seedUrl": "https://apply.careers.dji.com/social-recruitment/dji/170070#/jobs",
+      "requestDelayMs": 150,
+      "minKeepRatio": 0.55,
+      "options": {
+        "pageSize": 100
+      }
+    },
+    {
+      "id": "tesla-experienced",
+      "name": "特斯拉中国招聘官网 · 社招",
+      "companyName": "特斯拉",
+      "adapter": "moka-public",
+      "sourceType": "official",
+      "fallbackCategory": "社招",
+      "enabled": true,
+      "seedUrl": "https://app.mokahr.com/social-recruitment/tesla/46129#/jobs",
+      "requestDelayMs": 150,
+      "minKeepRatio": 0.55,
+      "options": {
+        "pageSize": 100
+      }
+    },
+    {
+      "id": "xiaomi-experienced",
+      "name": "小米招聘官网 · 社招",
+      "companyName": "小米",
+      "adapter": "xiaomi-official",
+      "sourceType": "official",
+      "fallbackCategory": "社招",
+      "enabled": true,
+      "requestDelayMs": 120,
+      "minKeepRatio": 0.55,
+      "options": {
+        "projectType": 1,
+        "pageSize": 100
+      }
+    },
+    {
+      "id": "xiaomi-graduate",
+      "name": "小米招聘官网 · 校招",
+      "companyName": "小米",
+      "adapter": "xiaomi-official",
+      "sourceType": "official",
+      "fallbackCategory": "其他",
+      "enabled": true,
+      "requestDelayMs": 120,
+      "minKeepRatio": 0.55,
+      "options": {
+        "projectType": 2,
+        "pageSize": 100
+      }
+    },
+    {
+      "id": "xiaomi-intern",
+      "name": "小米招聘官网 · 实习",
+      "companyName": "小米",
+      "adapter": "xiaomi-official",
+      "sourceType": "official",
+      "fallbackCategory": "实习",
+      "enabled": true,
+      "requestDelayMs": 120,
+      "minKeepRatio": 0.55,
+      "options": {
+        "projectType": 3,
+        "pageSize": 100
+      }
+    },
+    {
+      "id": "baidu-experienced",
+      "name": "百度招聘官网 · 社招",
+      "companyName": "百度",
+      "adapter": "baidu-official",
+      "sourceType": "official",
+      "fallbackCategory": "社招",
+      "enabled": true,
+      "requestDelayMs": 120,
+      "minKeepRatio": 0.55,
+      "options": {
+        "recruitType": "SOCIAL",
+        "pageSize": 10
+      }
+    },
+    {
+      "id": "baidu-graduate",
+      "name": "百度招聘官网 · 校招",
+      "companyName": "百度",
+      "adapter": "baidu-official",
+      "sourceType": "official",
+      "fallbackCategory": "其他",
+      "enabled": true,
+      "requestDelayMs": 120,
+      "minKeepRatio": 0.55,
+      "options": {
+        "recruitType": "GRADUATE",
+        "pageSize": 10
+      }
+    },
+    {
+      "id": "baidu-intern",
+      "name": "百度招聘官网 · 实习",
+      "companyName": "百度",
+      "adapter": "baidu-official",
+      "sourceType": "official",
+      "fallbackCategory": "实习",
+      "enabled": true,
+      "requestDelayMs": 120,
+      "minKeepRatio": 0.55,
+      "options": {
+        "recruitType": "INTERN",
+        "pageSize": 10
+      }
+    },
+    {
+      "id": "meituan-experienced",
+      "name": "美团招聘官网 · 社招",
+      "companyName": "美团",
+      "adapter": "meituan-official",
+      "sourceType": "official",
+      "fallbackCategory": "社招",
+      "enabled": true,
+      "requestDelayMs": 120,
+      "minKeepRatio": 0.55,
+      "options": {
+        "jobTypes": [
+          "3"
+        ],
+        "pageSize": 100
+      }
+    },
+    {
+      "id": "meituan-campus",
+      "name": "美团招聘官网 · 校招与实习",
+      "companyName": "美团",
+      "adapter": "meituan-official",
+      "sourceType": "official",
+      "fallbackCategory": "其他",
+      "enabled": true,
+      "requestDelayMs": 120,
+      "minKeepRatio": 0.55,
+      "options": {
+        "jobTypes": [
+          "1",
+          "2"
+        ],
+        "pageSize": 100
+      }
+    },
+    {
+      "id": "huawei-campus",
+      "name": "华为招聘官网",
+      "adapter": "huawei-campus",
+      "sourceType": "official",
+      "fallbackCategory": "秋招",
+      "enabled": true,
+      "requestDelayMs": 150,
+      "minKeepRatio": 0.55,
+      "options": {
+        "pageSize": 100
+      }
+    },
+    {
+      "id": "tencent-careers",
+      "name": "腾讯招聘官网",
+      "adapter": "tencent-careers",
+      "sourceType": "official",
+      "fallbackCategory": "社招",
+      "enabled": true,
+      "requestDelayMs": 180,
+      "minKeepRatio": 0.55,
+      "options": {
+        "pageSize": 100,
+        "detailConcurrency": 4
+      }
+    },
+    {
+      "id": "huawei-experienced",
+      "name": "华为招聘官网 · 社招",
+      "adapter": "huawei-campus",
+      "sourceType": "official",
+      "fallbackCategory": "社招",
+      "enabled": true,
+      "requestDelayMs": 150,
+      "minKeepRatio": 0.55,
+      "options": {
+        "jobType": "SR",
+        "pageSize": 100
+      }
+    },
+    {
+      "id": "tencent-campus-graduate",
+      "name": "腾讯校园招聘官网 · 应届生",
+      "adapter": "tencent-campus",
+      "sourceType": "official",
+      "fallbackCategory": "秋招",
+      "enabled": true,
+      "requestDelayMs": 120,
+      "minKeepRatio": 0.55,
+      "options": {
+        "projectMappingIds": [
+          1,
+          14
+        ],
+        "pageSize": 100,
+        "detailConcurrency": 8
+      }
+    },
+    {
+      "id": "tencent-campus-intern",
+      "name": "腾讯校园招聘官网 · 实习",
+      "adapter": "tencent-campus",
+      "sourceType": "official",
+      "fallbackCategory": "实习",
+      "enabled": true,
+      "requestDelayMs": 120,
+      "minKeepRatio": 0.55,
+      "options": {
+        "projectMappingIds": [
+          2,
+          104,
+          20
+        ],
+        "pageSize": 100,
+        "detailConcurrency": 8
+      }
+    },
+    {
+      "id": "bytedance-experienced",
+      "name": "字节跳动招聘官网 · 社招",
+      "companyName": "字节跳动",
+      "adapter": "feishu-career",
+      "sourceType": "ats",
+      "fallbackCategory": "社招",
+      "seedUrl": "https://jobs.bytedance.com/experienced/position",
+      "enabled": true,
+      "requestDelayMs": 120,
+      "minKeepRatio": 0.55,
+      "options": {
+        "pageSize": 100
+      }
+    },
+    {
+      "id": "bytedance-campus",
+      "name": "字节跳动招聘官网 · 校招与实习",
+      "companyName": "字节跳动",
+      "adapter": "feishu-career",
+      "sourceType": "ats",
+      "fallbackCategory": "其他",
+      "seedUrl": "https://jobs.bytedance.com/campus/position",
+      "enabled": true,
+      "requestDelayMs": 120,
+      "minKeepRatio": 0.55,
+      "options": {
+        "pageSize": 100
+      }
+    },
+    {
+      "id": "nio-campus",
+      "name": "蔚来招聘官网 · 校招与实习",
+      "companyName": "蔚来",
+      "adapter": "feishu-career",
+      "sourceType": "ats",
+      "fallbackCategory": "其他",
+      "seedUrl": "https://nio.jobs.feishu.cn/campus/position",
+      "enabled": true,
+      "requestDelayMs": 180,
+      "minKeepRatio": 0.55,
+      "options": {
+        "pageSize": 100
+      }
+    },
+    {
+      "id": "dewu-campus",
+      "name": "得物招聘官网 · 校招与实习",
+      "companyName": "得物",
+      "adapter": "feishu-career",
+      "sourceType": "ats",
+      "fallbackCategory": "其他",
+      "seedUrl": "https://poizon.jobs.feishu.cn/578078/position/list",
+      "enabled": true,
+      "requestDelayMs": 180,
+      "minKeepRatio": 0.55,
+      "options": {
+        "pageSize": 100
+      }
+    },
+    {
+      "id": "lilith-intern",
+      "name": "莉莉丝游戏招聘官网 · 实习",
+      "companyName": "莉莉丝游戏",
+      "adapter": "feishu-career",
+      "sourceType": "ats",
+      "fallbackCategory": "实习",
+      "seedUrl": "https://lilithgames.jobs.feishu.cn/intern/position",
+      "enabled": true,
+      "requestDelayMs": 180,
+      "minKeepRatio": 0.55,
+      "options": {
+        "pageSize": 100
+      }
+    },
+    {
+      "id": "xiaopeng-campus",
+      "name": "小鹏汽车招聘官网 · 校招与实习",
+      "companyName": "小鹏汽车",
+      "adapter": "feishu-career",
+      "sourceType": "ats",
+      "fallbackCategory": "其他",
+      "seedUrl": "https://xiaopeng.jobs.feishu.cn/307999/position/list",
+      "enabled": true,
+      "requestDelayMs": 180,
+      "minKeepRatio": 0.55,
+      "options": {
+        "pageSize": 100
+      }
+    },
+    {
+      "id": "dji-campus",
+      "name": "大疆招聘官网 · 校招与实习",
+      "companyName": "大疆",
+      "adapter": "moka-public",
+      "sourceType": "ats",
+      "fallbackCategory": "其他",
+      "seedUrl": "https://apply.careers.dji.com/campus-recruitment/dji/143359#/jobs",
+      "enabled": true,
+      "requestDelayMs": 180,
+      "minKeepRatio": 0.55,
+      "options": {
+        "orgId": "dji",
+        "siteId": "143359",
+        "mode": "campus",
+        "pageSize": 100
+      }
+    },
+    {
+      "id": "didi-campus",
+      "name": "滴滴招聘官网 · 校招与实习",
+      "companyName": "滴滴",
+      "adapter": "moka-public",
+      "sourceType": "ats",
+      "fallbackCategory": "其他",
+      "seedUrl": "https://campus.didiglobal.com/campus_apply/didiglobal/96064#/jobs",
+      "enabled": true,
+      "requestDelayMs": 180,
+      "minKeepRatio": 0.55,
+      "options": {
+        "orgId": "didiglobal",
+        "siteId": "96064",
+        "mode": "campus",
+        "pageSize": 100
+      }
+    },
+    {
+      "id": "catl-experienced",
+      "name": "宁德时代招聘官网 · 社招",
+      "companyName": "宁德时代",
+      "adapter": "moka-public",
+      "sourceType": "ats",
+      "fallbackCategory": "社招",
+      "seedUrl": "https://talent.catl.com/social-recruitment/catlhr/96144#/jobs",
+      "enabled": true,
+      "requestDelayMs": 180,
+      "minKeepRatio": 0.55,
+      "options": {
+        "orgId": "catlhr",
+        "siteId": "96144",
+        "mode": "social",
+        "pageSize": 100
+      }
+    },
+    {
+      "id": "iflytek-experienced",
+      "name": "科大讯飞招聘官网 · 社招",
+      "companyName": "科大讯飞",
+      "adapter": "zhiye-public",
+      "sourceType": "ats",
+      "fallbackCategory": "社招",
+      "seedUrl": "https://iflytek.zhiye.com/social/jobs",
+      "enabled": true,
+      "requestDelayMs": 250,
+      "minKeepRatio": 0.55,
+      "options": {
+        "pageSize": 100
+      }
+    },
+    {
+      "id": "iflytek-campus",
+      "name": "科大讯飞招聘官网 · 校招与实习",
+      "companyName": "科大讯飞",
+      "adapter": "zhiye-public",
+      "sourceType": "ats",
+      "fallbackCategory": "其他",
+      "seedUrl": "https://iflytek.zhiye.com/campus/jobs",
+      "enabled": true,
+      "requestDelayMs": 250,
+      "minKeepRatio": 0.55,
+      "options": {
+        "pageSize": 100
+      }
+    },
+    {
+      "id": "smic-experienced",
+      "name": "中芯国际招聘官网 · 社招",
+      "companyName": "中芯国际",
+      "adapter": "zhiye-legacy",
+      "sourceType": "ats",
+      "fallbackCategory": "社招",
+      "seedUrl": "https://smics.zhiye.com/social/jobs",
+      "enabled": true,
+      "requestDelayMs": 250,
+      "minKeepRatio": 0.55,
+      "options": {
+        "pageSize": 100
+      }
+    },
+    {
+      "id": "smic-campus",
+      "name": "中芯国际招聘官网 · 校招与实习",
+      "companyName": "中芯国际",
+      "adapter": "zhiye-legacy",
+      "sourceType": "ats",
+      "fallbackCategory": "其他",
+      "seedUrl": "https://smics.zhiye.com/campus/jobs",
+      "enabled": true,
+      "requestDelayMs": 250,
+      "minKeepRatio": 0.55,
+      "options": {
+        "pageSize": 100
+      }
+    },
+    {
+      "id": "sensetime-experienced",
+      "name": "商汤科技招聘官网 · 社招",
+      "companyName": "商汤科技",
+      "adapter": "feishu-career",
+      "sourceType": "ats",
+      "fallbackCategory": "社招",
+      "seedUrl": "https://sensetime.jobs.feishu.cn/exp/position",
+      "enabled": true,
+      "requestDelayMs": 180,
+      "minKeepRatio": 0.55,
+      "options": {
+        "pageSize": 100
+      }
+    },
+    {
+      "id": "sensetime-campus",
+      "name": "商汤科技招聘官网 · 校招与实习",
+      "companyName": "商汤科技",
+      "adapter": "feishu-career",
+      "sourceType": "ats",
+      "fallbackCategory": "其他",
+      "seedUrl": "https://sensetime.jobs.feishu.cn/edu/position",
+      "enabled": true,
+      "requestDelayMs": 180,
+      "minKeepRatio": 0.55,
+      "options": {
+        "pageSize": 100
+      }
+    }
+  ]
+}

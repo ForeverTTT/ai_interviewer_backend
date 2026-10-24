@@ -28,6 +28,7 @@ const GallupTestPage = lazyWithReload(() => import('./pages/GallupTestPage'))
 const ExperiencesPage = lazyWithReload(() => import('./pages/ExperiencesPage'))
 const ResumeTailorPage = lazyWithReload(() => import('./pages/ResumeTailorPage'))
 const JobsPage = lazyWithReload(() => import('./pages/JobsPage'))
+const JobDetailPage = lazyWithReload(() => import('./pages/JobDetailPage'))
 const CoachPage = lazyWithReload(() => import('./pages/CoachPage'))
 const AdminReviewPage = lazyWithReload(() => import('./pages/AdminReviewPage'))
 
@@ -184,6 +185,14 @@ export default function App() {
             <ProtectedRoute>
               <AppShell>
                 <JobsPage />
+              </AppShell>
+            </ProtectedRoute>
+          } />
+
+          <Route path="/jobs/:jobId" element={
+            <ProtectedRoute>
+              <AppShell>
+                <JobDetailPage />
               </AppShell>
             </ProtectedRoute>
           } />

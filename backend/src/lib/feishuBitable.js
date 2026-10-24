@@ -61,6 +61,8 @@ function textOf(value, type) {
 /** 一条记录 → 行对象；表里所有列都给上（空的写 ''），和导出文件一样，方便按表头判断有没有某一列 */
 export function recordToRow(record, fields) {
   const row = {}
+  // 内部来源 ID 不作为普通表头暴露，mapJobRow 仍可用它做稳定来源键。
+  Object.defineProperty(row, '__source_record_id', { value: record.record_id || '', enumerable: false })
   for (const f of fields) {
     if (SKIP_TYPES.has(f.type)) continue
     row[f.field_name] = textOf(record.fields?.[f.field_name], f.type).trim()

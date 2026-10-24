@@ -5,7 +5,7 @@ import {
   parseCsv, splitMulti, parseDate, mapJobRow, unmappedHeaders,
   mapExperienceCsvRows, mapExperienceJson, experienceType,
 } from '../src/lib/feishuImport.js'
-import { jobQuerySchema, sanitizeSearch, pgArrayLiteral, graduationYearGroups } from '../src/routes/jobs.js'
+import { jobQuerySchema, sanitizeSearch, pgArrayLiteral, graduationYearGroups, resolveJobSourceLinks } from '../src/routes/jobs.js'
 
 const JOB_CSV = '﻿更新时间,公司,企业类型,招聘届次,行业类别,招聘岗位,工作地点,截止时间,学历要求,投递链接,备注,是否笔试,是否笔试 (1),神秘列\r\n'
   + '2026/10/08,示例科技,民企,"2027届,2026届",IT/互联网/游戏,"算法工程师,产品经理","北京,上海,北京",2026/11/15,"本科,硕士",官网 https://jobs.example.com/a?x=1,/,,有笔试,x\r\n'
@@ -47,12 +47,35 @@ test('maps a job row to a stable record and skips rows without a company', () =>
   assert.equal(job.notes, null, '"/" means empty')
   assert.equal(job.written_test, '有笔试', 'falls through to the duplicated column')
   assert.equal(job.source_updated_at, '2026-10-08')
+  assert.equal(job.content_quality, 'aggregate')
+  assert.equal(job.quality_score, 30)
   assert.equal(job.external_key, mapJobRow(rows[0], { category: '互联网', source: 'S' }).external_key)
-  assert.notEqual(job.external_key, mapJobRow(rows[0], { category: '外企', source: 'S' }).external_key)
+  assert.equal(job.external_key, mapJobRow(rows[0], { category: '外企', source: 'S' }).external_key, 'source category does not change cross-source identity')
 
   assert.equal(mapJobRow(rows[1], { category: '互联网', source: 'S' }), null)
   assert.equal(mapJobRow(rows[2], { category: '互联网', source: 'S' }).deadline_date, null)
   assert.deepEqual(unmappedHeaders(rows[0]), ['神秘列'])
+})
+
+test('keeps a job publication date separate from the campaign start date', () => {
+  const job = mapJobRow({
+    公司: '示例科技',
+    招聘岗位: '后端开发',
+    发布时间: '2026/10/23 09:30',
+    开始时间: '2026/11/01',
+  }, { category: '社招', source: 'S', sourceType: 'official' })
+  assert.equal(job.published_at, '2026-10-23')
+  assert.equal(job.start_date, '2026-11-01')
+})
+
+test('only treats instruction copy as a fake row for Feishu aggregate data', () => {
+  const row = {
+    公司: '示例科技',
+    招聘岗位: '产品经理',
+    职位描述: '负责完善产品使用指南，并根据用户反馈持续迭代。',
+  }
+  assert.equal(mapJobRow(row, { category: '社招', source: '官网', sourceType: 'official' })?.company, '示例科技')
+  assert.equal(mapJobRow(row, { category: '社招', source: '飞书汇总', sourceType: 'feishu' }), null)
 })
 
 test('groups experience CSV rounds by company, position and date', () => {
@@ -141,4 +164,13 @@ test('groups class years into the three active years plus earlier / later', () =
   assert.equal(earlier.year, 2025)
   assert.deepEqual(earlier.members, ['2024届', '2025届', '海外往届'])
   assert.deepEqual(groups.find(g => g.value === 'later').members, ['2029届'])
+})
+
+test('keeps the application button and announcement source link separate', () => {
+  const result = resolveJobSourceLinks({ apply_url: null, jd_url: null, source: '旧来源' }, [
+    { source_type: 'feishu', source_name: '飞书汇总', source_url: 'https://notice.example.com/post', apply_url: 'https://apply.example.com/form' },
+  ])
+  assert.equal(result.job.apply_url, 'https://apply.example.com/form')
+  assert.equal(result.job.jd_url, 'https://notice.example.com/post')
+  assert.equal(result.sources[0].source_url, 'https://notice.example.com/post')
 })

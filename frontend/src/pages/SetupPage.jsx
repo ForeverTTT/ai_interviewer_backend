@@ -537,6 +537,28 @@ export default function SetupPage() {
   }, [t])
 
   useEffect(() => {
+    const jobId = new URLSearchParams(location.search).get('jobId')
+    if (!jobId) return undefined
+    let cancelled = false
+    ;(async () => {
+      try {
+        const res = await authenticatedFetch(`${getBackendBaseUrl()}/api/jobs/${jobId}`)
+        const body = await res.json().catch(() => ({}))
+        if (!res.ok || cancelled || !body.handoff) return
+        setForm(prev => ({
+          ...prev,
+          position: prev.position || body.handoff.position || '',
+          jobDescription: prev.jobDescription || body.handoff.jobDescription || '',
+          employmentType: EMPLOYMENT_TYPE_VALUES.includes(body.handoff.employmentType)
+            ? body.handoff.employmentType
+            : prev.employmentType,
+        }))
+      } catch { /* 用户仍可手动粘贴 JD */ }
+    })()
+    return () => { cancelled = true }
+  }, [location.search])
+
+  useEffect(() => {
     const handleClickOutside = (e) => {
       if (historyRef.current && !historyRef.current.contains(e.target)) setHistoryOpen(false)
     }

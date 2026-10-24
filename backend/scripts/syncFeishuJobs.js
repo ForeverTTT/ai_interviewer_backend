@@ -70,5 +70,6 @@ const result = await importJobTables(tables, {
   dryRun: opts['dry-run'],
   sample: opts.sample,
   minKeepRatio: opts.force ? 0 : 0.5,
+  requiredMissingRuns: 2,
 })
-if (!opts['dry-run']) console.log(`\n同步完成：写入 ${result.written} 条，删除 ${result.deleted} 条`)
+if (!opts['dry-run']) console.log(`\n同步完成：写入 ${result.written} 条，关闭 ${result.deleted} 条`)

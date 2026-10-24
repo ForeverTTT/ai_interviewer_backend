@@ -1,14 +1,14 @@
 /**
  * 把飞书多维表格导出的 Excel / CSV 导入 job_postings。
  *
- *   node scripts/importJobs.js <xlsx|csv...> [--sheet 工作表名] [--category 分类] [--source 来源名] [--replace] [--dry-run] [--sample]
+ *   node scripts/importJobs.js <xlsx|csv...> [--sheet 工作表名] [--category 分类] [--source 来源名] [--source-type feishu|official|user] [--replace] [--dry-run] [--sample]
  *
  * - Excel：默认导入所有带「公司」和「招聘岗位」列的工作表（名录、内推码这类表会跳过），
  *   --sheet 只导入指定的一张。
  * - 分类：表里有「批次」列（飞书总表）就按批次归成 秋招 / 春招 / 实习 / 社招；
  *   没有时用 --category，再没有用工作表名（Excel）或文件名（CSV）。
  * - 按 external_key upsert，重复导入同一份文件不会产生重复行。
- * - --replace：同一来源（--source）下，这次导入（所有文件合计）里已经没有的旧岗位会被删掉。
+ * - --replace：同一来源（--source）下，这次导入里已经没有的来源记录会停用；无其他有效来源的岗位关闭。
  *   所以分 tab 导出的 CSV 要放在同一条命令里一起导入。
  * - --dry-run：只解析并打印统计和没识别的列，不写库；加 --sample 再打印一条解析结果。
  */
@@ -25,6 +25,7 @@ const { values: opts, positionals: files } = parseArgs({
     sheet: { type: 'string' },
     category: { type: 'string' },
     source: { type: 'string', default: '飞书求职汇总表' },
+    'source-type': { type: 'string', default: 'feishu' },
     replace: { type: 'boolean', default: false },
     'dry-run': { type: 'boolean', default: false },
     sample: { type: 'boolean', default: false },
@@ -71,6 +72,7 @@ ${file}`)
 await importJobTables(tables, {
   supabase,
   source: opts.source,
+  sourceType: opts['source-type'],
   replace: opts.replace,
   dryRun: opts['dry-run'],
   sample: opts.sample,

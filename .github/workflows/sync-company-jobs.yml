@@ -1,0 +1,133 @@
+name: Sync company career sites
+
+on:
+  schedule:
+    # 每 12 小时拉取一次企业官网完整快照。单个来源失败不会下架其旧岗位。
+    - cron: '23 */12 * * *'
+  workflow_dispatch:
+    inputs:
+      source:
+        description: Optional source id, for example huawei-campus or tencent-careers
+        type: string
+        required: false
+      dry_run:
+        description: Parse and print stats without changing the database
+        type: boolean
+        default: false
+      force:
+        description: Ignore the sudden-count-drop guard (complete snapshots only)
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sync-all-company-jobs
+  cancel-in-progress: false
+
+jobs:
+  sync-static:
+    name: Sync official company jobs
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    environment: production
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: backend
+        run: npm ci
+
+      - name: Sync official sources
+        working-directory: backend
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          SOURCE: ${{ inputs.source && format('--source {0}', inputs.source) || '' }}
+          DRY_RUN: ${{ inputs.dry_run && '--dry-run' || '' }}
+          FORCE: ${{ inputs.force && '--force' || '' }}
+        run: node scripts/syncCompanyJobs.js $SOURCE $DRY_RUN $FORCE
+
+  refresh-directory:
+    name: Refresh company source directory
+    needs: sync-static
+    if: ${{ always() && !inputs.source && !inputs.dry_run }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: production
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: backend
+        run: npm ci
+
+      - name: Remove jobs past their China-time deadline
+        working-directory: backend
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: npm run jobs:expire
+
+      - name: Refresh company source directory
+        working-directory: backend
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: node scripts/discoverCompanyJobSources.js
+
+      - name: Activate newly supported public ATS sources
+        working-directory: backend
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: node scripts/reclassifyCompanyJobSources.js
+
+  audit:
+    name: Audit complete job board
+    needs: [sync-static, refresh-directory]
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: production
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: backend
+        run: npm ci
+
+      - name: Audit database integrity and source coverage
+        working-directory: backend
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: npm run jobs:audit -- --strict

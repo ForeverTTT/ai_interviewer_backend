@@ -10,7 +10,18 @@
   "scripts": {
     "start": "node src/index.js",
     "dev": "nodemon src/index.js",
-    "test": "node --test"
+    "test": "node --test",
+    "jobs:sync-companies": "node scripts/syncCompanyJobs.js",
+    "jobs:discover-companies": "node scripts/discoverCompanyJobSources.js",
+    "jobs:reclassify-companies": "node scripts/reclassifyCompanyJobSources.js",
+    "jobs:audit-priority": "node scripts/auditPriorityCompanyCoverage.js",
+    "jobs:audit": "node scripts/auditJobBoard.js",
+    "jobs:expire": "node scripts/expireJobPostings.js",
+    "jobs:sync-discovered": "node scripts/syncDiscoveredCompanyJobs.js",
+    "jobs:reconcile-discovered": "node scripts/reconcileInterruptedCompanyJobs.js",
+    "jobs:repair-split-ats": "node scripts/repairSplitAtsJobs.js",
+    "jobs:official": "node scripts/importOfficialJobs.js",
+    "jobs:huawei": "node scripts/importHuaweiJobs.js"
   },
   "dependencies": {
     "@google-cloud/text-to-speech": "^7.1.1",
