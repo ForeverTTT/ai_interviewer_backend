@@ -17,13 +17,17 @@ if (!Number.isFinite(staleHours) || staleHours < 1) throw new Error('--stale-hou
 
 async function readAll(table, columns, configure = query => query) {
   const rows = []
-  for (let from = 0; ; from += PAGE_SIZE) {
-    let query = supabase.from(table).select(columns).order('id').range(from, from + PAGE_SIZE - 1)
+  let lastId = null
+  for (;;) {
+    // 大表使用主键游标，避免 OFFSET 随页数增长而触发数据库 statement timeout。
+    let query = supabase.from(table).select(columns).order('id').limit(PAGE_SIZE)
+    if (lastId != null) query = query.gt('id', lastId)
     query = configure(query)
     const { data, error } = await query
     if (error) throw error
     rows.push(...data)
     if (data.length < PAGE_SIZE) return rows
+    lastId = data.at(-1).id
   }
 }
 

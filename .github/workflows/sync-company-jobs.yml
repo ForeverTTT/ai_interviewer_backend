@@ -143,7 +143,8 @@ jobs:
   audit:
     name: Audit complete job board
     needs: [sync-static, refresh-directory, refresh-targeted-facets]
-    if: ${{ always() }}
+    # 单来源任务只校验该来源的完整快照并刷新筛选；全站审计留给定时/全量同步。
+    if: ${{ always() && !inputs.source && !inputs.dry_run }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     environment: production
