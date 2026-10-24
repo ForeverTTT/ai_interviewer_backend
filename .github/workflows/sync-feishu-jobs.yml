@@ -1,9 +1,7 @@
 name: Sync job board from Feishu
 
 on:
-  schedule:
-    # 每天北京时间 06:00（UTC 22:00）
-    - cron: '0 22 * * *'
+  # 旧飞书汇总表只保留手动导入，避免低质量聚合岗位重新进入线上库。
   workflow_dispatch:
     inputs:
       dry_run:

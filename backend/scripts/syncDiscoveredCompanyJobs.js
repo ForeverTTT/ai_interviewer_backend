@@ -17,6 +17,7 @@ const { values: opts } = parseArgs({ options: {
   'dry-run': { type: 'boolean', default: false },
   sample: { type: 'boolean', default: false },
   force: { type: 'boolean', default: false },
+  'allow-source-failures': { type: 'boolean', default: false },
 } })
 
 // 每轮优先处理从未尝试或最久没有尝试的来源。配合 --limit-sources 可滚动覆盖整个目录，
@@ -102,4 +103,13 @@ const results = await syncCompanyJobSources(sources, {
 for (const result of results) console.log(result.ok
   ? `✓ ${result.name}: ${result.rows} 条，写入 ${result.written}，关闭 ${result.deleted}`
   : `✗ ${result.name}: ${result.error}`)
-if (results.some(result => !result.ok)) process.exitCode = 1
+const failures = results.filter(result => !result.ok)
+if (failures.length && opts['allow-source-failures']) {
+  for (const failure of failures) {
+    const warning = String(failure.error || '未知错误').replace(/[\r\n]+/g, ' ')
+    console.log(`::warning title=招聘来源暂时不可用::${failure.name}: ${warning}`)
+  }
+  console.log(`本轮 ${results.length} 个来源中 ${failures.length} 个失败；失败来源已保留原岗位，并记录到来源目录供后续重试。`)
+} else if (failures.length) {
+  process.exitCode = 1
+}

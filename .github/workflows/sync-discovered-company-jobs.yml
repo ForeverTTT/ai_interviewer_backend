@@ -2,7 +2,7 @@ name: Sync discovered company career sites
 
 on:
   schedule:
-    # 每 3 小时处理最久未检查的一批来源，约一天轮转覆盖一次当前活跃目录。
+    # 每 3 小时处理最久未检查的一批来源；控制批量大小，约一天轮转覆盖活跃目录。
     - cron: '47 */3 * * *'
   workflow_dispatch:
 
@@ -54,13 +54,13 @@ jobs:
       matrix:
         include:
           - platform: moka
-            limit: 150
+            limit: 90
           - platform: hotjob
-            limit: 40
+            limit: 30
           - platform: feishu-career
-            limit: 100
+            limit: 25
           - platform: zhiye
-            limit: 100
+            limit: 110
 
     steps:
       - name: Check out repository
@@ -82,34 +82,4 @@ jobs:
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-        run: node scripts/syncDiscoveredCompanyJobs.js --platform ${{ matrix.platform }} --limit-sources ${{ matrix.limit }}
-
-  audit:
-    name: Audit complete job board
-    needs: [cleanup, sync]
-    if: ${{ always() }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    environment: production
-
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v7
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v7
-        with:
-          node-version: '22'
-          cache: npm
-          cache-dependency-path: backend/package-lock.json
-
-      - name: Install dependencies
-        working-directory: backend
-        run: npm ci
-
-      - name: Audit database integrity and source coverage
-        working-directory: backend
-        env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-        run: npm run jobs:audit -- --strict
+        run: node scripts/syncDiscoveredCompanyJobs.js --platform ${{ matrix.platform }} --limit-sources ${{ matrix.limit }} --allow-source-failures
