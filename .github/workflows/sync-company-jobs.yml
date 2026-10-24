@@ -103,6 +103,13 @@ jobs:
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: node scripts/reclassifyCompanyJobSources.js
 
+      - name: Refresh persistent job filter snapshot
+        working-directory: backend
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: npm run jobs:refresh-facets
+
   audit:
     name: Audit complete job board
     needs: [sync-static, refresh-directory]

@@ -2,9 +2,16 @@ import { Router } from 'express'
 import { z } from 'zod'
 import { supabase } from '../lib/supabase.js'
 import { requireAuth } from '../middleware/auth.js'
-import { JOB_FUNCTIONS, INDUSTRIES, taxonomyOrder } from '../lib/jobTaxonomy.js'
-import { STALE_AFTER_DAYS } from '../lib/feishuImport.js'
-import { chinaCalendarDate, chinaCalendarDateDaysAgo } from '../lib/chinaDate.js'
+import {
+  buildJobFacets,
+  graduationYearGroups,
+  openFilter,
+  readJobFacetsSnapshot,
+  writeJobFacetsSnapshot,
+} from '../lib/jobFacets.js'
+import { chinaCalendarDate } from '../lib/chinaDate.js'
+
+export { graduationYearGroups, openFilter } from '../lib/jobFacets.js'
 
 const router = Router()
 
@@ -45,12 +52,6 @@ export function pgArrayLiteral(values) {
  * 「只看未截止」：有截止日期的看截止日期；没有的看更新时间是否在半年内，
  * 不然表里 2024 届「招满为止」的老岗位会一直显示成未截止。
  */
-export function openFilter(now = Date.now()) {
-  const today = chinaCalendarDate(now)
-  const freshSince = chinaCalendarDateDaysAgo(STALE_AFTER_DAYS, now)
-  return `deadline_date.gte.${today},and(deadline_date.is.null,or(source_updated_at.is.null,source_updated_at.gte.${freshSince}))`
-}
-
 export function isJobExpired(job, now = Date.now()) {
   return Boolean(job?.deadline_date && job.deadline_date < chinaCalendarDate(now))
 }
@@ -148,88 +149,34 @@ const ANY_YEAR = '不限届'
  * 更晚的合成「later」。每组带 members（实际的届次值），前端选中一组时把 members 传回来。
  * 「不限届」不单列，计入每一组。
  */
-export function graduationYearGroups(rows, now = new Date()) {
-  const thisYear = now.getUTCFullYear()
-  const active = [thisYear, thisYear + 1, thisYear + 2].map(y => `${y}届`)
-  const groups = new Map([
-    ...active.map(v => [v, { value: v, members: new Set([v]), count: 0 }]),
-    ['earlier', { value: 'earlier', year: thisYear - 1, members: new Set(), count: 0 }],
-    ['later', { value: 'later', year: thisYear + 3, members: new Set(), count: 0 }],
-  ])
-  const groupOf = (label) => {
-    if (groups.has(label)) return label
-    const m = label.match(/^(\d{4})届$/)
-    if (m) return Number(m[1]) < thisYear ? 'earlier' : 'later'
-    return 'earlier' // 海外往届、往届生 …
-  }
-
-  for (const row of rows) {
-    const years = row.graduation_years || []
-    const hit = new Set()
-    for (const label of years) {
-      if (label === ANY_YEAR) {
-        for (const key of groups.keys()) hit.add(key)
-        continue
-      }
-      const key = groupOf(label)
-      groups.get(key).members.add(label)
-      hit.add(key)
-    }
-    for (const key of hit) groups.get(key).count++
-  }
-
-  return [...groups.values()]
-    .filter(g => g.count > 0 && g.members.size > 0)
-    .map(g => ({ ...g, members: [...g.members].sort() }))
-}
-
 let facetCache = { at: 0, value: null }
 let facetRefreshPromise = null
 const FACET_TTL_MS = 10 * 60 * 1000
 
-function countBy(rows, pickValues) {
-  const counts = new Map()
-  for (const row of rows) {
-    for (const v of pickValues(row)) {
-      if (v) counts.set(v, (counts.get(v) || 0) + 1)
-    }
-  }
-  return [...counts.entries()]
-    .sort((a, b) => b[1] - a[1])
-    .map(([value, count]) => ({ value, count }))
-}
-
 async function refreshFacetCache() {
   if (facetRefreshPromise) return facetRefreshPromise
   facetRefreshPromise = (async () => {
-    const rows = []
-    for (let from = 0; ; from += 1000) {
-      const { data, error } = await supabase
-        .from('job_postings')
-        .select('category,company_type,job_functions,industry_keys,graduation_years,locations,sort_date')
-        .eq('status', 'open')
-        .or(openFilter())
-        // 分页必须有固定顺序，否则各页之间会重复 / 漏行
-        .order('id')
-        .range(from, from + 999)
-      if (error) throw error
-      rows.push(...data)
-      if (data.length < 1000) break
+    try {
+      const snapshot = await readJobFacetsSnapshot(supabase)
+      if (snapshot) {
+        facetCache = { at: Date.now(), value: snapshot }
+        return snapshot
+      }
+    } catch (err) {
+      // 向后兼容迁移发布前的短窗口；回退扫描仍能提供完整筛选项。
+      console.warn('[Jobs] Persistent facets unavailable, using fallback:', err.message)
     }
-
-    const value = {
-      total: rows.length,
-      categories: countBy(rows, r => [r.category]),
-      companyTypes: countBy(rows, r => [r.company_type]),
-      // 按分类规则的固定顺序，「其他」放最后
-      functions: countBy(rows, r => r.job_functions || []).sort(taxonomyOrder(JOB_FUNCTIONS)),
-      industries: countBy(rows, r => r.industry_keys || []).sort(taxonomyOrder(INDUSTRIES)),
-      years: graduationYearGroups(rows),
-      cities: countBy(rows, r => r.locations || []).slice(0, 24),
-      lastUpdated: rows.reduce((max, r) => (r.sort_date && (!max || r.sort_date > max) ? r.sort_date : max), null),
+    const value = await buildJobFacets(supabase)
+    try {
+      const snapshot = await writeJobFacetsSnapshot(supabase, value)
+      facetCache = { at: Date.now(), value: snapshot }
+      return snapshot
+    } catch (err) {
+      // 迁移尚未执行时仍返回实时结果；迁移完成后的首次请求会自动建立第一份快照。
+      console.warn('[Jobs] Facets snapshot write unavailable:', err.message)
+      facetCache = { at: Date.now(), value }
+      return value
     }
-    facetCache = { at: Date.now(), value }
-    return value
   })().finally(() => { facetRefreshPromise = null })
   return facetRefreshPromise
 }
