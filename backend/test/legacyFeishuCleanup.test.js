@@ -16,6 +16,7 @@ test('飞书主记录已经清空时立即退出，不再扫描全部来源', as
     order() { return this },
     range() { return this },
     eq() { return this },
+    limit() { return this },
     then(resolve) { return Promise.resolve({ data: [], error: null }).then(resolve) },
   }
   const result = await cleanupLegacyFeishuJobs({

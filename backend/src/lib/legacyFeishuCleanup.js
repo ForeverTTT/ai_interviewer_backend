@@ -36,15 +36,22 @@ async function deleteJobs(supabase, ids) {
  * 公司来源目录在执行本清理前已经持久化，因此不会丢失用于后续官网适配的公司清单。
  */
 export async function cleanupLegacyFeishuJobs({ supabase, dryRun = false, log = console.log } = {}) {
+  const { data: feishuSample, error: sampleError } = await supabase
+    .from('job_postings')
+    .select('id')
+    .eq('source_type', 'feishu')
+    .limit(1)
+  if (sampleError) throw sampleError
+  if (!feishuSample.length) {
+    log('没有需要清理的飞书汇总岗位')
+    return { deleted: 0, candidates: 0, preserved: 0, deactivated: 0 }
+  }
+
   const feishuJobIds = await readIds(
     supabase.from('job_postings'),
     'id',
     query => query.eq('source_type', 'feishu'),
   )
-  if (!feishuJobIds.length) {
-    log('没有需要清理的飞书汇总岗位')
-    return { deleted: 0, candidates: 0, preserved: 0, deactivated: 0 }
-  }
   const activeNonFeishuJobIds = await readIds(
     supabase.from('job_posting_sources'),
     'job_posting_id',
