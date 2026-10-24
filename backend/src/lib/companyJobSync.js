@@ -28,6 +28,7 @@ import { fetchKuaishouSocialSnapshot } from './kuaishouSocialJobImport.js'
 import { fetchNeteaseCampusSnapshot } from './neteaseJobImport.js'
 import { fetchAntJobsSnapshot } from './antJobImport.js'
 import { fetchPddCampusSnapshot } from './pddJobImport.js'
+import { fetchCtripJobsSnapshot } from './ctripJobImport.js'
 
 const waitMs = ms => new Promise(resolve => setTimeout(resolve, ms))
 
@@ -173,6 +174,10 @@ export const companyJobAdapters = {
     ...runtime,
   }),
   'pdd-campus': (source, runtime) => fetchPddCampusSnapshot({
+    ...source.options,
+    ...runtime,
+  }),
+  'ctrip-official': (source, runtime) => fetchCtripJobsSnapshot({
     ...source.options,
     ...runtime,
   }),

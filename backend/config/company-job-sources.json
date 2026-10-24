@@ -219,6 +219,30 @@
       "options": { "mode": "intern", "pageSize": 10 }
     },
     {
+      "id": "ctrip-experienced",
+      "name": "携程集团招聘官网 · 社招",
+      "companyName": "携程集团",
+      "adapter": "ctrip-official",
+      "sourceType": "official",
+      "fallbackCategory": "社招",
+      "enabled": true,
+      "requestDelayMs": 120,
+      "minKeepRatio": 0.55,
+      "options": { "mode": "social", "pageSize": 100 }
+    },
+    {
+      "id": "ctrip-campus",
+      "name": "携程集团招聘官网 · 校招与实习",
+      "companyName": "携程集团",
+      "adapter": "ctrip-official",
+      "sourceType": "official",
+      "fallbackCategory": "其他",
+      "enabled": true,
+      "requestDelayMs": 120,
+      "minKeepRatio": 0.55,
+      "options": { "mode": "campus", "pageSize": 100 }
+    },
+    {
       "id": "bilibili-campus",
       "name": "哔哩哔哩招聘官网 · 校招与实习",
       "companyName": "哔哩哔哩",
