@@ -18,11 +18,6 @@ export function legacyOnlyJobIds(feishuJobIds, activeNonFeishuJobIds) {
   return [...new Set(feishuJobIds)].filter(id => !protectedIds.has(id))
 }
 
-export function orphanJobIds(openJobIds, activeSourceJobIds) {
-  const sourcedIds = new Set(activeSourceJobIds)
-  return [...new Set(openJobIds)].filter(id => !sourcedIds.has(id))
-}
-
 async function deleteJobs(supabase, ids) {
   let deleted = 0
   for (let start = 0; start < ids.length; start += WRITE_BATCH) {
@@ -46,6 +41,10 @@ export async function cleanupLegacyFeishuJobs({ supabase, dryRun = false, log = 
     'id',
     query => query.eq('source_type', 'feishu'),
   )
+  if (!feishuJobIds.length) {
+    log('没有需要清理的飞书汇总岗位')
+    return { deleted: 0, candidates: 0, preserved: 0, deactivated: 0 }
+  }
   const activeNonFeishuJobIds = await readIds(
     supabase.from('job_posting_sources'),
     'job_posting_id',
@@ -68,19 +67,6 @@ export async function cleanupLegacyFeishuJobs({ supabase, dryRun = false, log = 
     .eq('is_active', true)
   if (deactivateError) throw deactivateError
 
-  const openJobIds = await readIds(
-    supabase.from('job_postings'),
-    'id',
-    query => query.eq('status', 'open'),
-  )
-  const activeSourceJobIds = await readIds(
-    supabase.from('job_posting_sources'),
-    'job_posting_id',
-    query => query.eq('is_active', true),
-  )
-  const orphanIds = orphanJobIds(openJobIds, activeSourceJobIds)
-  const deletedOrphans = await deleteJobs(supabase, orphanIds)
-
-  log(`已删除 ${deleted} 个仅有飞书汇总来源的岗位；保留 ${sharedCount} 个已有官网/ATS 来源的岗位；停用剩余飞书来源 ${Number(deactivated || 0)} 个；删除 ${deletedOrphans} 个没有有效来源的孤儿岗位`)
-  return { deleted, candidates: deleteIds.length, preserved: sharedCount, deactivated: Number(deactivated || 0), deletedOrphans }
+  log(`已删除 ${deleted} 个仅有飞书汇总来源的岗位；保留 ${sharedCount} 个已有官网/ATS 来源的岗位；停用剩余飞书来源 ${Number(deactivated || 0)} 个`)
+  return { deleted, candidates: deleteIds.length, preserved: sharedCount, deactivated: Number(deactivated || 0) }
 }
