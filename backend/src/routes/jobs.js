@@ -184,6 +184,7 @@ export function graduationYearGroups(rows, now = new Date()) {
 }
 
 let facetCache = { at: 0, value: null }
+let facetRefreshPromise = null
 const FACET_TTL_MS = 10 * 60 * 1000
 
 function countBy(rows, pickValues) {
@@ -198,11 +199,9 @@ function countBy(rows, pickValues) {
     .map(([value, count]) => ({ value, count }))
 }
 
-/** 筛选项（分类 / 企业类型 / 届次 / 热门城市）及数量，10 分钟缓存一次 */
-router.get('/facets', async (_req, res) => {
-  try {
-    if (facetCache.value && Date.now() - facetCache.at < FACET_TTL_MS) return res.json(facetCache.value)
-
+async function refreshFacetCache() {
+  if (facetRefreshPromise) return facetRefreshPromise
+  facetRefreshPromise = (async () => {
     const rows = []
     for (let from = 0; ; from += 1000) {
       const { data, error } = await supabase
@@ -230,7 +229,23 @@ router.get('/facets', async (_req, res) => {
       lastUpdated: rows.reduce((max, r) => (r.sort_date && (!max || r.sort_date > max) ? r.sort_date : max), null),
     }
     facetCache = { at: Date.now(), value }
-    res.json(value)
+    return value
+  })().finally(() => { facetRefreshPromise = null })
+  return facetRefreshPromise
+}
+
+/** 筛选项（分类 / 企业类型 / 届次 / 热门城市）及数量，过期缓存先返回、再在后台刷新。 */
+router.get('/facets', async (_req, res) => {
+  res.set('Cache-Control', 'private, max-age=300, stale-while-revalidate=600')
+  if (facetCache.value) {
+    const value = facetCache.value
+    if (Date.now() - facetCache.at >= FACET_TTL_MS) {
+      refreshFacetCache().catch(err => console.error('[Jobs] Facets refresh error:', err))
+    }
+    return res.json(value)
+  }
+  try {
+    res.json(await refreshFacetCache())
   } catch (err) {
     console.error('[Jobs] Facets error:', err)
     res.status(500).json({ error: 'Failed to load filters' })

@@ -269,6 +269,7 @@ export default function JobsPage() {
   const [view, setView] = useState(initial.view)
   const requestId = useRef(0)
   const didInitialLoad = useRef(false)
+  const lastLoadKey = useRef(null)
   const cacheSnapshot = useRef(null)
   // 届次筛选项是分组（2025届及更早 …），查询时要换成组里实际的届次；用 ref 免得筛选项加载完又多查一次
   const yearGroupsRef = useRef([])
@@ -340,8 +341,14 @@ export default function JobsPage() {
     }
   }, [fetchPage])
 
+  const loadKey = JSON.stringify({ search, filters })
+
   useEffect(() => {
-    if (!facets) return
+    // 只有届次筛选依赖 facets 中的分组成员；普通列表与筛选统计并行加载。
+    if (!facets && filters.year.length) return
+    // facets 稍后返回时查询条件没有变化，不重复请求岗位列表。
+    if (lastLoadKey.current === loadKey) return
+    lastLoadKey.current = loadKey
     if (!didInitialLoad.current) {
       didInitialLoad.current = true
       if (initialRef.current.cached) return
@@ -365,7 +372,7 @@ export default function JobsPage() {
       return
     }
     load(1)
-  }, [facets, fetchPage, load])
+  }, [facets, fetchPage, filters.year.length, load, loadKey])
 
   const currentParams = createJobsListSearch({ search, filters, view, page })
   const currentQuery = currentParams.toString()
