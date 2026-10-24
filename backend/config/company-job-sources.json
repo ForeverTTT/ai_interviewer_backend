@@ -119,6 +119,42 @@
       "options": { "pageSize": 1000 }
     },
     {
+      "id": "kuaishou-experienced",
+      "name": "快手招聘官网 · 社招",
+      "companyName": "快手",
+      "adapter": "kuaishou-social",
+      "sourceType": "official",
+      "fallbackCategory": "社招",
+      "enabled": true,
+      "requestDelayMs": 120,
+      "minKeepRatio": 0.55,
+      "options": { "pageSize": 100 }
+    },
+    {
+      "id": "bilibili-experienced",
+      "name": "哔哩哔哩招聘官网 · 社招",
+      "companyName": "哔哩哔哩",
+      "adapter": "bilibili-official",
+      "sourceType": "official",
+      "fallbackCategory": "社招",
+      "enabled": true,
+      "requestDelayMs": 120,
+      "minKeepRatio": 0.55,
+      "options": { "mode": "social", "pageSize": 50 }
+    },
+    {
+      "id": "bilibili-campus",
+      "name": "哔哩哔哩招聘官网 · 校招与实习",
+      "companyName": "哔哩哔哩",
+      "adapter": "bilibili-official",
+      "sourceType": "official",
+      "fallbackCategory": "其他",
+      "enabled": true,
+      "requestDelayMs": 120,
+      "minKeepRatio": 0.55,
+      "options": { "mode": "campus", "pageSize": 50 }
+    },
+    {
       "id": "jd-experienced",
       "name": "京东招聘官网 · 社招",
       "companyName": "京东",

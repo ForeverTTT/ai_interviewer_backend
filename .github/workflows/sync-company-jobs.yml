@@ -110,9 +110,39 @@ jobs:
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: npm run jobs:refresh-facets
 
+  refresh-targeted-facets:
+    name: Refresh filters after targeted sync
+    needs: sync-static
+    if: ${{ always() && inputs.source && !inputs.dry_run && needs.sync-static.result == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: production
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: backend
+        run: npm ci
+
+      - name: Refresh persistent job filter snapshot
+        working-directory: backend
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: npm run jobs:refresh-facets
+
   audit:
     name: Audit complete job board
-    needs: [sync-static, refresh-directory]
+    needs: [sync-static, refresh-directory, refresh-targeted-facets]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     timeout-minutes: 20

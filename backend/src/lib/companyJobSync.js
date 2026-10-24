@@ -23,6 +23,8 @@ import { fetchKuaishouCampusSnapshot } from './kuaishouJobImport.js'
 import { fetchLenovoSocialJobsSnapshot } from './lenovoSocialJobImport.js'
 import { fetchXiaohongshuJobsSnapshot } from './xiaohongshuJobImport.js'
 import { fetchIntelChinaJobsSnapshot } from './intelJobImport.js'
+import { fetchBilibiliJobsSnapshot } from './bilibiliJobImport.js'
+import { fetchKuaishouSocialSnapshot } from './kuaishouSocialJobImport.js'
 
 const waitMs = ms => new Promise(resolve => setTimeout(resolve, ms))
 
@@ -148,6 +150,14 @@ export const companyJobAdapters = {
     ...runtime,
   }),
   'intel-workday': (source, runtime) => fetchIntelChinaJobsSnapshot({
+    ...source.options,
+    ...runtime,
+  }),
+  'bilibili-official': (source, runtime) => fetchBilibiliJobsSnapshot({
+    ...source.options,
+    ...runtime,
+  }),
+  'kuaishou-social': (source, runtime) => fetchKuaishouSocialSnapshot({
     ...source.options,
     ...runtime,
   }),
