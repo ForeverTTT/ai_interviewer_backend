@@ -27,6 +27,7 @@ import { fetchBilibiliJobsSnapshot } from './bilibiliJobImport.js'
 import { fetchKuaishouSocialSnapshot } from './kuaishouSocialJobImport.js'
 import { fetchNeteaseCampusSnapshot } from './neteaseJobImport.js'
 import { fetchAntJobsSnapshot } from './antJobImport.js'
+import { fetchPddCampusSnapshot } from './pddJobImport.js'
 
 const waitMs = ms => new Promise(resolve => setTimeout(resolve, ms))
 
@@ -168,6 +169,10 @@ export const companyJobAdapters = {
     ...runtime,
   }),
   'ant-official': (source, runtime) => fetchAntJobsSnapshot({
+    ...source.options,
+    ...runtime,
+  }),
+  'pdd-campus': (source, runtime) => fetchPddCampusSnapshot({
     ...source.options,
     ...runtime,
   }),

@@ -195,6 +195,30 @@
       "options": { "mode": "intern", "pageSize": 10 }
     },
     {
+      "id": "pdd-graduate",
+      "name": "拼多多招聘官网 · 当前校招",
+      "companyName": "拼多多",
+      "adapter": "pdd-campus",
+      "sourceType": "official",
+      "fallbackCategory": "秋招",
+      "enabled": true,
+      "requestDelayMs": 120,
+      "minKeepRatio": 0.55,
+      "options": { "mode": "graduate", "pageSize": 10 }
+    },
+    {
+      "id": "pdd-intern",
+      "name": "拼多多招聘官网 · 当前实习",
+      "companyName": "拼多多",
+      "adapter": "pdd-campus",
+      "sourceType": "official",
+      "fallbackCategory": "实习",
+      "enabled": true,
+      "requestDelayMs": 120,
+      "minKeepRatio": 0.55,
+      "options": { "mode": "intern", "pageSize": 10 }
+    },
+    {
       "id": "bilibili-campus",
       "name": "哔哩哔哩招聘官网 · 校招与实习",
       "companyName": "哔哩哔哩",
