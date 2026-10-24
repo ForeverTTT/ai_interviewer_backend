@@ -7,9 +7,7 @@ on:
       - '.github/workflows/sync-company-jobs.yml'
       - 'backend/src/lib/bydJobImport.js'
       - 'backend/src/lib/intelJobImport.js'
-      - 'backend/src/lib/legacyFeishuCleanup.js'
       - 'backend/scripts/syncCompanyJobs.js'
-      - 'backend/scripts/cleanupLegacyFeishuJobs.js'
   schedule:
     # 每 12 小时拉取一次企业官网完整快照。单个来源失败不会下架其旧岗位。
     - cron: '23 */12 * * *'
@@ -114,13 +112,6 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: node scripts/reclassifyCompanyJobSources.js
-
-      - name: Remove legacy Feishu-only jobs
-        working-directory: backend
-        env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-        run: npm run jobs:cleanup-feishu
 
   audit:
     name: Audit complete job board
