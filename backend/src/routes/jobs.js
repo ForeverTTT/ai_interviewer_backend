@@ -15,6 +15,31 @@ export { graduationYearGroups, openFilter } from '../lib/jobFacets.js'
 
 const router = Router()
 
+// 列表卡片不需要完整 JD、来源同步键等大字段。明确列名既减少数据库读取，
+// 也避免每次翻页把 20 份岗位正文传到浏览器；完整内容仍由 /:id 返回。
+const JOB_LIST_COLUMNS = [
+  'id',
+  'category',
+  'company',
+  'company_type',
+  'graduation_years',
+  'industries',
+  'positions',
+  'locations',
+  'deadline',
+  'deadline_date',
+  'education',
+  'major_requirement',
+  'written_test',
+  'apply_url',
+  'notes',
+  'source_updated_at',
+  'job_title',
+  'department',
+  'published_at',
+  'job_functions',
+].join(',')
+
 // 求职信息是付费汇总表导入的数据，只给登录用户看
 router.use(requireAuth)
 
@@ -108,7 +133,7 @@ router.get('/', async (req, res) => {
       .from('job_postings')
       // 精确 count 会对十万级岗位做全量扫描，容易超过 Supabase 的语句时限。
       // estimated 在小结果集仍返回精确值，大结果集使用查询规划器统计，适合分页展示。
-      .select('*', { count: 'estimated' })
+      .select(JOB_LIST_COLUMNS, { count: 'estimated' })
 
     query = query.eq('status', 'open')
 
@@ -133,6 +158,8 @@ router.get('/', async (req, res) => {
       .range(from, from + pageSize - 1)
 
     if (error) throw error
+    // 岗位列表对同一位用户没有私有差异；短缓存让返回上一页和重复筛选无需再次查库。
+    res.set('Cache-Control', 'private, max-age=60, stale-while-revalidate=120')
     res.json({ total: count || 0, page, pageSize, jobs: data || [] })
   } catch (err) {
     console.error('[Jobs] List error:', err)

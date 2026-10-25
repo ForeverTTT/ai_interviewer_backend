@@ -20,7 +20,9 @@ import './CommunityPages.css'
 const PAGE_SIZE = 20
 const VIEW_KEY = 'landit_jobs_view'
 const LIST_COLUMNS = 'md:grid-cols-[minmax(150px,1.1fr)_minmax(0,2.2fr)_minmax(110px,1fr)_minmax(110px,0.9fr)_140px]'
+const PAGE_CACHE_TTL_MS = 60 * 1000
 let jobsPageCache = null
+const jobsRequestCache = new Map()
 
 function readView() {
   try {
@@ -317,7 +319,15 @@ export default function JobsPage() {
       const members = filters.year.flatMap(key => yearGroupsRef.current.find(g => g.value === key)?.members || [key])
       params.set('year', [...new Set(members)].join(','))
     }
-    return authedFetch(`/api/jobs?${params}`)
+    const path = `/api/jobs?${params}`
+    const cached = jobsRequestCache.get(path)
+    if (cached && Date.now() - cached.at < PAGE_CACHE_TTL_MS) return cached.data
+
+    const data = await authedFetch(path)
+    jobsRequestCache.set(path, { at: Date.now(), data })
+    // 用户连续筛选时限制内存占用；旧条目由插入顺序淘汰。
+    if (jobsRequestCache.size > 40) jobsRequestCache.delete(jobsRequestCache.keys().next().value)
+    return data
   }, [filters, search])
 
   const load = useCallback(async (nextPage) => {
