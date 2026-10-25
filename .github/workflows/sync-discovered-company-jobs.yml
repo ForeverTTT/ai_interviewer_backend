@@ -2,8 +2,8 @@ name: Sync discovered company career sites
 
 on:
   schedule:
-    # 每 3 小时处理最久未检查的一批来源；控制批量大小，约一天轮转覆盖活跃目录。
-    - cron: '47 */3 * * *'
+    # 每天 03:47 UTC 处理最久未检查的一批公开来源，降低访问量和 Actions 消耗。
+    - cron: '47 3 * * *'
   workflow_dispatch:
 
 permissions:
@@ -41,6 +41,13 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: npm run jobs:expire
+
+      - name: Retire restricted source snapshots
+        working-directory: backend
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: npm run jobs:retire-restricted
 
   sync:
     name: Sync ${{ matrix.platform }} sources

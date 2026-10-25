@@ -29,6 +29,7 @@ import { fetchNeteaseCampusSnapshot } from './neteaseJobImport.js'
 import { fetchAntJobsSnapshot } from './antJobImport.js'
 import { fetchPddCampusSnapshot } from './pddJobImport.js'
 import { fetchCtripJobsSnapshot } from './ctripJobImport.js'
+import { assertAutomatedJobSourceAllowed } from './companyJobCompliance.js'
 
 const waitMs = ms => new Promise(resolve => setTimeout(resolve, ms))
 
@@ -214,6 +215,7 @@ export async function syncCompanyJobSources(sources, {
     const source = enabled[sourceIndex]
     try {
       validateSource(source, adapters)
+      assertAutomatedJobSourceAllowed(source)
       const adapter = adapters[source.adapter]
       if (!adapter) throw new Error(`adapter 未注册：${source.adapter}`)
       log(`\n=== ${source.name} ===`)

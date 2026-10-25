@@ -2,8 +2,8 @@ name: Sync company career sites
 
 on:
   schedule:
-    # 每 12 小时拉取一次企业官网完整快照。单个来源失败不会下架其旧岗位。
-    - cron: '23 */12 * * *'
+    # 每天 01:23 UTC 拉取一次已通过合规门禁的官网完整快照。
+    - cron: '23 1 * * *'
   workflow_dispatch:
     inputs:
       source:
@@ -47,6 +47,14 @@ jobs:
       - name: Install dependencies
         working-directory: backend
         run: npm ci
+
+      - name: Retire restricted source snapshots
+        if: ${{ !inputs.dry_run }}
+        working-directory: backend
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: npm run jobs:retire-restricted
 
       - name: Sync official sources
         working-directory: backend

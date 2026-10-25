@@ -125,7 +125,9 @@
       "adapter": "kuaishou-social",
       "sourceType": "official",
       "fallbackCategory": "社招",
-      "enabled": true,
+      "enabled": false,
+      "automationPolicy": "blocked",
+      "policyReason": "需要生成网站访问签名；取得企业书面授权或正式接口前不自动同步",
       "requestDelayMs": 120,
       "minKeepRatio": 0.55,
       "options": { "pageSize": 100 }
@@ -137,7 +139,9 @@
       "adapter": "bilibili-official",
       "sourceType": "official",
       "fallbackCategory": "社招",
-      "enabled": true,
+      "enabled": false,
+      "automationPolicy": "review",
+      "policyReason": "公开职位接口包含 CSRF 访问流程；确认网站条款或取得授权前不自动同步",
       "requestDelayMs": 120,
       "minKeepRatio": 0.55,
       "options": { "mode": "social", "pageSize": 50 }
@@ -150,6 +154,8 @@
       "sourceType": "official",
       "fallbackCategory": "秋招",
       "enabled": false,
+      "automationPolicy": "blocked",
+      "policyReason": "官网存在访问控制；取得企业授权或正式接口前不自动同步",
       "requestDelayMs": 120,
       "minKeepRatio": 0.55,
       "options": {
@@ -249,7 +255,9 @@
       "adapter": "bilibili-official",
       "sourceType": "official",
       "fallbackCategory": "其他",
-      "enabled": true,
+      "enabled": false,
+      "automationPolicy": "review",
+      "policyReason": "公开职位接口包含 CSRF 访问流程；确认网站条款或取得授权前不自动同步",
       "requestDelayMs": 120,
       "minKeepRatio": 0.55,
       "options": { "mode": "campus", "pageSize": 50 }

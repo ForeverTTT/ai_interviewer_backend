@@ -18,6 +18,7 @@
     "jobs:audit": "node scripts/auditJobBoard.js",
     "jobs:expire": "node scripts/expireJobPostings.js",
     "jobs:refresh-facets": "node scripts/refreshJobFacets.js",
+    "jobs:retire-restricted": "node scripts/retireRestrictedJobSources.js",
     "jobs:cleanup-feishu": "node scripts/cleanupLegacyFeishuJobs.js",
     "jobs:sync-discovered": "node scripts/syncDiscoveredCompanyJobs.js",
     "jobs:reconcile-discovered": "node scripts/reconcileInterruptedCompanyJobs.js",
