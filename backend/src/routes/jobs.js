@@ -124,6 +124,7 @@ export function resolveJobSourceLinks(job, sources) {
 }
 
 router.get('/', async (req, res) => {
+  const requestStartedAt = performance.now()
   const parsed = jobQuerySchema.safeParse(req.query)
   if (!parsed.success) return res.status(400).json({ error: 'Invalid query' })
   const { q, category, companyType, fn, industry, year, city, open, sort, page, pageSize } = parsed.data
@@ -152,6 +153,7 @@ router.get('/', async (req, res) => {
     if (sort === 'updated') query = query.order('sort_date', { ascending: false, nullsFirst: false })
     else query = query.order('deadline_date', { ascending: sort === 'deadline_asc', nullsFirst: false })
     const from = (page - 1) * pageSize
+    const queryStartedAt = performance.now()
     const { data, error, count } = await query
       // 同一天的岗位按 id 定死顺序，分页时不会重复或漏掉。
       .order('id')
@@ -160,7 +162,18 @@ router.get('/', async (req, res) => {
     if (error) throw error
     // 岗位列表对同一位用户没有私有差异；短缓存让返回上一页和重复筛选无需再次查库。
     res.set('Cache-Control', 'private, max-age=60, stale-while-revalidate=120')
-    res.json({ total: count || 0, page, pageSize, jobs: data || [] })
+    res.json({
+      total: count || 0,
+      page,
+      pageSize,
+      jobs: data || [],
+      timing: {
+        authMs: req.authVerifyMs || 0,
+        authCacheHit: Boolean(req.authCacheHit),
+        queryMs: Math.round(performance.now() - queryStartedAt),
+        serverMs: Math.round(performance.now() - requestStartedAt),
+      },
+    })
   } catch (err) {
     console.error('[Jobs] List error:', err)
     res.status(500).json({ error: 'Failed to load jobs' })

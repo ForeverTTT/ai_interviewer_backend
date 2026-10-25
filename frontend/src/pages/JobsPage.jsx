@@ -323,7 +323,13 @@ export default function JobsPage() {
     const cached = jobsRequestCache.get(path)
     if (cached && Date.now() - cached.at < PAGE_CACHE_TTL_MS) return cached.data
 
+    const startedAt = performance.now()
     const data = await authedFetch(path)
+    console.info('[Jobs performance]', {
+      page: nextPage,
+      clientMs: Math.round(performance.now() - startedAt),
+      ...data.timing,
+    })
     jobsRequestCache.set(path, { at: Date.now(), data })
     // 用户连续筛选时限制内存占用；旧条目由插入顺序淘汰。
     if (jobsRequestCache.size > 40) jobsRequestCache.delete(jobsRequestCache.keys().next().value)

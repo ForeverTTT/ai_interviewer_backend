@@ -24,7 +24,7 @@ async function verifiedUser(token) {
   const now = Date.now()
   const key = tokenCacheKey(token)
   const cached = verifiedUsers.get(key)
-  if (cached?.expiresAt > now) return cached.promise
+  if (cached?.expiresAt > now) return { user: await cached.promise, cacheHit: true }
   if (cached) verifiedUsers.delete(key)
 
   // 同一页面会并发请求主体和筛选项；缓存进行中的 Promise，避免重复远程验签。
@@ -40,7 +40,7 @@ async function verifiedUser(token) {
   const expiresAt = Math.min(now + AUTH_CACHE_TTL_MS, jwtExpiry || now + AUTH_CACHE_TTL_MS)
   verifiedUsers.set(key, { expiresAt, promise })
   if (verifiedUsers.size > AUTH_CACHE_MAX_ENTRIES) verifiedUsers.delete(verifiedUsers.keys().next().value)
-  return promise
+  return { user: await promise, cacheHit: false }
 }
 
 /**
@@ -54,12 +54,15 @@ export async function requireAuth(req, res, next) {
   }
 
   const token = authHeader.split(' ')[1]
+  const authStartedAt = performance.now()
 
   try {
-    const user = await verifiedUser(token)
+    const { user, cacheHit } = await verifiedUser(token)
 
     req.user = user
     req.accessToken = token
+    req.authVerifyMs = Math.round(performance.now() - authStartedAt)
+    req.authCacheHit = cacheHit
     logStructured('info', 'auth_succeeded', requestContext(req))
     next()
   } catch (err) {
