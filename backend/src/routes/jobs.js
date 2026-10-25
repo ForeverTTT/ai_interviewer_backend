@@ -128,13 +128,17 @@ router.get('/', async (req, res) => {
   const parsed = jobQuerySchema.safeParse(req.query)
   if (!parsed.success) return res.status(400).json({ error: 'Invalid query' })
   const { q, category, companyType, fn, industry, year, city, open, sort, page, pageSize } = parsed.data
+  const term = sanitizeSearch(q)
 
   try {
     let query = supabase
       .from('job_postings')
       // 精确 count 会对十万级岗位做全量扫描，容易超过 Supabase 的语句时限。
       // estimated 在小结果集仍返回精确值，大结果集使用查询规划器统计，适合分页展示。
-      .select(JOB_LIST_COLUMNS, { count: 'estimated' })
+      // 关键词搜索只取当前页和额外一条，用它判断是否还有下一页。
+      // 搜索框每次变化都统计全部匹配行，会让一条很快的 20 条查询变成全表计数，
+      // 在生产链路上容易超时；普通列表仍保留估算总数供分类页跳页。
+      .select(JOB_LIST_COLUMNS, term ? undefined : { count: 'estimated' })
 
     query = query
       .eq('status', 'open')
@@ -152,7 +156,6 @@ router.get('/', async (req, res) => {
     if (year.length) query = query.filter('graduation_years', 'ov', pgArrayLiteral([...year, ANY_YEAR]))
     if (city.length) query = query.filter('locations', 'ov', pgArrayLiteral(city))
     if (open === 'true') query = query.or(openFilter())
-    const term = sanitizeSearch(q)
     if (term) query = query.or(`company.ilike.%${term}%,job_title.ilike.%${term}%,positions.ilike.%${term}%`)
 
     if (sort === 'updated') query = query.order('sort_date', { ascending: false })
@@ -162,16 +165,28 @@ router.get('/', async (req, res) => {
     const { data, error, count } = await query
       // 同一天的岗位按 id 定死顺序，分页时不会重复或漏掉。
       .order('id')
-      .range(from, from + pageSize - 1)
+      // 搜索时多取一条，仅用来判断“下一页”是否可用，不传给前端。
+      .range(from, from + pageSize - 1 + (term ? 1 : 0))
 
     if (error) throw error
+    const rows = data || []
+    const hasMore = term
+      ? rows.length > pageSize
+      : from + rows.length < (count || 0)
+    const jobs = term ? rows.slice(0, pageSize) : rows
+    // 搜索时不做全量计数，返回当前已确认的最小结果数，前端会明确显示“至少”。
+    const total = term
+      ? from + jobs.length + (hasMore ? 1 : 0)
+      : count || 0
     // 岗位列表对同一位用户没有私有差异；短缓存让返回上一页和重复筛选无需再次查库。
     res.set('Cache-Control', 'private, max-age=60, stale-while-revalidate=120')
     res.json({
-      total: count || 0,
+      total,
+      totalIsMinimum: Boolean(term),
+      hasMore,
       page,
       pageSize,
-      jobs: data || [],
+      jobs,
       timing: {
         authMs: req.authVerifyMs || 0,
         authCacheHit: Boolean(req.authCacheHit),

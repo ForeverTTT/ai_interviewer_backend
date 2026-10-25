@@ -2034,6 +2034,7 @@
     "city": "Stadt",
     "any": "Alle",
     "resultCount": "{{n}} Ergebnisse",
+    "resultCountMinimum": "Mindestens {{n}} Ergebnisse",
     "loading": "Stellen werden geladen...",
     "error": "Laden fehlgeschlagen. Bitte neu laden.",
     "noResults": "Keine passenden Stellen. Andere Filter probieren.",
@@ -2059,6 +2060,7 @@
     "pagination": "Stellenseiten",
     "previousPage": "Zurück",
     "nextPage": "Weiter",
+    "pageStatusMore": "Seite {{page}} · Weitere verfügbar",
     "pageStatus": "Seite {{page}} von {{pages}}"
   },
   "taxonomy": {

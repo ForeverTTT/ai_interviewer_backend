@@ -2044,6 +2044,7 @@
     "city": "City",
     "any": "Any",
     "resultCount": "{{n}} results",
+    "resultCountMinimum": "At least {{n}} results",
     "loading": "Loading openings...",
     "error": "Failed to load. Please refresh.",
     "noResults": "No matching openings. Try different filters.",
@@ -2069,6 +2070,7 @@
     "pagination": "Job pages",
     "previousPage": "Previous",
     "nextPage": "Next",
+    "pageStatusMore": "Page {{page}} · More available",
     "pageStatus": "Page {{page}} of {{pages}}"
   },
   "taxonomy": {

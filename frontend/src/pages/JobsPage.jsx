@@ -265,6 +265,8 @@ export default function JobsPage() {
   const [search, setSearch] = useState(initial.search)
   const [jobs, setJobs] = useState(initial.jobs || [])
   const [total, setTotal] = useState(initial.total || 0)
+  const [totalIsMinimum, setTotalIsMinimum] = useState(Boolean(initial.totalIsMinimum))
+  const [hasMore, setHasMore] = useState(Boolean(initial.hasMore))
   const [page, setPage] = useState(initial.page || 1)
   const [loading, setLoading] = useState(!initialRef.current.cached)
   const [error, setError] = useState(initial.error || false)
@@ -344,6 +346,10 @@ export default function JobsPage() {
       if (id !== requestId.current) return
       setJobs(data.jobs)
       setTotal(data.total)
+      setTotalIsMinimum(Boolean(data.totalIsMinimum))
+      setHasMore(typeof data.hasMore === 'boolean'
+        ? data.hasMore
+        : nextPage * PAGE_SIZE < data.total)
       setPage(nextPage)
       setError(false)
     } catch {
@@ -380,7 +386,7 @@ export default function JobsPage() {
     if (urlParams.toString() !== currentQuery) setUrlParams(currentParams, { replace: true })
   }, [currentQuery, currentParams, setUrlParams, urlParams])
 
-  cacheSnapshot.current = { query: currentQuery, search, filters, view, page, jobs, total, error, scrollY: window.scrollY }
+  cacheSnapshot.current = { query: currentQuery, search, filters, view, page, jobs, total, totalIsMinimum, hasMore, error, scrollY: window.scrollY }
   useEffect(() => () => {
     jobsPageCache = { ...cacheSnapshot.current, scrollY: window.scrollY }
   }, [])
@@ -479,7 +485,9 @@ export default function JobsPage() {
             <FilterSelect label={t('jobs.city')} values={filters.city} onChange={v => setFilter('city', v)} options={facets.cities} allLabel={t('jobs.any')} />
             <div className="ml-auto flex items-center gap-3">
               {!loading && !error && (
-                <span className="text-[12.5px] font-semibold text-brand-muted">{t('jobs.resultCount', { n: total })}</span>
+                <span className="text-[12.5px] font-semibold text-brand-muted">
+                  {t(totalIsMinimum ? 'jobs.resultCountMinimum' : 'jobs.resultCount', { n: total })}
+                </span>
               )}
               <div className="relative shrink-0">
                 <select
@@ -575,11 +583,15 @@ export default function JobsPage() {
                     </button>
                   </span>
                 ))}
-                <button type="button" onClick={() => goToPage(page + 1)} disabled={page === totalPages || loading} className="lk-btn lk-btn-ghost h-10 px-3" aria-label={t('jobs.nextPage')}>
+                <button type="button" onClick={() => goToPage(page + 1)} disabled={!hasMore || loading} className="lk-btn lk-btn-ghost h-10 px-3" aria-label={t('jobs.nextPage')}>
                   <span className="hidden sm:inline">{t('jobs.nextPage')}</span>
                   <ChevronRight className="h-4 w-4" />
                 </button>
-                <span className="ml-2 text-[12px] font-semibold text-brand-muted">{t('jobs.pageStatus', { page, pages: totalPages })}</span>
+                <span className="ml-2 text-[12px] font-semibold text-brand-muted">
+                  {totalIsMinimum && hasMore
+                    ? t('jobs.pageStatusMore', { page })
+                    : t('jobs.pageStatus', { page, pages: totalPages })}
+                </span>
               </nav>
             )}
           </>

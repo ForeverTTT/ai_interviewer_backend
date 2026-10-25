@@ -2048,6 +2048,7 @@
     "city": "工作城市",
     "any": "不限",
     "resultCount": "{{n}} 个结果",
+    "resultCountMinimum": "至少 {{n}} 个结果",
     "loading": "正在加载岗位...",
     "error": "加载失败，请刷新重试。",
     "noResults": "没有找到匹配的岗位，换个筛选条件试试。",
@@ -2073,6 +2074,7 @@
     "pagination": "岗位分页",
     "previousPage": "上一页",
     "nextPage": "下一页",
+    "pageStatusMore": "第 {{page}} 页 · 还有更多",
     "pageStatus": "第 {{page}} / {{pages}} 页"
   },
   "taxonomy": {
