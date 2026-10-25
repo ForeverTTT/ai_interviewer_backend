@@ -1,0 +1,57 @@
+name: Enforce job source policy
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - backend/config/company-job-sources.json
+      - backend/src/lib/companyJobCompliance.js
+      - backend/scripts/retireRestrictedJobSources.js
+      - backend/package.json
+      - backend/package-lock.json
+      - .github/workflows/enforce-job-source-policy.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: enforce-job-source-policy-production
+  cancel-in-progress: false
+
+jobs:
+  enforce-policy:
+    name: Retire restricted job sources
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: production
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: backend
+        run: npm ci
+
+      - name: Retire restricted source snapshots
+        working-directory: backend
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: npm run jobs:retire-restricted
+
+      - name: Refresh persistent job filter snapshot
+        working-directory: backend
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: npm run jobs:refresh-facets
