@@ -136,7 +136,12 @@ router.get('/', async (req, res) => {
       // estimated 在小结果集仍返回精确值，大结果集使用查询规划器统计，适合分页展示。
       .select(JOB_LIST_COLUMNS, { count: 'estimated' })
 
-    query = query.eq('status', 'open')
+    query = query
+      .eq('status', 'open')
+      // 没有官网发布时间、来源更新时间的记录无法可靠排序，也通常是残留的低质量数据。
+      // 排除它们后 PostgreSQL 可以直接沿 (status, sort_date desc, id) 索引取当前页，
+      // 避免十万级岗位每次翻页都做一次全量排序。
+      .not('sort_date', 'is', null)
 
     if (category) query = query.eq('category', category)
     // 同一项里多选 = 任一满足（数组列用 overlaps），不同项之间 = 同时满足
@@ -150,7 +155,7 @@ router.get('/', async (req, res) => {
     const term = sanitizeSearch(q)
     if (term) query = query.or(`company.ilike.%${term}%,job_title.ilike.%${term}%,positions.ilike.%${term}%`)
 
-    if (sort === 'updated') query = query.order('sort_date', { ascending: false, nullsFirst: false })
+    if (sort === 'updated') query = query.order('sort_date', { ascending: false })
     else query = query.order('deadline_date', { ascending: sort === 'deadline_asc', nullsFirst: false })
     const from = (page - 1) * pageSize
     const queryStartedAt = performance.now()

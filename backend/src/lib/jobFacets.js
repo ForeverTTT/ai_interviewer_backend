@@ -66,6 +66,7 @@ export async function buildJobFacets(db, { now = Date.now(), pageSize = DEFAULT_
       .from('job_postings')
       .select('category,company_type,job_functions,industry_keys,graduation_years,locations,sort_date')
       .eq('status', 'open')
+      .not('sort_date', 'is', null)
       .or(openFilter(now))
       .order('id')
       .range(from, from + pageSize - 1)
