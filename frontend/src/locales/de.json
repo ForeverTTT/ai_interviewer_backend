@@ -2055,7 +2055,11 @@
     "daysLeft": "Noch {{n}} Tage",
     "publishedAt": "Veröffentlicht {{date}}",
     "updatedAt": "Aktualisiert {{date}}",
-    "loadMore": "Mehr laden (noch {{n}})"
+    "loadMore": "Mehr laden (noch {{n}})",
+    "pagination": "Stellenseiten",
+    "previousPage": "Zurück",
+    "nextPage": "Weiter",
+    "pageStatus": "Seite {{page}} von {{pages}}"
   },
   "taxonomy": {
     "industryLabel": "Branche",

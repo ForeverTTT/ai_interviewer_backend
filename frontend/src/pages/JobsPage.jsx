@@ -6,6 +6,7 @@ import {
   Search, MapPin, Clock, GraduationCap, ExternalLink, Loader2,
   BookOpen, PenLine, CalendarClock, LayoutGrid, List,
   ArrowUp, ArrowDown, ArrowUpDown, ArrowRight, ChevronDown,
+  ChevronLeft, ChevronRight,
 } from 'lucide-react'
 import { getBackendBaseUrl } from '../lib/backendBase'
 import { supabase } from '../lib/supabase'
@@ -16,7 +17,7 @@ import { daysUntilChinaDeadline } from '../lib/chinaDate'
 import { createJobsListSearch, parseJobsListState } from '../lib/jobsListState'
 import './CommunityPages.css'
 
-const PAGE_SIZE = 24
+const PAGE_SIZE = 20
 const VIEW_KEY = 'landit_jobs_view'
 const LIST_COLUMNS = 'md:grid-cols-[minmax(150px,1.1fr)_minmax(0,2.2fr)_minmax(110px,1fr)_minmax(110px,0.9fr)_140px]'
 let jobsPageCache = null
@@ -264,7 +265,6 @@ export default function JobsPage() {
   const [total, setTotal] = useState(initial.total || 0)
   const [page, setPage] = useState(initial.page || 1)
   const [loading, setLoading] = useState(!initialRef.current.cached)
-  const [loadingMore, setLoadingMore] = useState(false)
   const [error, setError] = useState(initial.error || false)
   const [view, setView] = useState(initial.view)
   const requestId = useRef(0)
@@ -322,12 +322,11 @@ export default function JobsPage() {
 
   const load = useCallback(async (nextPage) => {
     const id = ++requestId.current
-    if (nextPage === 1) setLoading(true)
-    else setLoadingMore(true)
+    setLoading(true)
     try {
       const data = await fetchPage(nextPage)
       if (id !== requestId.current) return
-      setJobs(prev => (nextPage === 1 ? data.jobs : [...prev, ...data.jobs]))
+      setJobs(data.jobs)
       setTotal(data.total)
       setPage(nextPage)
       setError(false)
@@ -336,7 +335,6 @@ export default function JobsPage() {
     } finally {
       if (id === requestId.current) {
         setLoading(false)
-        setLoadingMore(false)
       }
     }
   }, [fetchPage])
@@ -352,23 +350,7 @@ export default function JobsPage() {
     if (!didInitialLoad.current) {
       didInitialLoad.current = true
       if (initialRef.current.cached) return
-      const targetPage = initialRef.current.parsed.page
-      if (targetPage === 1) {
-        load(1)
-        return
-      }
-      const id = ++requestId.current
-      setLoading(true)
-      Promise.all(Array.from({ length: targetPage }, (_, index) => fetchPage(index + 1)))
-        .then(pages => {
-          if (id !== requestId.current) return
-          setJobs(pages.flatMap(result => result.jobs))
-          setTotal(pages[0]?.total || 0)
-          setPage(targetPage)
-          setError(false)
-        })
-        .catch(() => { if (id === requestId.current) setError(true) })
-        .finally(() => { if (id === requestId.current) setLoading(false) })
+      load(initialRef.current.parsed.page)
       return
     }
     load(1)
@@ -405,7 +387,16 @@ export default function JobsPage() {
     return key
   }
   const categoryTabs = [{ value: '', count: facets?.total ?? 0, label: t('jobs.allCategories') }, ...(facets?.categories || [])]
-  const hasMore = jobs.length < total
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
+  const visiblePages = [...new Set([1, page - 1, page, page + 1, totalPages])]
+    .filter(value => value >= 1 && value <= totalPages)
+    .sort((a, b) => a - b)
+
+  const goToPage = (nextPage) => {
+    if (loading || nextPage === page || nextPage < 1 || nextPage > totalPages) return
+    load(nextPage)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
 
   return (
     <div className="community-page pb-16 pt-[calc(var(--ui-nav-h)+1.5rem)]">
@@ -548,13 +539,32 @@ export default function JobsPage() {
                 {jobs.map(job => <JobCard key={job.id} job={job} t={t} jobsReturnTo={jobsReturnTo} />)}
               </div>
             )}
-            {hasMore && (
-              <div className="mt-8 flex justify-center">
-                <button type="button" onClick={() => load(page + 1)} disabled={loadingMore} className="lk-btn lk-btn-ghost">
-                  {loadingMore && <Loader2 className="h-4 w-4 animate-spin" />}
-                  {t('jobs.loadMore', { n: total - jobs.length })}
+            {totalPages > 1 && (
+              <nav className="mt-8 flex flex-wrap items-center justify-center gap-2" aria-label={t('jobs.pagination')}>
+                <button type="button" onClick={() => goToPage(page - 1)} disabled={page === 1 || loading} className="lk-btn lk-btn-ghost h-10 px-3" aria-label={t('jobs.previousPage')}>
+                  <ChevronLeft className="h-4 w-4" />
+                  <span className="hidden sm:inline">{t('jobs.previousPage')}</span>
                 </button>
-              </div>
+                {visiblePages.map((value, index) => (
+                  <span key={value} className="contents">
+                    {index > 0 && value - visiblePages[index - 1] > 1 && <span className="px-1 text-brand-muted">…</span>}
+                    <button
+                      type="button"
+                      onClick={() => goToPage(value)}
+                      disabled={loading}
+                      aria-current={value === page ? 'page' : undefined}
+                      className={`h-10 min-w-10 rounded-full border px-3 text-[12.5px] font-bold transition-colors ${value === page ? 'border-brand-ink bg-brand-ink text-brand-on-ink' : 'border-brand-line bg-brand-card text-brand-muted hover:text-brand-ink'}`}
+                    >
+                      {value}
+                    </button>
+                  </span>
+                ))}
+                <button type="button" onClick={() => goToPage(page + 1)} disabled={page === totalPages || loading} className="lk-btn lk-btn-ghost h-10 px-3" aria-label={t('jobs.nextPage')}>
+                  <span className="hidden sm:inline">{t('jobs.nextPage')}</span>
+                  <ChevronRight className="h-4 w-4" />
+                </button>
+                <span className="ml-2 text-[12px] font-semibold text-brand-muted">{t('jobs.pageStatus', { page, pages: totalPages })}</span>
+              </nav>
             )}
           </>
         )}

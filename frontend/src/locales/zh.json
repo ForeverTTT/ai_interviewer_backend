@@ -2069,7 +2069,11 @@
     "daysLeft": "还剩 {{n}} 天截止",
     "publishedAt": "{{date}} 发布",
     "updatedAt": "{{date}} 更新",
-    "loadMore": "加载更多（还有 {{n}} 个）"
+    "loadMore": "加载更多（还有 {{n}} 个）",
+    "pagination": "岗位分页",
+    "previousPage": "上一页",
+    "nextPage": "下一页",
+    "pageStatus": "第 {{page}} / {{pages}} 页"
   },
   "taxonomy": {
     "industryLabel": "企业分类",

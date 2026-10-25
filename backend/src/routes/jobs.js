@@ -106,7 +106,9 @@ router.get('/', async (req, res) => {
   try {
     let query = supabase
       .from('job_postings')
-      .select('*', { count: 'exact' })
+      // 精确 count 会对十万级岗位做全量扫描，容易超过 Supabase 的语句时限。
+      // estimated 在小结果集仍返回精确值，大结果集使用查询规划器统计，适合分页展示。
+      .select('*', { count: 'estimated' })
 
     query = query.eq('status', 'open')
 
@@ -122,15 +124,11 @@ router.get('/', async (req, res) => {
     const term = sanitizeSearch(q)
     if (term) query = query.or(`company.ilike.%${term}%,job_title.ilike.%${term}%,positions.ilike.%${term}%`)
 
-    if (sort !== 'updated') {
-      query = query.order('deadline_date', { ascending: sort === 'deadline_asc', nullsFirst: false })
-    }
+    if (sort === 'updated') query = query.order('sort_date', { ascending: false, nullsFirst: false })
+    else query = query.order('deadline_date', { ascending: sort === 'deadline_asc', nullsFirst: false })
     const from = (page - 1) * pageSize
     const { data, error, count } = await query
-      .order('sort_date', { ascending: false, nullsFirst: false })
-      .order('source_updated_at', { ascending: false, nullsFirst: false })
-      .order('created_at', { ascending: false })
-      // 最后按 id 定死顺序，「加载更多」翻页时不会重复或漏掉同一时间的岗位
+      // 同一天的岗位按 id 定死顺序，分页时不会重复或漏掉。
       .order('id')
       .range(from, from + pageSize - 1)
 

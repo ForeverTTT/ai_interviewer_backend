@@ -2065,7 +2065,11 @@
     "daysLeft": "{{n}} days left",
     "publishedAt": "Published {{date}}",
     "updatedAt": "Updated {{date}}",
-    "loadMore": "Load more ({{n}} left)"
+    "loadMore": "Load more ({{n}} left)",
+    "pagination": "Job pages",
+    "previousPage": "Previous",
+    "nextPage": "Next",
+    "pageStatus": "Page {{page}} of {{pages}}"
   },
   "taxonomy": {
     "industryLabel": "Industry",
