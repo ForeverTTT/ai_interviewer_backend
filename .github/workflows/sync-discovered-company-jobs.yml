@@ -1,9 +1,7 @@
 name: Sync discovered company career sites
 
 on:
-  schedule:
-    # 每天 03:47 UTC 处理最久未检查的一批公开来源，降低访问量和 Actions 消耗。
-    - cron: '47 3 * * *'
+  # 日常同步已合并到 sync-company-jobs.yml；这里仅保留人工补跑入口。
   workflow_dispatch:
 
 permissions:

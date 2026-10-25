@@ -61,18 +61,23 @@ function countBy(rows, pickValues) {
 /** 只在后台刷新任务或快照缺失时扫描完整岗位库。 */
 export async function buildJobFacets(db, { now = Date.now(), pageSize = DEFAULT_PAGE_SIZE } = {}) {
   const rows = []
-  for (let from = 0; ; from += pageSize) {
-    const { data, error } = await db
+  let cursor = null
+  for (;;) {
+    let query = db
       .from('job_postings')
-      .select('category,company_type,job_functions,industry_keys,graduation_years,locations,sort_date')
+      .select('id,category,company_type,job_functions,industry_keys,graduation_years,locations,sort_date')
       .eq('status', 'open')
       .not('sort_date', 'is', null)
       .or(openFilter(now))
-      .order('id')
-      .range(from, from + pageSize - 1)
+      .order('id', { ascending: true })
+      .limit(pageSize)
+    if (cursor) query = query.gt('id', cursor)
+
+    const { data, error } = await query
     if (error) throw error
     rows.push(...data)
     if (data.length < pageSize) break
+    cursor = data[data.length - 1].id
   }
 
   return {

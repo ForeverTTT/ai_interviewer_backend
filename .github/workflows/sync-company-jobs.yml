@@ -2,7 +2,7 @@ name: Sync company career sites
 
 on:
   schedule:
-    # 每天 01:23 UTC 拉取一次已通过合规门禁的官网完整快照。
+    # 每天 01:23 UTC 统一更新官网和公开 ATS 来源；全站每天只自动同步一次。
     - cron: '23 1 * * *'
   workflow_dispatch:
     inputs:
@@ -67,9 +67,52 @@ jobs:
           ALLOW_FAILURES: ${{ !inputs.source && '--allow-source-failures' || '' }}
         run: node scripts/syncCompanyJobs.js $SOURCE $DRY_RUN $FORCE $ALLOW_FAILURES
 
+  sync-discovered:
+    name: Sync ${{ matrix.platform }} sources
+    needs: sync-static
+    if: ${{ !inputs.source && !inputs.dry_run }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    environment: production
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        include:
+          - platform: moka
+            limit: 90
+          - platform: hotjob
+            limit: 30
+          - platform: feishu-career
+            limit: 25
+          - platform: zhiye
+            limit: 110
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: backend
+        run: npm ci
+
+      - name: Sync oldest source snapshots first
+        working-directory: backend
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: node scripts/syncDiscoveredCompanyJobs.js --platform ${{ matrix.platform }} --limit-sources ${{ matrix.limit }} --allow-source-failures
+
   refresh-directory:
     name: Refresh company source directory
-    needs: sync-static
+    needs: [sync-static, sync-discovered]
     if: ${{ always() && !inputs.source && !inputs.dry_run }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -150,7 +193,7 @@ jobs:
 
   audit:
     name: Audit complete job board
-    needs: [sync-static, refresh-directory, refresh-targeted-facets]
+    needs: [sync-static, sync-discovered, refresh-directory, refresh-targeted-facets]
     # 单来源任务只校验该来源的完整快照并刷新筛选；全站审计留给定时/全量同步。
     if: ${{ always() && !inputs.source && !inputs.dry_run }}
     runs-on: ubuntu-latest
