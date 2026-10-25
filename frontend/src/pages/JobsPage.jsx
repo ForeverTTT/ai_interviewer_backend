@@ -325,11 +325,11 @@ export default function JobsPage() {
 
     const startedAt = performance.now()
     const data = await authedFetch(path)
-    console.info('[Jobs performance]', {
+    console.info('[Jobs performance]', JSON.stringify({
       page: nextPage,
       clientMs: Math.round(performance.now() - startedAt),
       ...data.timing,
-    })
+    }))
     jobsRequestCache.set(path, { at: Date.now(), data })
     // 用户连续筛选时限制内存占用；旧条目由插入顺序淘汰。
     if (jobsRequestCache.size > 40) jobsRequestCache.delete(jobsRequestCache.keys().next().value)
