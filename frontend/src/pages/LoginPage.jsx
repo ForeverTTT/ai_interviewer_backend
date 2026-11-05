@@ -114,7 +114,12 @@ function EmailForm({ mode, onModeChange, onBack, signInWithEmail, signUpWithEmai
     } catch (err) {
       console.error('Email auth error:', err)
       const key = EMAIL_ERROR_KEYS[err?.code]
-      track('login_failed', { reason: `email_${err?.code || 'unknown'}` })
+      track('login_failed', {
+        reason: `email_${err?.code || 'unknown'}`,
+        errorName: err?.name,
+        // Supabase 网络失败时 status 为 0 或缺省
+        httpStatus: Number.isInteger(err?.status) ? err.status : undefined,
+      })
       setError(key ? t(key) : err?.message || t('login.emailErrors.unavailable'))
     } finally {
       setBusy(false)

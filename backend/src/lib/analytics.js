@@ -231,6 +231,9 @@ const CLIENT_EVENTS = {
   }),
   login_failed: z.object({
     reason: text(60),
+    // 邮箱登录：Supabase 错误类名和 HTTP 状态（0 = 请求没到 Supabase），用来区分网络问题和服务端错误
+    errorName: text(40).optional(),
+    httpStatus: count.optional(),
   }),
   logged_out: z.object({}),
   language_changed: z.object({

@@ -113,3 +113,17 @@ test('picks the highest Gallup domain and ignores unknown keys', () => {
   assert.equal(topGallupDomain([{ key: 'unknown', score: 99 }]), undefined)
   assert.equal(topGallupDomain(null), undefined)
 })
+
+test('keeps email login failure diagnostics on client login_failed events', () => {
+  const { result, lines } = captureLogs(() => emitAnalyticsEvent({
+    source: 'client',
+    name: 'login_failed',
+    props: { reason: 'email_unknown', errorName: 'AuthRetryableFetchError', httpStatus: 0, message: 'secret' },
+  }))
+  assert.equal(result, true)
+  assert.deepEqual(JSON.parse(lines[0].props), {
+    reason: 'email_unknown',
+    errorName: 'AuthRetryableFetchError',
+    httpStatus: 0,
+  })
+})
